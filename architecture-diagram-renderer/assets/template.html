@@ -733,7 +733,19 @@ const MODEL = {
       if (presenterTransform !== null) scene.setAttribute("transform", presenterTransform);
     }
   }
+  // A documentation image shows the whole stage and must not depend on how long the page has
+  // been open. A stage with progressive disclosure reveals supporting flows layer by layer on a
+  // timer, so render every layer for the export and then put the presenter back at the layer it
+  // was showing; its own timer carries on revealing as before.
   function serializeDocumentationSvg() {
+    const stage = STAGES[IS_FLOW ? 0 : current], layers = stage ? disclosureLayers(stage) : null;
+    if (!layers || disclosureStageId !== stage.id || disclosureStep >= layers.length - 1) return serializeDocumentationSvgAsShown();
+    const shownStep = disclosureStep, shownDuration = DUR, shownStatus = document.getElementById("status").textContent;
+    DUR = 0; disclosureStep = layers.length - 1;
+    try { renderCurrent(); return serializeDocumentationSvgAsShown(); }
+    finally { disclosureStep = shownStep; renderCurrent(); DUR = shownDuration; document.getElementById("status").textContent = shownStatus; }
+  }
+  function serializeDocumentationSvgAsShown() {
     const parsed = new DOMParser().parseFromString(serializeVisibleSvg(), "image/svg+xml");
     const root = parsed.documentElement, scene = root.querySelector("g.viewport"), bounds = documentationBounds();
     if (parsed.querySelector("parsererror") || !scene || !bounds
