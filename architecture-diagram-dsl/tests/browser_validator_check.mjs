@@ -4,7 +4,9 @@ import { readFileSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
+import { isDeepStrictEqual } from "node:util";
 import vm from "node:vm";
+import { PYTHON } from "../../scripts/python_command.mjs";
 
 const ROOT = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const source = readFileSync(resolve(ROOT, "architecture-diagram-dsl/scripts/validate_transition_diagram.js"), "utf8");
@@ -36,7 +38,7 @@ try {
 }
 if (!malformed?.some(item => item.rule === "schema")) failures.push("malformed package did not return schema findings");
 
-const python = process.env.PYTHON || "python3";
+const python = PYTHON;
 const pythonScript = resolve(ROOT, "architecture-diagram-dsl/scripts/validate_transition_diagram.py");
 const base = {
   dsl: "transition-diagram/1.0",
@@ -69,6 +71,43 @@ try {
     if (Boolean(pythonRules.length) !== Boolean(jsRules.length) || JSON.stringify(pythonRules) !== JSON.stringify(jsRules)) failures.push(`${name}: Python/JS rule sets differ (${pythonRules.join(",")} vs ${jsRules.join(",")})`);
   }
 } finally { rmSync(scratch, { recursive: true, force: true }); }
+
+// FIX-008.1: the browser translator must build the same renderer model as the
+// Python CLI for every v2 view mode, not reject the view's own id and title.
+vm.runInContext(readFileSync(resolve(ROOT, "architecture-diagram-dsl/scripts/translate_transition_diagram.js"), "utf8"), context, { filename: "translate_transition_diagram.js" });
+const translator = context.TransitionDiagramTranslator;
+const pythonTranslator = resolve(ROOT, "architecture-diagram-dsl/scripts/translate_transition_diagram.py");
+const v2Document = views => ({ dsl: "transition-diagram/2.0", meta: { title: "v2 parity" }, catalog: { a: { label: "A", type: "service" }, b: { label: "B", type: "database" } }, views });
+const v2State = (id, wires) => ({ id, title: id.toUpperCase(), nodes: ["a", "b"], wires });
+const translationCases = [
+  ["v2-steps", v2Document([{ id: "migration", mode: "steps", title: "Migration", base: v2State("s0", []), sequence: [{ id: "s1", title: "Connect", add: { wires: ["a -> b: sql"] } }] }])],
+  ["v2-transition", v2Document([{ id: "migration", mode: "transition", title: "Migration", states: [v2State("s0", []), v2State("s1", ["a -> b"])] }])],
+  ["v2-scenarios", v2Document([{ id: "variants", mode: "scenarios", title: "Variants", base: v2State("base", ["a -> b"]), variants: [{ id: "alt", title: "Alt", remove: { wires: ["a -> b"] } }] }])],
+];
+const firstDifference = (left, right, path = "$") => {
+  if (isDeepStrictEqual(left, right)) return null;
+  if (left && right && typeof left === "object" && typeof right === "object") {
+    for (const key of new Set([...Object.keys(left), ...Object.keys(right)])) {
+      const found = firstDifference(left[key], right[key], `${path}.${key}`);
+      if (found) return found;
+    }
+  }
+  return `${path}: python=${JSON.stringify(left)?.slice(0, 80)} browser=${JSON.stringify(right)?.slice(0, 80)}`;
+};
+const translationScratch = mkdtempSync(join(tmpdir(), "diagram-translator-parity-"));
+try {
+  for (const [name, document] of translationCases) {
+    const sourcePath = join(translationScratch, `${name}.json`), outputPath = join(translationScratch, `${name}.model.json`);
+    writeFileSync(sourcePath, JSON.stringify(document));
+    try { execFileSync(python, [pythonTranslator, sourcePath, "--output", outputPath], { encoding: "utf8" }); }
+    catch (error) { failures.push(`${name}: Python translator failed: ${String(error.stderr || error.message).split("\n")[0]}`); continue; }
+    let browserModel;
+    try { browserModel = JSON.parse(JSON.stringify(translator.translateDocument(document))); }
+    catch (error) { failures.push(`${name}: browser translator threw: ${error.message}${error.findings ? ` (${error.findings.map(item => `${item.rule}@${item.path}`).slice(0, 2).join("; ")})` : ""}`); continue; }
+    const difference = firstDifference(JSON.parse(readFileSync(outputPath, "utf8")), browserModel);
+    if (difference) failures.push(`${name}: browser model differs from Python at ${difference}`);
+  }
+} finally { rmSync(translationScratch, { recursive: true, force: true }); }
 
 if (failures.length) {
   failures.forEach(item => console.error(`✗ ${item}`));

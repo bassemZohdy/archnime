@@ -55,9 +55,8 @@
   - Done when: both implementations return the same rule set and the same model for every probe document, and malformed input yields findings instead of exceptions; `node architecture-diagram-dsl/tests/browser_validator_check.mjs`
   - Links: Ref: architecture-diagram-dsl/references/runtime.md · Lane: hardening
   - State: branch todo/FIX-008-make-browser-validator-translator from main; next: build children
-  - [/] **FIX-008.1** · mid · Translate v2 steps, transition and scenarios views in the browser without rejecting the view id and title
+  - [x] **FIX-008.1** · mid · Translate v2 steps, transition and scenarios views in the browser without rejecting the view id and title
     - Done when: v2 steps and transition views translate to the Python model; `node architecture-diagram-dsl/tests/browser_validator_check.mjs`
-    - State: attempts 0/3; baseline 46 passing; branch todo/FIX-008.1-translate-v2-steps-transition from todo/FIX-008-make-browser-validator-translator; next: build
   - [ ] **FIX-008.2** · mid · Never throw on malformed documents in the browser validator and report them cleanly from Python
     - Done when: null boundary, string nodes, null infrastructure and string flow steps return findings in both; `node architecture-diagram-dsl/tests/browser_validator_check.mjs`
   - [ ] **FIX-008.3** · mid · Reject non-string detail and level and require nodes and wires on system views in schema, validators and models
