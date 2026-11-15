@@ -659,6 +659,7 @@ $defs:
       nodes:
         type: array
         items: { $ref: "#/$defs/nodeRef" }
+        minItems: 1
       wires:
         type: array
         items: { $ref: "#/$defs/wire" }
@@ -692,6 +693,21 @@ $defs:
             type: object
             propertyNames: { $ref: "#/$defs/id" }
             additionalProperties: { $ref: "#/$defs/comparisonTradeoff" }
+    # Each mode needs the fields its renderer reads; the mode-less case is reported
+    # by the view-mode-required lint rule instead.
+    allOf:
+      - if: { required: [mode], properties: { mode: { const: system } } }
+        then: { required: [nodes, wires] }
+      - if: { required: [mode], properties: { mode: { const: flow } } }
+        then: { required: [nodes, wires, steps] }
+      - if: { required: [mode], properties: { mode: { const: deployment } } }
+        then: { required: [nodes, wires, deployment] }
+      - if: { required: [mode], properties: { mode: { const: transition } } }
+        then: { required: [states] }
+      - if: { required: [mode], properties: { mode: { const: steps } } }
+        then: { required: [base, sequence] }
+      - if: { required: [mode], properties: { mode: { const: scenarios } } }
+        then: { required: [base, variants] }
 
   views:
     type: array
