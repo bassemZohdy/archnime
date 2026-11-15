@@ -71,6 +71,13 @@ toolbar uses. A missing browser skips them locally and fails them under
   and its smallest text stays above 6 px and 4.5 px at the first two widths. Checked on a flow,
   a model with colliding trust-boundary labels and nested packages.
 
+- `documentation_states.test.mjs` — the toolbar export writes the selected state: for each
+  migration stage, scenario variant, flow step and bundle view it carries the presenter's node
+  and boundary ids (and, for stages, their kinds and labels), the selected step's active
+  wires, a file name with the selected number, and no id that only another state declares;
+  a package the user collapsed in one stage is exported collapsed there and expanded in the
+  stage where it stays expanded.
+
 ## `script_integrity_check.mjs` — pinned CDN scripts
 
 Every external script the pages load (D3, Dagre, ELK, gif.js and js-yaml) carries a
