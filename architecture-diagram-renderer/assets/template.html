@@ -6,10 +6,10 @@
 <title>Orders extraction · animated architecture</title>
 <!-- Copy architecture-library.js beside the generated HTML. CDN scripts are replaceable, not semantic inputs. -->
 <script src="./architecture-library.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@dagrejs/dagre@1.1.4/dist/dagre.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/elkjs@0.12.0/lib/elk.bundled.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@dagrejs/dagre@1.1.4/dist/dagre.min.js" integrity="sha384-lNbBZ8yeW7Otl9YsPLeAvfxwUjrpXOnk/ujXsbt5s9wWhKWCYzMeFdZwKBpYxeDT" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/elkjs@0.12.0/lib/elk.bundled.js" integrity="sha384-ww57TDqx4cGknIavPm0QKO+aygLUR1BLSn2Vhbnt1XdYKWcwLyWTFKX7aZMaKIi2" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js" integrity="sha384-4RMW82CWFobXY+HRHXe5go/V5acBhiIVGCT+2k7TEoxi7AiWKw8WoWb9qMU+FAFu" crossorigin="anonymous"></script>
 <!-- Layout + self-check engine, shared with the DSL translator. Copy beside the generated HTML. -->
 <script src="./diagram-engine.js"></script>
 <!-- FONT-FACE:BEGIN -->
@@ -833,6 +833,7 @@ ${style}</style>${sharedDefs}${groups.join("")}<g class="animated-legend" aria-l
   async function exportRaster(kind) { const img = await svgImage(), scale = Math.max(1, Math.min(2, window.devicePixelRatio || 1)), canvas = document.createElement("canvas"); canvas.width = CANVAS.w * scale; canvas.height = CANVAS.h * scale; const ctx = canvas.getContext("2d"); if (kind === "jpeg") { ctx.fillStyle = getComputedStyle(document.body).getPropertyValue("--panel"); ctx.fillRect(0, 0, canvas.width, canvas.height); } ctx.drawImage(img, 0, 0, canvas.width, canvas.height); canvas.toBlob(blob => download(`${META.title.replace(/\s+/g, "-").toLowerCase()}-stage-${current + 1}.${kind}`, blob), kind === "jpeg" ? "image/jpeg" : "image/png"); }
   window.serializeAnimatedSvg = serializeAnimatedSvg; document.getElementById("btn-export-documentation-svg").onclick = exportDocumentationSvg; window.serializeArchitectureMermaid = serializeArchitectureMermaid; window.serializeSequenceMermaid = serializeSequenceMermaid; document.getElementById("btn-export-svg").onclick = () => download(`${META.title.replace(/\s+/g, "-").toLowerCase()}-stage-${current + 1}.svg`, new Blob([serializeVisibleSvg()], { type: "image/svg+xml" })); document.getElementById("btn-export-animated-svg").onclick = exportAnimatedSvg; document.getElementById("btn-export-mermaid").onclick = () => download(`${META.title.replace(/\s+/g, "-").toLowerCase()}-stage-${current + 1}.mmd`, new Blob([serializeArchitectureMermaid()], { type: "text/plain;charset=utf-8" })); document.getElementById("btn-export-sequence").onclick = () => download(`${META.title.replace(/\s+/g, "-").toLowerCase()}-sequence.mmd`, new Blob([serializeSequenceMermaid()], { type: "text/plain;charset=utf-8" })); document.getElementById("btn-export-png").onclick = () => exportRaster("png"); document.getElementById("btn-export-jpeg").onclick = () => exportRaster("jpeg");
   const GIF_WORKER_CDN_URL = "https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js";
+  const GIF_WORKER_INTEGRITY = "sha384-uL0SwIQSos1DfQU2KzlDbPuSz7Jwo+hmNPIhe86VJ+MWwyj0DvjngnAgWrkNi9eQ";
   let gifWorkerBlobUrl = null;
   // Browsers refuse `new Worker(url)` for a cross-origin url outright (unlike a
   // <script> tag or fetch(), this has no CORS opt-in) -- so the CDN worker
@@ -842,7 +843,7 @@ ${style}</style>${sharedDefs}${groups.join("")}<g class="animated-legend" aria-l
   // jsdelivr) and construct the worker from a same-origin blob URL instead.
   async function resolveGifWorkerUrl() {
     if (gifWorkerBlobUrl) return gifWorkerBlobUrl;
-    const response = await fetch(GIF_WORKER_CDN_URL);
+    const response = await fetch(GIF_WORKER_CDN_URL, { integrity: GIF_WORKER_INTEGRITY, mode: "cors" });
     if (!response.ok) throw new Error(`could not fetch gif.worker.js (${response.status})`);
     gifWorkerBlobUrl = URL.createObjectURL(await response.blob());
     return gifWorkerBlobUrl;

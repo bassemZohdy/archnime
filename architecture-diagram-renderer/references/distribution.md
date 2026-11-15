@@ -18,6 +18,15 @@ canonical template still loads D3, dagre, ELK, GIF, and the GIF worker from
 configured runtime URLs. A genuinely offline deployment must vendor those
 dependencies and update the template's dependency policy explicitly.
 
+Those runtime scripts are pinned twice: by exact version in the URL, and by a
+`sha384` Subresource Integrity hash (with `crossorigin="anonymous"`) on every
+`<script>` tag in `template.html` and `translate.html`. The GIF worker, which is
+fetched instead of loaded by a tag, passes the same kind of hash to `fetch()`.
+`assets/cdn-integrity.json` lists every hash, `npm run check-integrity` keeps the
+pages and the list in step, and `VERIFY_CDN_INTEGRITY=1 npm run check-integrity`
+re-downloads each file to confirm the hash. A browser refuses a file that does not
+match, so a changed or mis-served CDN file fails closed instead of running.
+
 ## Reconsider publishing when
 
 | Signal | Vendored files remain best when… | A package becomes worthwhile when… |
