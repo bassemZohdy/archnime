@@ -11,9 +11,8 @@
   - Done when: static SVG is zoom-independent, complete, font-embedded, and rejects malformed output; `npm test`
   - Links: Ref: architecture-diagram-renderer/references/documentation-export.md
   - State: branch todo/TASK-001-verify-documentation-safe-svg from main; next: build children
-  - [/] **TASK-001.1** · mid · Add independent SVG-image regression for stage geometry and missing-font failure
+  - [x] **TASK-001.1** · mid · Add independent SVG-image regression for stage geometry and missing-font failure
     - Done when: pan/zoom cannot crop SVG and missing font fails explicitly; `node --test architecture-diagram-renderer/tests/documentation_svg.test.mjs`
-    - State: attempts 0/3; baseline 46 passing; branch todo/TASK-001.1-add-independent-svg-image from todo/TASK-001-verify-documentation-safe-svg; next: build
   - [ ] **TASK-001.2** · mid · Validate documentation SVG rendering at narrow and full README widths
     - Done when: labels, arrows, node identity and trust boundaries remain readable at supported sizes; `node --test architecture-diagram-renderer/tests/documentation_embedding.test.mjs`
   - [ ] **TASK-001.3** · mid · Verify the export preserves the selected flow step, stage and view without losing visible nodes
