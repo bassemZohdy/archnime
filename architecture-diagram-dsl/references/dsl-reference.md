@@ -54,6 +54,18 @@ and wires follow the corresponding sections below. `navigateTo` on a catalog
 node, node override, or flow/transition step targets another view ID. The
 renderer preserves the target in the URL as `?view=<viewId>`.
 
+The schema requires each mode's fields up front, so a view that would draw an
+empty diagram is rejected rather than translated:
+
+| `mode` | Required fields |
+| --- | --- |
+| `system` | `nodes` (at least one), `wires` |
+| `flow` | `nodes` (at least one), `wires`, `steps` |
+| `deployment` | `nodes` (at least one), `wires`, `deployment` |
+| `transition` | `states` (at least two) |
+| `steps` | `base`, `sequence` |
+| `scenarios` | `base`, `variants` |
+
 Deployment is only a v2 view mode. It uses normal `nodes` and logical `wires`,
 plus a nested infrastructure map and placements:
 

@@ -318,7 +318,7 @@ def _copy_deployment_view(doc: dict[str, Any], view: dict[str, Any]) -> dict[str
         children.extend(instance_id for placement in placements if placement["target"] == infra_id for instance_id in placement["instanceIds"])
         packages[package_ids[infra_id]] = {
             "label": (infra or {}).get("label", infra_id),
-            "detail": (infra or {}).get("detail"),
+            **({"detail": infra["detail"]} if "detail" in infra else {}),
             "kind": "existing",
             "children": children,
             "deploymentKind": (infra or {}).get("kind"),

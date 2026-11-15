@@ -59,7 +59,7 @@
     - Done when: v2 steps and transition views translate to the Python model; `node architecture-diagram-dsl/tests/browser_validator_check.mjs`
   - [x] **FIX-008.2** · mid · Never throw on malformed documents in the browser validator and report them cleanly from Python
     - Done when: null boundary, string nodes, null infrastructure and string flow steps return findings in both; `node architecture-diagram-dsl/tests/browser_validator_check.mjs`
-  - [ ] **FIX-008.3** · mid · Reject non-string detail and level and require nodes and wires on system views in schema, validators and models
+  - [x] **FIX-008.3** · mid · Reject non-string detail and level and require nodes and wires on system views in schema, validators and models
     - Done when: both validators reject them and both translators omit a missing infrastructure detail instead of emitting null; `node architecture-diagram-dsl/tests/browser_validator_check.mjs`
 
 - [ ] **FIX-009** · P1 · mid · Emit Mermaid companions that parse and keep authored labels, and give the translate CLI clean errors

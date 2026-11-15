@@ -392,6 +392,7 @@
       if (!idValid(entry.type) || (!enumValid(entry.type, NODE_TYPES) && !registeredTypes.has(entry.type))) findings.push(schema(`type must be a built-in or registered meta.icons type`, pathKey(entryPath, "type")));
       if (has(entry, "kind") && !enumValid(entry.kind, KINDS)) findings.push(schema("kind has an invalid value", pathKey(entryPath, "kind")));
       if (has(entry, "detail") && typeof entry.detail !== "string") findings.push(schema("detail must be a string", pathKey(entryPath, "detail")));
+      if (has(entry, "level") && typeof entry.level !== "string") findings.push(schema("level must be a string", pathKey(entryPath, "level")));
       if (has(entry, "size")) checkSize(entry.size, pathKey(entryPath, "size"), findings);
       if (has(entry, "contains") && !idValid(entry.contains)) findings.push(schema("contains must be a valid id", pathKey(entryPath, "contains")));
       if (has(entry, "navigateTo") && !idValid(entry.navigateTo)) findings.push(schema("navigateTo must be a valid id", pathKey(entryPath, "navigateTo")));
@@ -416,6 +417,8 @@
         if (typeof pkg.label !== "string" || !pkg.label.length) findings.push(schema("package requires a non-empty label", pathKey(pkgPath, "label")));
         if (!Array.isArray(pkg.children) || pkg.children.length < 1 || !pkg.children.every(idValid)) findings.push(schema("package children must be a non-empty id array", pathKey(pkgPath, "children")));
         if (has(pkg, "kind") && !enumValid(pkg.kind, KINDS)) findings.push(schema("package kind has an invalid value", pathKey(pkgPath, "kind")));
+        if (has(pkg, "level") && typeof pkg.level !== "string") findings.push(schema("package level must be a string", pathKey(pkgPath, "level")));
+        if (has(pkg, "detail") && typeof pkg.detail !== "string") findings.push(schema("package detail must be a string", pathKey(pkgPath, "detail")));
         if (has(pkg, "ops") && typeof pkg.ops !== "boolean") findings.push(schema("package ops must be a boolean", pathKey(pkgPath, "ops")));
       });
     }
@@ -725,6 +728,7 @@
       if (typeof item.label !== "string" || !item.label.length) findings.push(schema("infrastructure entry requires a non-empty label", pathKey(itemPath, "label")));
       if (!enumValid(item.kind, ["region", "cluster", "host", "runtime", "network"])) findings.push(schema("infrastructure kind has an invalid value", pathKey(itemPath, "kind")));
       if (has(item, "children") && (!Array.isArray(item.children) || !item.children.length || !item.children.every(idValid))) findings.push(schema("infrastructure children must be a non-empty id array", pathKey(itemPath, "children")));
+      if (has(item, "detail") && typeof item.detail !== "string") findings.push(schema("infrastructure detail must be a string", pathKey(itemPath, "detail")));
       if (has(item, "size")) checkSize(item.size, pathKey(itemPath, "size"), findings);
       if (has(item, "ops") && typeof item.ops !== "boolean") findings.push(schema("infrastructure ops must be a boolean", pathKey(itemPath, "ops")));
     });

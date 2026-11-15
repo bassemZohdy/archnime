@@ -46,8 +46,10 @@ const base = {
   catalog: { node: { label: "Node", type: "service" } },
   system: { title: "parity", nodes: ["node"], wires: [] },
 };
+const v2Base = { dsl: "transition-diagram/2.0", meta: base.meta, catalog: base.catalog };
 const cases = [
   ["valid", base],
+  ["valid-v2-system-view", { ...v2Base, views: [{ id: "context", mode: "system", title: "Context", nodes: ["node"], wires: [] }] }],
   ["tone", { ...base, system: { ...base.system, boundaries: [{ id: "zone", label: "Zone", tone: 42, contains: ["node"] }] } }],
   ["unknown-wire", { ...base, system: { ...base.system, wires: [{ from: "node", to: "missing" }] } }],
   ["duplicate-view-state", { ...base, catalog: { ...base.catalog, app: { label: "App", type: "service" } }, views: [{ id: "migration", mode: "transition", states: [{ id: "same", title: "One", nodes: ["app"], wires: [] }, { id: "same", title: "Two", nodes: ["app"], wires: [] }] }] }],
@@ -62,11 +64,19 @@ const cases = [
   ["malformed-infrastructure-null", { ...base, views: [{ id: "production", mode: "deployment", nodes: ["node"], wires: [], deployment: { infrastructure: { host: null }, placements: [{ component: "node", target: "host" }] } }] }],
   ["malformed-flow-steps-string", { dsl: "transition-diagram/1.0", meta: base.meta, catalog: base.catalog, flow: { title: "flow", nodes: ["node"], wires: [], steps: "node" } }],
   ["malformed-steps-sequence-string", { dsl: "transition-diagram/1.0", meta: base.meta, catalog: base.catalog, steps: { base: { id: "start", title: "Start", nodes: ["node"], wires: [] }, sequence: "next" } }],
+  // FIX-008.3: both validators must reject these, with the same rule names.
+  ["catalog-level-number", { ...base, catalog: { node: { label: "Node", type: "service", level: 5 } } }, { invalid: true }],
+  ["package-detail-number", { ...base, packages: { group: { label: "Group", children: ["node"], detail: 5 } } }, { invalid: true }],
+  ["package-level-number", { ...base, packages: { group: { label: "Group", children: ["node"], level: 5 } } }, { invalid: true }],
+  ["infrastructure-detail-number", { ...v2Base, views: [{ id: "production", mode: "deployment", title: "Production", nodes: ["node"], wires: [], deployment: { infrastructure: { host: { label: "Host", kind: "host", detail: 7 } }, placements: [{ component: "node", target: "host" }] } }] }, { invalid: true }],
+  ["system-view-without-nodes", { ...v2Base, views: [{ id: "context", mode: "system", title: "Context" }] }, { invalid: true }],
+  ["system-view-empty-nodes", { ...v2Base, views: [{ id: "context", mode: "system", title: "Context", nodes: [], wires: [] }] }, { invalid: true }],
+  ["flow-view-without-steps", { ...v2Base, views: [{ id: "path", mode: "flow", title: "Path", nodes: ["node"], wires: [] }] }, { invalid: true }],
   ["duplicate-deployment-placement", { ...base, catalog: { ...base.catalog, app: { label: "App", type: "service" } }, views: [{ id: "production", mode: "deployment", nodes: ["app"], wires: [], deployment: { infrastructure: { host: {} }, placements: [{ component: "app", target: "host" }, { component: "app", target: "host" }] } }] }],
 ];
 const scratch = mkdtempSync(join(tmpdir(), "diagram-validator-parity-"));
 try {
-  for (const [name, document] of cases) {
+  for (const [name, document, expectation] of cases) {
     const sourcePath = join(scratch, `${name}.json`);
     writeFileSync(sourcePath, JSON.stringify(document));
     let pythonFindings;
@@ -80,6 +90,7 @@ try {
     catch (error) { failures.push(`${name}: browser validator threw ${error.message}`); continue; }
     const pythonRules = [...new Set(pythonFindings.map(item => item.rule))].sort();
     if (pythonRules.includes("lint-internal-error")) failures.push(`${name}: Python lint fell back to lint-internal-error`);
+    if (expectation?.invalid && (!pythonRules.length || !jsFindings.length)) failures.push(`${name}: expected both validators to reject it (python: ${pythonRules.join(",") || "none"}, browser: ${[...new Set(jsFindings.map(item => item.rule))].join(",") || "none"})`);
     const jsRules = [...new Set(jsFindings.map(item => item.rule))].sort();
     if (Boolean(pythonRules.length) !== Boolean(jsRules.length) || JSON.stringify(pythonRules) !== JSON.stringify(jsRules)) failures.push(`${name}: Python/JS rule sets differ (${pythonRules.join(",")} vs ${jsRules.join(",")})`);
   }
@@ -96,6 +107,7 @@ const translationCases = [
   ["v2-steps", v2Document([{ id: "migration", mode: "steps", title: "Migration", base: v2State("s0", []), sequence: [{ id: "s1", title: "Connect", add: { wires: ["a -> b: sql"] } }] }])],
   ["v2-transition", v2Document([{ id: "migration", mode: "transition", title: "Migration", states: [v2State("s0", []), v2State("s1", ["a -> b"])] }])],
   ["v2-scenarios", v2Document([{ id: "variants", mode: "scenarios", title: "Variants", base: v2State("base", ["a -> b"]), variants: [{ id: "alt", title: "Alt", remove: { wires: ["a -> b"] } }] }])],
+  ["v2-deployment", v2Document([{ id: "production", mode: "deployment", title: "Production", nodes: ["a", "b"], wires: ["a -> b"], deployment: { infrastructure: { region: { label: "Region", kind: "region", children: ["host"] }, host: { label: "Host", kind: "host" } }, placements: [{ component: "a", target: "host", replicas: 2 }, { component: "b", target: "host" }] } }])],
 ];
 const firstDifference = (left, right, path = "$") => {
   if (isDeepStrictEqual(left, right)) return null;
