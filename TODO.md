@@ -22,6 +22,7 @@
 - [ ] **TASK-006** · P2 · mid · Establish an animated SVG compatibility policy for documentation targets
   - Done when: the recommended animation format has tested static fallback and reduced-motion behavior; `npm test`
   - Links: Ref: architecture-diagram-renderer/references/documentation-export.md
+  - State: branch todo/TASK-006-establish-animated-svg-compatibility from main; next: build children
   - [ ] **TASK-006.1** · mid · Check CSS-keyframe SVG playback in image embedding and reduced-motion modes
     - Done when: supported viewers show all intended stages or an accessible first-frame fallback; `node --test architecture-diagram-renderer/tests/animated_svg_compat.test.mjs`
   - [ ] **TASK-006.2** · low · Compare SMIL only for verified unsupported CSS-animation targets
