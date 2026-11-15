@@ -46,6 +46,7 @@
 - [ ] **FIX-020** · P1 · mid · Export every flow layer of a progressive-disclosure stage instead of whichever layer is showing
   - Done when: the documentation SVG of the dense mesh is identical whenever it is taken and holds all supporting wires, and the presenter keeps its own disclosure step; `node --test architecture-diagram-renderer/tests/documentation_disclosure.test.mjs`
   - Links: Ref: architecture-diagram-renderer/references/documentation-export.md
+  - State: branch todo/FIX-020-export-every-flow-layer from main; next: start FIX-020
 
 - [ ] **TASK-006** · P2 · mid · Establish an animated SVG compatibility policy for documentation targets
   - Done when: the recommended animation format has tested static fallback and reduced-motion behavior; `npm test`
