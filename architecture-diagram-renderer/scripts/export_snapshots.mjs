@@ -7,7 +7,9 @@
  * shipped builder, opened in Chromium, and each view's states (migration stages, scenario
  * variants, flow steps) are selected through the same URL parameters the presenter uses.
  * Each state is written once, as the exact SVG that "SVG (documentation)" produces, under a
- * stable name: <model>--[<view>--]<NN>-<state>.svg. Nothing is patched in the generated HTML.
+ * stable name: <model>--[<view>--]<NN>-<state>.svg, together with a manifest.json that records the
+ * SHA-256 of the source model, the renderer and every file (see snapshot_manifest.mjs). Nothing is
+ * patched in the generated HTML.
  */
 import { execFileSync, execSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -15,6 +17,7 @@ import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { PYTHON } from "../../scripts/python_command.mjs";
+import { buildManifest, writeManifest } from "./snapshot_manifest.mjs";
 
 const HERE = resolve(fileURLToPath(new URL(".", import.meta.url)));
 export const DEFAULT_TEMPLATE = join(HERE, "..", "assets", "template.html");
@@ -110,7 +113,8 @@ export async function exportSnapshots({ modelPath, outDir, template = DEFAULT_TE
       writeFileSync(path, svg, "utf8");
       return { ...entry, path };
     });
-    return { files };
+    const manifest = writeManifest(outDir, buildManifest({ modelPath, template, files }));
+    return { files, manifest };
   } finally {
     await browser?.close();
     rmSync(work, { recursive: true, force: true });
@@ -134,12 +138,12 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   try {
     const options = parseArguments(process.argv.slice(2));
     if (!options.model || !options.out) throw new Error("usage: export_snapshots.mjs --model model.json --out dir [--views a,b] [--states 1,3|id,id] [--template template.html]");
-    const { files } = await exportSnapshots({
+    const { files, manifest } = await exportSnapshots({
       modelPath: resolve(options.model), outDir: resolve(options.out), template: options.template ? resolve(options.template) : DEFAULT_TEMPLATE,
       views: options.views?.split(",").filter(Boolean), states: options.states?.split(",").filter(Boolean),
     });
     files.forEach(entry => console.log(entry.file));
-    console.log(`exported ${files.length} snapshot(s) to ${resolve(options.out)}`);
+    console.log(`exported ${files.length} snapshot(s) and ${basename(manifest)} to ${resolve(options.out)}`);
   } catch (error) {
     console.error(`export_snapshots: ${error.message}`);
     process.exit(error.message.startsWith("usage:") ? 2 : 1);

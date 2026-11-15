@@ -19,7 +19,7 @@ async function exportTo(modelPath, options = {}) {
   const outDir = mkdtempSync(join(tmpdir(), "snapshot-test-"));
   try {
     const { files } = await exportSnapshots({ modelPath, outDir, chromium, ...options });
-    const onDisk = readdirSync(outDir).sort();
+    const onDisk = readdirSync(outDir).filter(name => name !== "manifest.json").sort();
     return { files, onDisk, read: name => readFileSync(join(outDir, name), "utf8"), cleanup: () => rmSync(outDir, { recursive: true, force: true }) };
   } catch (error) {
     rmSync(outDir, { recursive: true, force: true });
@@ -97,6 +97,6 @@ test("a bad request fails before writing anything", { skip }, async () => {
   const outDir = mkdtempSync(join(tmpdir(), "snapshot-test-"));
   try {
     await assert.rejects(exportSnapshots({ modelPath: model, outDir: join(outDir, "never"), chromium, views: ["nope"] }), /no view/);
-    assert.deepEqual(readdirSync(outDir), [], "a rejected request must not create the output directory");
+    assert.deepEqual(readdirSync(outDir), [], "a rejected request must not create the output directory or a manifest");
   } finally { rmSync(outDir, { recursive: true, force: true }); }
 });

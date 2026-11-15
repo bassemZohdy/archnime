@@ -68,6 +68,18 @@ and `--states` (1-based numbers or state ids) narrow the request; an unknown vie
 reported with the available ones before anything is built or written. The same model always
 produces byte-identical files. Playwright and Chromium are required.
 
+Every export also writes `manifest.json`: the SHA-256 of the source model and of the renderer
+files (template, engine, library, font), and for each snapshot its view, mode, state, file
+name, size and SHA-256. It holds no timestamps or paths, so a rerun reproduces it byte for
+byte. Check a directory later, optionally against the model it came from:
+
+```bash
+node architecture-diagram-renderer/scripts/verify_snapshots.mjs --dir snapshots --model model.json
+```
+
+It exits 1 with one line per problem when a snapshot was edited, deleted or added by hand, a
+listed name is unsafe (a path, a duplicate), or the model has changed since the export.
+
 ## Release checks
 
 - The exported SVG must parse as XML, load as an image, include local font data
