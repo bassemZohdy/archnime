@@ -7,17 +7,6 @@
 
 ## 🌳 Task Tree
 
-- [ ] **FEAT-002** · P0 · mid · Batch-export documented views and stages with reproducible provenance
-  - Done when: every requested architecture state has a stable snapshot and valid manifest; `npm test`
-  - Links: Ref: architecture-diagram-renderer/references/documentation-export.md
-  - State: branch todo/FEAT-002-batch-export-documented-views from main; next: build children
-  - [x] **FEAT-002.1** · mid · Add named snapshot export for flow steps, migration stages and multi-view bundles
-    - Done when: exported artifacts cover each selected state exactly once; `node --test architecture-diagram-renderer/tests/batch_snapshots.test.mjs`
-  - [x] **FEAT-002.2** · mid · Generate a SHA-256 manifest identifying source model, view, stage, output and renderer
-    - Done when: manifest hashes match bytes and reject missing or tampered snapshots; `node --test architecture-diagram-renderer/tests/export_manifest.test.mjs`
-  - [x] **FEAT-002.3** · low · Produce Markdown-friendly links to snapshots and the interactive presenter
-    - Done when: generated links point to the correct state and preserve a static fallback; `node --test architecture-diagram-renderer/tests/documentation_links.test.mjs`
-
 - [ ] **FEAT-003** · P1 · high · Package an offline-capable interactive presentation without CDN dependencies
   - Done when: demos retain playback, zoom, search and routing with network access disabled; `npm test`
   - Links: Ref: architecture-diagram-renderer/references/distribution.md
