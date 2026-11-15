@@ -19,7 +19,7 @@ async function exportTo(modelPath, options = {}) {
   const outDir = mkdtempSync(join(tmpdir(), "snapshot-test-"));
   try {
     const { files } = await exportSnapshots({ modelPath, outDir, chromium, ...options });
-    const onDisk = readdirSync(outDir).filter(name => name !== "manifest.json").sort();
+    const onDisk = readdirSync(outDir).filter(name => name.endsWith(".svg")).sort();
     return { files, onDisk, read: name => readFileSync(join(outDir, name), "utf8"), cleanup: () => rmSync(outDir, { recursive: true, force: true }) };
   } catch (error) {
     rmSync(outDir, { recursive: true, force: true });

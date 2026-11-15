@@ -80,6 +80,13 @@ node architecture-diagram-renderer/scripts/verify_snapshots.mjs --dir snapshots 
 It exits 1 with one line per problem when a snapshot was edited, deleted or added by hand, a
 listed name is unsafe (a path, a duplicate), or the model has changed since the export.
 
+`snapshots.md` is written beside the SVGs for pasting into a README or docs page: per view and
+state, the image, a plain `[SVG](file)` link (the static fallback), and, with
+`--viewer-url https://example.org/architecture.html`, an "Open in the interactive presenter"
+link such as `…architecture.html?view=checkout&step=2` that opens the same view and state.
+Titles are escaped, file names percent-encoded, and a viewer URL that is not `http(s)` or a
+relative path is refused. Without `--viewer-url` the page holds images and static links only.
+
 ## Release checks
 
 - The exported SVG must parse as XML, load as an image, include local font data
