@@ -71,7 +71,7 @@
   - [ ] **TASK-006.2** · low · Compare SMIL only for verified unsupported CSS-animation targets
     - Done when: measured compatibility differences justify a choice without dual-renderer complexity; `node --test architecture-diagram-renderer/tests/animation_format.test.mjs`
 
-- [ ] **TASK-015** · P2 · mid · Add integrity and crossorigin attributes to the pinned CDN script tags
+- [/] **TASK-015** · P2 · mid · Add integrity and crossorigin attributes to the pinned CDN script tags
   - Done when: every external script tag in template.html and translate.html carries a sha384 hash that matches the pinned file; `node architecture-diagram-renderer/tests/script_integrity_check.mjs`
   - Links: Ref: architecture-diagram-renderer/references/distribution.md · Lane: hardening
-  - State: branch todo/TASK-015-add-integrity-crossorigin-attributes from main; next: start TASK-015
+  - State: attempts 0/3; baseline 46 passing; branch todo/TASK-015-add-integrity-crossorigin-attributes from main; next: build
