@@ -199,7 +199,7 @@
     const payload = copy(view); delete payload.mode; delete payload.comparison;
     legacy[view.mode] = payload;
     if (view.mode === "scenarios") legacy.meta = { ...legacy.meta, composition: "scenarios" };
-    const result = translateDocument(legacy);
+    const result = translateValidated(legacy);
     return { ...result, viewId: view.id, viewTitle: view.title, viewMode: view.mode, ...(hasOwn(view, "comparison") ? { comparison: copy(view.comparison) } : {}) };
   }
 
@@ -215,6 +215,10 @@
     return compact;
   }
 
+  // The public entry point validates once. A v2 view is translated through its
+  // legacy single-mode shape, which carries the view's own id and title and so
+  // would fail a second validation (the Python translator likewise validates
+  // only at the CLI boundary), hence translateValidated for the internal path.
   function translateDocument(doc) {
     const findings = Validator().validateDocument(doc);
     if (findings.length) {
@@ -222,6 +226,10 @@
       error.findings = findings;
       throw error;
     }
+    return translateValidated(doc);
+  }
+
+  function translateValidated(doc) {
     if (doc.dsl === "transition-diagram/2.0" && hasOwn(doc, "views")) {
       const shared = { meta: copyMeta(doc.meta), canvas: { ...DEFAULT_CANVAS, ...(copy(doc.canvas) || {}) }, catalog: copyCatalog(doc.catalog), packages: copyPackages(doc.packages) };
       const views = doc.views.map(view => compactView(translateView(doc, view), shared));
