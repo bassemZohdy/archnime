@@ -11,7 +11,7 @@
   - Done when: the aggregator skill exists beside the four skills, passes the structure check, and its scanner recommends the right next skill for every workspace state; `npm run check-skills`
   - Links: Ref: AGENTS.md
   - State: branch todo/FEAT-021-add-aggregator-skill-reads from main; next: build children
-  - [ ] **FEAT-021.1** · mid · Scan a workspace for sources, models, bundles, snapshots and tooling and recommend the next step
+  - [x] **FEAT-021.1** · mid · Scan a workspace for sources, models, bundles, snapshots and tooling and recommend the next step
     - Done when: each workspace state reports its artifacts, staleness and one recommended skill and command; `python -m unittest discover -s architecture-diagram/tests -p test_workspace_state.py`
   - [ ] **FEAT-021.2** · mid · Write the aggregator SKILL.md and state machine so every scanner state routes to exactly one skill
     - Done when: every state the scanner can emit appears once in the skill's routing table with its owner skill; `python -m unittest discover -s architecture-diagram/tests -p test_skill_contract.py`
