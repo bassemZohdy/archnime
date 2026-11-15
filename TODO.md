@@ -7,15 +7,6 @@
 
 ## 🌳 Task Tree
 
-- [ ] **TASK-004** · P1 · mid · Add visual and conversion regression gates for documentation exports
-  - Done when: browser-rendered image and PDF fixtures are checked at document-friendly widths; `npm test`
-  - Links: Ref: architecture-diagram-renderer/references/validation.md
-  - State: branch todo/TASK-004-add-visual-conversion-regression from main; next: build children
-  - [x] **TASK-004.1** · mid · Compare SVG-as-image and PNG output across dense, nested, light and dark layouts
-    - Done when: baseline screenshots detect clipping, fallback fonts and shifted arrows; `node --test architecture-diagram-renderer/tests/documentation_visual.test.mjs`
-  - [x] **TASK-004.2** · mid · Exercise PDF conversion and document-safe fallback selection
-    - Done when: conversion preserves text and diagram bounds or selects an explicit PNG fallback; `node --test architecture-diagram-renderer/tests/pdf_conversion.test.mjs`
-
 - [ ] **FIX-005** · P1 · high · Prevent silent changes to non-Latin architecture labels during SVG export
   - Done when: Arabic and other supported-script labels retain shape and placement or trigger a clear rejection; `npm test`
   - Links: Ref: architecture-diagram-renderer/references/documentation-export.md
