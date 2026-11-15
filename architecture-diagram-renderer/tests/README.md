@@ -52,6 +52,32 @@ headless Chromium, and checks:
   blocks remain painted above routes, and confirms Tune layout performs a
   multi-start search
 
+## `*.test.mjs` — documentation-export tests (`npm run test:documentation`)
+
+These are `node --test` files that share `doc_export_harness.mjs`, which builds a real
+bundle with the shipped builder and drives Chromium through the same window functions the
+toolbar uses. A missing browser skips them locally and fails them under
+`REQUIRE_BROWSER_TESTS=1`.
+
+- `documentation_svg.test.mjs` — real wheel zoom and drag cannot change or crop the exported
+  SVG (checked on a flow, a dense mesh and nested packages, including that every node and
+  boundary lies inside the exported `viewBox`); the SVG rasterises opaque with its own font
+  and no external references; a missing pinned font or an empty scene makes the export fail
+  with a visible status and no download.
+
+- `documentation_embedding.test.mjs` — the export keeps every node id and label, every trust
+  boundary (title and area) and every arrowhead (each referenced marker is defined in the file),
+  and as an `<img>` at 880 px (README column), 640 px and 360 px it is not blank, not cropped,
+  and its smallest text stays above 6 px and 4.5 px at the first two widths. Checked on a flow,
+  a model with colliding trust-boundary labels and nested packages.
+
+- `documentation_states.test.mjs` — the toolbar export writes the selected state: for each
+  migration stage, scenario variant, flow step and bundle view it carries the presenter's node
+  and boundary ids (and, for stages, their kinds and labels), the selected step's active
+  wires, a file name with the selected number, and no id that only another state declares;
+  a package the user collapsed in one stage is exported collapsed there and expanded in the
+  stage where it stays expanded.
+
 ## `script_integrity_check.mjs` — pinned CDN scripts
 
 Every external script the pages load (D3, Dagre, ELK, gif.js and js-yaml) carries a
