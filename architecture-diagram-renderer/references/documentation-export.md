@@ -110,6 +110,24 @@ written instead and the command says so and why (`png (fallback)` and the reason
 never silently ends up with a picture of text or a cropped page. The check uses a small reader
 for Chromium's PDF output (`scripts/pdf_text.mjs`); it needs no PDF library.
 
+## Animated SVG behaviour
+
+The Animated SVG plays the stages (or flow steps) in order with CSS keyframes, one slot of the
+cycle per stage, and carries no script. `animated_svg_compat.test.mjs` pins what a destination
+can rely on:
+
+| Viewer behaviour | What it shows |
+| --- | --- |
+| Runs CSS animation | Stage 1, then 2, 3 ... one at a time, in order, looping |
+| `prefers-reduced-motion: reduce` | Stage 1 only, no animation |
+| Reads the stylesheet but ignores or strips animation | Stage 1 only (never a blank image) |
+| Embedded with `<img>` | Draws in both of the above modes; it cannot be paused or controlled |
+
+Before 1.x of this policy the delay of each stage was negative, which played the stages in reverse
+(1, last, last-1 ...), and a viewer without animation support showed nothing. Both are fixed.
+Anything that removes `<style>` altogether (some sanitizers) leaves every stage stacked, so check
+the destination or use the static documentation SVG per stage instead.
+
 ## Non-Latin labels
 
 The embedded Inter subset paints Latin text only (printable Latin, Latin-1 and common
