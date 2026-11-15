@@ -25,5 +25,6 @@
   - State: branch todo/TASK-006-establish-animated-svg-compatibility from main; next: build children
   - [x] **TASK-006.1** · mid · Check CSS-keyframe SVG playback in image embedding and reduced-motion modes
     - Done when: supported viewers show all intended stages or an accessible first-frame fallback; `node --test architecture-diagram-renderer/tests/animated_svg_compat.test.mjs`
-  - [ ] **TASK-006.2** · low · Compare SMIL only for verified unsupported CSS-animation targets
+  - [/] **TASK-006.2** · low · Compare SMIL only for verified unsupported CSS-animation targets
     - Done when: measured compatibility differences justify a choice without dual-renderer complexity; `node --test architecture-diagram-renderer/tests/animation_format.test.mjs`
+    - State: attempts 0/3; baseline 83 passing; branch todo/TASK-006.2-compare-smil-only-verified from todo/TASK-006-establish-animated-svg-compatibility; next: build
