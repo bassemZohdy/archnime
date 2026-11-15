@@ -77,7 +77,7 @@
   - State: branch todo/FEAT-014-add-lint-rules-duplicate from main; next: build children
   - [x] **FEAT-014.1** · mid · Report a node listed twice in one state as duplicate-state-node
     - Done when: both validators reject a state that lists a node twice and the rule is documented; `python -m unittest discover -s architecture-diagram-dsl/tests -p test_validate_transition_diagram.py`
-  - [ ] **FEAT-014.2** · mid · Report two boundaries sharing an id in one state as duplicate-boundary-id
+  - [x] **FEAT-014.2** · mid · Report two boundaries sharing an id in one state as duplicate-boundary-id
     - Done when: both validators reject repeated boundary ids in one state and the rule is documented; `python -m unittest discover -s architecture-diagram-dsl/tests -p test_validate_transition_diagram.py`
   - [ ] **FEAT-014.3** · mid · Report two identical wires in one state as duplicate-wire
     - Done when: both validators reject wires with the same from, to, type and label and the rule is documented; `python -m unittest discover -s architecture-diagram-dsl/tests -p test_validate_transition_diagram.py`

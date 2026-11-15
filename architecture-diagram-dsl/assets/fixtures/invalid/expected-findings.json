@@ -17,6 +17,7 @@
   "deployment-unknown-infrastructure": {"rules": ["deployment-unknown-infrastructure"], "paths": ["$.views[0].deployment.infrastructure.region.children"]},
   "deployment-unknown-target": {"rules": ["deployment-unknown-target"], "paths": ["$.views[0].deployment.placements[1].target"]},
   "deployment-unplaced-component": {"rules": ["deployment-unplaced-component"], "paths": ["$.views[0].deployment.placements"]},
+  "duplicate-boundary-id": {"rules": ["duplicate-boundary-id"], "paths": ["$.system.boundaries"]},
   "duplicate-id": {"rules": ["duplicate-id"], "paths": ["$.catalog.shared"]},
   "duplicate-state-node": {"rules": ["duplicate-state-node"], "paths": ["$.system.nodes"]},
   "duplicate-yaml-key": {"rules": ["duplicate-yaml-key"], "paths": ["$"]},
