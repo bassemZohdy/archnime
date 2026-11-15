@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- **TASK-013** (test): Document every lint rule and guard the list with a contract test. Ref: architecture-diagram-dsl/references/validation-and-review.md. Validated: `python -m unittest discover -s architecture-diagram-dsl/tests -p test_rule_docs.py`. Docs: updated architecture-diagram-dsl/references/validation-and-review.md.
 - **TASK-012** (test): Close test-gate gaps so example drift cannot pass npm test. Ref: architecture-diagram-renderer/tests/README.md. Validated: `npm run test:python`. Docs: updated docs/architecture-diagram-renderer.md. Includes: TASK-012.1, TASK-012.2.
 - **TASK-016** (test): Poll for flow-step state instead of fixed waits in render_check so full-suite runs stop flaking. Ref: architecture-diagram-renderer/tests/README.md. Validated: `node architecture-diagram-renderer/tests/render_check.mjs checkout-flow`.
 
