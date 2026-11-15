@@ -17,6 +17,17 @@ python3 ../architecture-diagram-renderer/scripts/build_bundle.py \
   --model diagram.model.json --output diagram.html
 ```
 
+For a DSL 2.0 bundle, `--sequence`, `--mermaid` and `--show-expanded` act on
+one view, chosen with `--view <id>`; without it the command stops with exit
+code `2` and lists the view ids. `--view` on a single-mode document, an unknown
+view id and an unreadable `--schema` file are likewise one-line errors with
+exit code `2`, never a traceback.
+
+```bash
+python3 scripts/translate_transition_diagram.py bundle.yaml --view checkout --sequence
+python3 scripts/translate_transition_diagram.py bundle.yaml --view context --mermaid
+```
+
 The translator keeps the YAML as the semantic source of truth, derives
 renderer-only shapes from catalog types, normalizes wire shorthand, and uses
 the deterministic `1600×900` canvas default when `canvas` is omitted.
