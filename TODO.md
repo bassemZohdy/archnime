@@ -27,6 +27,11 @@
   - [ ] **FEAT-002.3** · low · Produce Markdown-friendly links to snapshots and the interactive presenter
     - Done when: generated links point to the correct state and preserve a static fallback; `node --test architecture-diagram-renderer/tests/documentation_links.test.mjs`
 
+- [ ] **TASK-016** · P0 · low · Poll for flow-step state instead of fixed waits in render_check so full-suite runs stop flaking
+  - Done when: flow probes wait for the active marker and reverse path under a deadline with every assertion unchanged; `node architecture-diagram-renderer/tests/render_check.mjs checkout-flow`
+  - Links: Ref: architecture-diagram-renderer/tests/README.md · Lane: hardening
+  - State: branch todo/TASK-016-poll-flow-step-state from main; next: start TASK-016
+
 - [ ] **FEAT-003** · P1 · high · Package an offline-capable interactive presentation without CDN dependencies
   - Done when: demos retain playback, zoom, search and routing with network access disabled; `npm test`
   - Links: Ref: architecture-diagram-renderer/references/distribution.md
@@ -51,6 +56,40 @@
   - [ ] **FIX-005.2** · high · Add a licensed font and metrics strategy for requested non-Latin scripts
     - Done when: supported glyphs paint offline and missing glyph ranges are rejected rather than silently substituted; `node --test architecture-diagram-renderer/tests/font_portability.test.mjs`
 
+- [ ] **FIX-008** · P1 · high · Make the browser validator and translator agree with the Python reference on valid, invalid and malformed input
+  - Done when: both implementations return the same rule set and the same model for every probe document, and malformed input yields findings instead of exceptions; `node architecture-diagram-dsl/tests/browser_validator_check.mjs`
+  - Links: Ref: architecture-diagram-dsl/references/runtime.md · Lane: hardening
+  - [ ] **FIX-008.1** · mid · Translate v2 steps, transition and scenarios views in the browser without rejecting the view id and title
+    - Done when: v2 steps and transition views translate to the Python model; `node architecture-diagram-dsl/tests/browser_validator_check.mjs`
+  - [ ] **FIX-008.2** · mid · Never throw on malformed documents in the browser validator and report them cleanly from Python
+    - Done when: null boundary, string nodes, null infrastructure and string flow steps return findings in both; `node architecture-diagram-dsl/tests/browser_validator_check.mjs`
+  - [ ] **FIX-008.3** · mid · Reject non-string detail and level and require nodes and wires on system views in schema, validators and models
+    - Done when: both validators reject them and both translators omit a missing infrastructure detail instead of emitting null; `node architecture-diagram-dsl/tests/browser_validator_check.mjs`
+
+- [ ] **FIX-009** · P1 · mid · Emit Mermaid companions that parse and keep authored labels, and give the translate CLI clean errors
+  - Done when: sequence output is Mermaid-valid and the CLI reports bad input in one line; `python -m unittest discover -s architecture-diagram-dsl/tests -p test_translate_transition_diagram.py`
+  - Links: Ref: architecture-diagram-dsl/references/sequence-policy.md · Lane: hardening
+  - [ ] **FIX-009.1** · low · Limit Note over to the first and last participant and keep parallel and group titles in Python and the browser mirror
+    - Done when: no Note over lists more than two participants and each branch keeps its title; `python -m unittest discover -s architecture-diagram-dsl/tests -p test_translate_transition_diagram.py`; `node architecture-diagram-renderer/tests/translate_check.mjs`
+  - [ ] **FIX-009.2** · mid · Support --view for v2 bundles with --show-expanded and --mermaid and report a missing schema without a traceback
+    - Done when: a v2 bundle exits 0 with --view and a bad schema path exits 2 with one line; `python -m unittest discover -s architecture-diagram-dsl/tests -p test_translate_transition_diagram.py`
+
+- [ ] **FIX-010** · P1 · low · Reject docs and adr links whose scheme is javascript, data or vbscript even when obfuscated with control characters
+  - Done when: tab, newline and control-prefixed schemes render no link while relative and https links still render; `node architecture-diagram-renderer/tests/link_safety_check.mjs`
+  - Links: Ref: architecture-diagram-renderer/references/validation.md · Lane: hardening
+
+- [ ] **FIX-011** · P1 · low · Print each finding and a distinct SKIP result in validate_artifact text output
+  - Done when: text output lists rule and path per finding and exit codes match the JSON status; `python -m unittest discover -s architecture-diagram-validation/tests -p test_validate_artifact.py`
+  - Links: Ref: architecture-diagram-validation/SKILL.md · Lane: hardening
+
+- [ ] **TASK-012** · P1 · mid · Close test-gate gaps so example drift cannot pass npm test
+  - Done when: the example sync test runs under test:python and shipped example models match fresh translations; `npm run test:python`; regression: `npm test`
+  - Links: Ref: architecture-diagram-renderer/tests/README.md · Lane: hardening
+  - [ ] **TASK-012.1** · low · Rename example_sync.py to test_example_sync.py so unittest discovery runs it
+    - Done when: discovery runs the sync test; `python -m unittest discover -s architecture-diagram-validation/tests -p test_example_sync.py`
+  - [ ] **TASK-012.2** · mid · Regenerate the stale commerce-views and comparison-views example models and check them in regen_fixtures
+    - Done when: check-fixtures fails on a stale example model and passes on regenerated ones; `npm run check-fixtures`
+
 - [ ] **TASK-006** · P2 · mid · Establish an animated SVG compatibility policy for documentation targets
   - Done when: the recommended animation format has tested static fallback and reduced-motion behavior; `npm test`
   - Links: Ref: architecture-diagram-renderer/references/documentation-export.md
@@ -58,3 +97,16 @@
     - Done when: supported viewers show all intended stages or an accessible first-frame fallback; `node --test architecture-diagram-renderer/tests/animated_svg_compat.test.mjs`
   - [ ] **TASK-006.2** · low · Compare SMIL only for verified unsupported CSS-animation targets
     - Done when: measured compatibility differences justify a choice without dual-renderer complexity; `node --test architecture-diagram-renderer/tests/animation_format.test.mjs`
+
+- [ ] **TASK-013** · P2 · low · Document every lint rule and guard the list with a contract test
+  - Done when: every rule a validator emits has a row in validation-and-review.md and a negative fixture; `python -m unittest discover -s architecture-diagram-dsl/tests -p test_rule_docs.py`
+  - Links: Ref: architecture-diagram-dsl/references/validation-and-review.md · Lane: hardening
+
+- [ ] **FEAT-014** · P2 · mid · Add lint rules for duplicate node, wire and boundary ids and for flow steps whose edge type matches no flow wire
+  - Done when: each new rule has a negative fixture and both validators agree; `python -m unittest discover -s architecture-diagram-dsl/tests -p test_validate_transition_diagram.py`
+  - Links: Ref: architecture-diagram-dsl/references/validation-and-review.md · Lane: hardening
+  - State: next: decompose
+
+- [ ] **TASK-015** · P2 · mid · Add integrity and crossorigin attributes to the pinned CDN script tags
+  - Done when: every external script tag in template.html and translate.html carries a sha384 hash that matches the pinned file; `node architecture-diagram-renderer/tests/script_integrity_check.mjs`
+  - Links: Ref: architecture-diagram-renderer/references/distribution.md · Lane: hardening
