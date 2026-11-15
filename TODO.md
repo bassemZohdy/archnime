@@ -57,9 +57,8 @@
   - State: branch todo/FIX-009-emit-mermaid-companions-that from main; next: build children
   - [x] **FIX-009.1** · low · Limit Note over to the first and last participant and keep parallel and group titles in Python and the browser mirror
     - Done when: no Note over lists more than two participants and each branch keeps its title; `python -m unittest discover -s architecture-diagram-dsl/tests -p test_translate_transition_diagram.py`; `node architecture-diagram-renderer/tests/translate_check.mjs`
-  - [/] **FIX-009.2** · mid · Support --view for v2 bundles with --show-expanded and --mermaid and report a missing schema without a traceback
+  - [x] **FIX-009.2** · mid · Support --view for v2 bundles with --show-expanded and --mermaid and report a missing schema without a traceback
     - Done when: a v2 bundle exits 0 with --view and a bad schema path exits 2 with one line; `python -m unittest discover -s architecture-diagram-dsl/tests -p test_translate_transition_diagram.py`
-    - State: attempts 0/3; baseline 46 passing; branch todo/FIX-009.2-support-view-v2-bundles from todo/FIX-009-emit-mermaid-companions-that; next: build
 
 - [ ] **FIX-010** · P1 · low · Reject docs and adr links whose scheme is javascript, data or vbscript even when obfuscated with control characters
   - Done when: tab, newline and control-prefixed schemes render no link while relative and https links still render; `node architecture-diagram-renderer/tests/link_safety_check.mjs`

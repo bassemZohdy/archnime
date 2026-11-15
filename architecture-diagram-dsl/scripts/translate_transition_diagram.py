@@ -8,6 +8,7 @@ adding renderer fields back into the DSL.
 Usage:
   python3 translate_transition_diagram.py diagram.yaml --output model.json
   python3 translate_transition_diagram.py diagram.yaml --sequence
+  python3 translate_transition_diagram.py bundle.yaml --view checkout --sequence
 """
 
 from __future__ import annotations
@@ -733,6 +734,28 @@ def architecture_mermaid(model: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def materialize_view(model: dict[str, Any], view_id: str) -> dict[str, Any]:
+    """Return one view of a translated v2 bundle as a standalone model.
+
+    A bundle stores the shared catalog and packages once and each view only as a
+    delta; the Mermaid emitters need the merged form.
+    """
+
+    views = model.get("views") or []
+    for view in views:
+        if view.get("viewId") == view_id:
+            shared = model.get("shared") or {}
+            return {
+                **view,
+                "meta": {**(model.get("meta") or {}), **(view.get("meta") or {})},
+                "canvas": {**(model.get("canvas") or {}), **(view.get("canvas") or {})},
+                "catalog": {**(shared.get("catalog") or {}), **(view.get("catalog") or {})},
+                "packages": {**(shared.get("packages") or {}), **(view.get("packages") or {})},
+            }
+    available = ", ".join(str(view.get("viewId")) for view in views)
+    raise ValueError(f"view {view_id!r} not found; available views: {available}")
+
+
 def _format_findings(findings: list[Any]) -> str:
     return "\n".join(
         f"  [{finding.severity}] {finding.rule}: {finding.message} ({finding.path})"
@@ -748,6 +771,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--show-expanded", action="store_true", help="print materialized stages for steps: documents")
     parser.add_argument("--sequence", action="store_true", help="emit a Mermaid sequenceDiagram companion for flow: documents")
     parser.add_argument("--mermaid", action="store_true", help="emit a lossy Mermaid architecture-beta snapshot")
+    parser.add_argument("--view", metavar="ID", help="for a transition-diagram/2.0 bundle, the view that --sequence, --mermaid and --show-expanded use")
     args = parser.parse_args(argv)
 
     if args.sequence and args.mermaid:
@@ -762,23 +786,43 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{args.source}: could not read YAML: {error}", file=sys.stderr)
         return 2
 
-    findings = validate_document(doc, load_schema(str(args.schema)))
+    try:
+        schema = load_schema(str(args.schema))
+    except Exception as error:  # a missing or unreadable schema is a usage problem, not a crash
+        print(f"{args.schema}: could not read schema: {error}", file=sys.stderr)
+        return 2
+    findings = validate_document(doc, schema)
     if findings:
         print(f"{args.source}: translation blocked by {len(findings)} validation finding(s)", file=sys.stderr)
         print(_format_findings(findings), file=sys.stderr)
         return 1
 
     model = translate_document(doc)
+    is_bundle = isinstance(model.get("views"), list)
+    selected = model
+    if args.view is not None and not is_bundle:
+        print(f"{args.source}: --view needs a transition-diagram/2.0 document with views", file=sys.stderr)
+        return 2
+    if is_bundle and (args.view is not None or args.sequence or args.mermaid or args.show_expanded):
+        if args.view is None:
+            ids = ", ".join(str(view.get("viewId")) for view in model["views"])
+            print(f"{args.source}: this bundle has {len(model['views'])} views ({ids}); choose one with --view <id>", file=sys.stderr)
+            return 2
+        try:
+            selected = materialize_view(model, args.view)
+        except ValueError as error:
+            print(f"{args.source}: {error}", file=sys.stderr)
+            return 2
     if args.sequence:
         try:
-            sys.stdout.buffer.write(sequence_mermaid(model).encode("utf-8"))
+            sys.stdout.buffer.write(sequence_mermaid(selected).encode("utf-8"))
         except ValueError as error:
             print(f"{args.source}: {error}", file=sys.stderr)
             return 1
         return 0
     if args.mermaid:
         try:
-            sys.stdout.buffer.write(architecture_mermaid(model).encode("utf-8"))
+            sys.stdout.buffer.write(architecture_mermaid(selected).encode("utf-8"))
         except ValueError as error:
             print(f"{args.source}: {error}", file=sys.stderr)
             return 1
@@ -789,7 +833,7 @@ def main(argv: list[str] | None = None) -> int:
     args.output.write_text(json.dumps(model, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"translated {args.source} -> {args.output}")
     if args.show_expanded:
-        print(json.dumps(model["stages"], ensure_ascii=False, indent=2))
+        print(json.dumps(selected["stages"], ensure_ascii=False, indent=2))
     return 0
 
 

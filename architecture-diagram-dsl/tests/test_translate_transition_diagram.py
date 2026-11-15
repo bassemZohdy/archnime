@@ -267,6 +267,61 @@ system:
         self.assertIn("par Deliver and retry", result.stdout)
         self.assertIn("loop until delivered", result.stdout)
 
+    def run_cli(self, *arguments: str) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            [sys.executable, str(TRANSLATOR), *arguments],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        )
+
+    def test_view_option_selects_one_view_of_a_v2_bundle(self) -> None:
+        """FIX-009.2: --sequence and --mermaid work on one view of a v2 bundle."""
+        bundle = str(EXAMPLES / "commerce-views.yaml")
+        sequence = self.run_cli(bundle, "--view", "checkout", "--sequence")
+        self.assertEqual(sequence.returncode, 0, sequence.stderr)
+        self.assertTrue(sequence.stdout.startswith("sequenceDiagram\n"), sequence.stdout)
+        architecture = self.run_cli(bundle, "--view", "context", "--mermaid")
+        self.assertEqual(architecture.returncode, 0, architecture.stderr)
+        self.assertTrue(architecture.stdout.startswith("architecture-beta\n"), architecture.stdout)
+        self.assertIn("service gateway", architecture.stdout)
+
+    def test_show_expanded_prints_the_selected_view_stages(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "model.json"
+            result = self.run_cli(str(EXAMPLES / "commerce-views.yaml"), "--output", str(output), "--view", "production", "--show-expanded")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+        stages = json.loads(result.stdout[result.stdout.index("[") :])
+        self.assertEqual([stage["id"] for stage in stages], ["production"])
+
+    def test_bundle_without_view_is_a_one_line_usage_error(self) -> None:
+        for flag in ("--sequence", "--mermaid"):
+            with self.subTest(flag=flag):
+                result = self.run_cli(str(EXAMPLES / "commerce-views.yaml"), flag)
+                self.assertEqual(result.returncode, 2, result.stderr)
+                self.assertNotIn("Traceback", result.stderr)
+                self.assertEqual(len(result.stderr.strip().splitlines()), 1, result.stderr)
+                self.assertIn("--view", result.stderr)
+                self.assertIn("checkout", result.stderr)
+
+    def test_unknown_view_and_view_on_a_single_mode_document_are_clean_errors(self) -> None:
+        unknown = self.run_cli(str(EXAMPLES / "commerce-views.yaml"), "--view", "nope", "--mermaid")
+        self.assertEqual(unknown.returncode, 2, unknown.stderr)
+        self.assertEqual(len(unknown.stderr.strip().splitlines()), 1, unknown.stderr)
+        self.assertIn("context", unknown.stderr)
+        single = self.run_cli(str(EXAMPLES / "checkout-flow.yaml"), "--view", "checkout", "--sequence")
+        self.assertEqual(single.returncode, 2, single.stderr)
+        self.assertNotIn("Traceback", single.stderr)
+
+    def test_missing_schema_is_reported_without_a_traceback(self) -> None:
+        result = self.run_cli(str(EXAMPLES / "checkout-flow.yaml"), "--schema", "no-such-schema.yaml", "--output", "unused.json")
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertEqual(len(result.stderr.strip().splitlines()), 1, result.stderr)
+        self.assertIn("no-such-schema.yaml", result.stderr)
+
     def test_sequence_notes_name_at_most_two_participants(self) -> None:
         """FIX-009.1: Mermaid rejects `Note over a,b,c`; keep the first and last participant."""
         output = sequence_mermaid(self.translate(EXAMPLES / "checkout-flow.yaml"))
