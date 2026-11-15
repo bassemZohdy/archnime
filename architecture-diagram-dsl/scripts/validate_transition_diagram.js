@@ -516,10 +516,56 @@
     return findings;
   }
 
-  function lintState(state, knownIds, packageIds, pathPrefix) {
+  // A node listed twice in one state would be drawn twice; report each repeated id once.
+  function lintDuplicateNodes(entries, pathPrefix) {
+    const findings = [], seen = new Set(), reported = new Set();
+    arr(entries).forEach(entry => {
+      const id = nodeId(entry);
+      if (id === null) return;
+      if (seen.has(id) && !reported.has(id)) { reported.add(id); findings.push(finding("duplicate-state-node", `node '${id}' is listed more than once in this state`, `${pathPrefix}.nodes`)); }
+      seen.add(id);
+    });
+    return findings;
+  }
+
+  // Everything that makes a wire a distinct declaration; `flow` (the animation flag) is not part of it.
+  function wireDeclarationKey(wire) {
+    let normalized;
+    try { normalized = typeof wire === "string" ? parseWireShorthand(wire) : wire; } catch (error) { return null; }
+    if (!isObject(normalized) || typeof normalized.from !== "string" || typeof normalized.to !== "string") return null;
+    const part = key => normalized[key] === undefined ? null : normalized[key];
+    return JSON.stringify([normalized.from, normalized.to, normalized.type === undefined ? "data" : normalized.type, part("label"), part("layer"), part("bundle"), part("offset"), part("priority"), part("ops")]);
+  }
+
+  // The same wire declared twice draws on top of itself; parallel wires differ in label or routing.
+  function lintDuplicateWires(wires, pathPrefix) {
+    const findings = [], seen = new Set(), reported = new Set();
+    arr(wires).forEach(wire => {
+      const key = wireDeclarationKey(wire);
+      if (key === null) return;
+      if (seen.has(key) && !reported.has(key)) { reported.add(key); const [from, to] = JSON.parse(key); findings.push(finding("duplicate-wire", `wire '${from}' -> '${to}' is declared more than once with the same type, label and routing options`, `${pathPrefix}.wires`)); }
+      seen.add(key);
+    });
+    return findings;
+  }
+
+  // Boundary ids address a trust scope, so two scopes sharing one id are ambiguous.
+  function lintDuplicateBoundaries(boundaries, pathPrefix) {
+    const findings = [], seen = new Set(), reported = new Set();
+    arr(boundaries).forEach(boundary => {
+      const id = obj(boundary).id;
+      if (typeof id !== "string") return;
+      if (seen.has(id) && !reported.has(id)) { reported.add(id); findings.push(finding("duplicate-boundary-id", `boundary id '${id}' is used more than once in this state`, `${pathPrefix}.boundaries`)); }
+      seen.add(id);
+    });
+    return findings;
+  }
+
+  function lintState(state, knownIds, packageIds, pathPrefix, duplicates = true) {
     const findings = [];
     if (!isObject(state)) return findings;
     const nodes = arr(state.nodes), stateNodeIds = nodeIds(nodes);
+    if (duplicates) { findings.push(...lintDuplicateNodes(nodes, pathPrefix)); findings.push(...lintDuplicateBoundaries(state.boundaries, pathPrefix)); findings.push(...lintDuplicateWires(state.wires, pathPrefix)); }
     [...stateNodeIds].sort().forEach(id => { if (!knownIds.has(id)) findings.push(finding("unknown-catalog-ref", `node '${id}' is not a catalog or package id`, `${pathPrefix}.nodes`)); });
     findings.push(...lintFrozenFieldOverrides(nodes, pathPrefix));
     findings.push(...lintWires(state.wires, knownIds, stateNodeIds, pathPrefix));
@@ -550,6 +596,7 @@
         if (seenStepIds.has(stepId)) findings.push(finding("duplicate-id", `step id '${stepId}' appears more than once`, `${path}.id`));
         seenStepIds.add(stepId);
       }
+      findings.push(...lintDuplicateBoundaries(step.boundaries, path));
       const currentNodes = nodeIds(current.nodes), currentWires = (() => { try { return normalizeWires(current.wires); } catch (error) { return []; } })(), currentWireKeys = new Set(currentWires.map(wireIdentity)), add = isObject(step.add) ? step.add : {}, remove = isObject(step.remove) ? step.remove : {}, overrides = isObject(step.set) ? step.set : {}, addNodes = arr(add.nodes), addWires = arr(add.wires), removeNodes = new Set(strs(remove.nodes)), removeWires = arr(remove.wires);
       addNodes.forEach(node => { const id = nodeId(node); if (currentNodes.has(id)) findings.push(finding("step-add-existing-node", `step adds node '${id}', but it already exists`, `${path}.add.nodes`)); });
       removeNodes.forEach(id => { if (!currentNodes.has(id)) findings.push(finding("step-remove-absent", `step removes node '${id}', but it is absent`, `${path}.remove.nodes`)); });
@@ -562,7 +609,7 @@
       current.wires = arr(current.wires).filter(wire => { const identity = wireIdentity(wire); return !removeWireKeys.has(identity) && !(identity && (removeNodes.has(identity.split(">", 2)[0]) || removeNodes.has(identity.split(">", 2)[1]))); }).concat(JSON.parse(JSON.stringify(addWires)));
       Object.entries(overrides).forEach(([id, override]) => { const nodeIndex = current.nodes.findIndex(node => nodeId(node) === id); if (nodeIndex >= 0) current.nodes[nodeIndex] = { ...(typeof current.nodes[nodeIndex] === "string" ? { id } : JSON.parse(JSON.stringify(current.nodes[nodeIndex]))), ...JSON.parse(JSON.stringify(override || {})) }; });
       ["id", "title", "summary", "changes", "callout", "boundaries", "changed", "disclosure", "expandedPackages", "layout"].forEach(key => { if (has(step, key)) current[key] = JSON.parse(JSON.stringify(step[key])); });
-      findings.push(...lintState(current, knownIds, packageIds, path));
+      findings.push(...lintState(current, knownIds, packageIds, path, false));
     });
     return findings;
   }
@@ -580,17 +627,26 @@
     const findings = [];
     if (!isObject(flow)) return findings;
     const nodes = arr(flow.nodes), flowNodeIds = nodeIds(nodes);
+    findings.push(...lintDuplicateNodes(nodes, pathPrefix));
+    findings.push(...lintDuplicateBoundaries(flow.boundaries, pathPrefix));
+    findings.push(...lintDuplicateWires(flow.wires, pathPrefix));
     [...flowNodeIds].sort().forEach(id => { if (!knownIds.has(id)) findings.push(finding("unknown-catalog-ref", `node '${id}' is not a catalog or package id`, `${pathPrefix}.nodes`)); });
     findings.push(...lintFrozenFieldOverrides(nodes, pathPrefix));
     findings.push(...lintWires(flow.wires, knownIds, flowNodeIds, pathPrefix));
     let wires = [];
     try { wires = normalizeWires(flow.wires); } catch (error) { /* lintWires already reports the parse rule */ }
     const known = new Set(wires.filter(wire => typeof wire.from === "string" && typeof wire.to === "string").map(wire => `${wire.from}>${wire.to}`)), seenCalls = new Set();
+    const typed = new Set(wires.filter(wire => typeof wire.from === "string" && typeof wire.to === "string").map(wire => `${wire.from}>${wire.to}>${wire.type === undefined ? "data" : wire.type}`));
     const checkEdge = (text, kind, edgePath) => {
       let edge;
       try { edge = parseWireShorthand(text); } catch (error) { findings.push(finding("flow-step-unknown-edge", `flow step edge '${text}' is not a valid wire shorthand`, edgePath)); return; }
       const key = `${edge.from}>${edge.to}`, reverse = `${edge.to}>${edge.from}`, syntheticLoop = kind === "loop" && edge.from === edge.to;
       if (!flowNodeIds.has(edge.from) || !flowNodeIds.has(edge.to) || (!known.has(key) && !(kind === "return" && known.has(reverse)) && !syntheticLoop)) findings.push(finding("flow-step-unknown-edge", `flow step edge '${text}' is not present in flow.wires`, edgePath));
+      else if (!syntheticLoop) {
+        // The translator binds a step to a wire by endpoints and type; a mismatch leaves the step unbound.
+        const stepType = edge.type === undefined ? "data" : edge.type;
+        if (!typed.has(`${key}>${stepType}`) && !(kind === "return" && typed.has(`${reverse}>${stepType}`))) findings.push(finding("flow-step-wire-type-mismatch", `flow step edge '${text}' has type '${stepType}' but the wire between those nodes has a different type; write the step with the wire's type prefix`, edgePath));
+      }
       if (kind === "return" && !seenCalls.has(reverse)) findings.push(finding("flow-return-no-forward", `return edge '${text}' has no earlier forward call`, edgePath));
       else if (kind !== "return" && known.has(key)) seenCalls.add(key);
     };

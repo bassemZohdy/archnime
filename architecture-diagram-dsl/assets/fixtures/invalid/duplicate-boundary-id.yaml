@@ -1,0 +1,14 @@
+dsl: transition-diagram/1.0
+meta:
+  title: Boundary id repeated in one state
+catalog:
+  a: { label: A, type: service }
+  b: { label: B, type: service }
+system:
+  title: Boundary id repeated
+  nodes: [a, b]
+  wires:
+    - "a -> b: call"
+  boundaries:
+    - { id: zone, label: Zone one, contains: [a] }
+    - { id: zone, label: Zone two, contains: [b] }

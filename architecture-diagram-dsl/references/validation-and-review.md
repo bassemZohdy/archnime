@@ -62,6 +62,9 @@ missing dependency).
 | `yaml-parse-error` | The file is not valid YAML, so nothing else can be checked | Fix the syntax at the reported line and column |
 | `unknown-catalog-ref` | A wire endpoint, package child, node id, boundary `contains` member, or `expandedPackages` id isn't a real catalog/package id | Fix the id or add the missing catalog/package entry |
 | `wire-endpoint-not-in-state` | A wire endpoint exists in the catalog but is not listed in the current state's `nodes` | Add the endpoint to this state's `nodes`, or remove the wire |
+| `duplicate-state-node` | The same node id is listed twice in one state's (or flow's) `nodes` | List the node once; use `set` or an override for presentation changes |
+| `duplicate-boundary-id` | Two boundaries in one state, step or flow share an `id` | Give each boundary a unique id |
+| `duplicate-wire` | The same wire (`from`, `to`, `type`, `label`, `layer`, `bundle`, `offset`, `priority`, `ops`) is declared twice in one state or flow | Delete the copy; give genuinely parallel wires different labels or routing |
 | `duplicate-id` | The same id is used in both `catalog` and `packages`, or a `transition` state id repeats | Rename one of them |
 | `duplicate-yaml-key` | A YAML mapping repeats a key that would otherwise be silently overwritten by PyYAML | Keep one definition and rename the other if both are needed |
 | `wire-shorthand-parse-error` | A wire string didn't match `[<type>: ]<from> (->\|=>) <to>[: <label>]` | Fix the string, or use the full mapping form |
@@ -95,6 +98,7 @@ missing dependency).
 | `view-invalid` | An entry of `views:` is not a mapping | Replace it with a view mapping (`id`, `mode`, `title`, ...) |
 | `view-mode-required` | A view's `mode` is missing or not one of `system`, `transition`, `steps`, `scenarios`, `flow`, `deployment` | Use one of the six modes |
 | `flow-step-unknown-edge` | A flow step's edge is not valid wire shorthand, names a node outside `flow.nodes`, or matches no wire in `flow.wires` (a `return` may reverse a wire) | Fix the edge, or add the wire it follows |
+| `flow-step-wire-type-mismatch` | A flow step's edge has endpoints that match a flow wire but a different wire type (a `security:` wire followed by an untyped step), so the step binds to nothing | Write the step with the wire's type prefix, e.g. `security: a -> b` |
 | `flow-step-empty` | A flow step has none of `edge`, `group` or `parallel` | Give the step exactly one of them |
 | `flow-return-no-forward` | A `kind: return` step has no earlier forward call over the same wire | Add the call step first, or change the step's `kind` |
 | `deployment-duplicate-placement` | The same `(component, target)` pair is placed more than once | Combine the placements into one and use `replicas` |

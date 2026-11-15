@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **FEAT-014** (feat): Add lint rules for duplicate node, wire and boundary ids and for flow steps whose edge type matches no flow wire. Ref: architecture-diagram-dsl/references/validation-and-review.md. Validated: `python -m unittest discover -s architecture-diagram-dsl/tests -p test_validate_transition_diagram.py`. Docs: updated architecture-diagram-dsl/references/validation-and-review.md. Includes: FEAT-014.1, FEAT-014.2, FEAT-014.3, FEAT-014.4.
+
 ### Changed
 
 - **TASK-013** (test): Document every lint rule and guard the list with a contract test. Ref: architecture-diagram-dsl/references/validation-and-review.md. Validated: `python -m unittest discover -s architecture-diagram-dsl/tests -p test_rule_docs.py`. Docs: updated architecture-diagram-dsl/references/validation-and-review.md.
