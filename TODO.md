@@ -13,7 +13,7 @@
   - State: branch todo/FEAT-003-package-offline-capable-interactive from main; next: build children
   - [x] **FEAT-003.1** · mid · Vendor and pin the D3, Dagre, ELK and optional GIF runtime assets
     - Done when: checksums and licenses are verified for every bundled dependency; `node --test architecture-diagram-renderer/tests/offline_assets.test.mjs`
-  - [ ] **FEAT-003.2** · high · Build a portable HTML presenter from only local trusted resources
+  - [x] **FEAT-003.2** · high · Build a portable HTML presenter from only local trusted resources
     - Done when: blocking external requests does not break layouts or interactions and missing assets fail clearly; `node --test architecture-diagram-renderer/tests/offline_presenter.test.mjs`
 
 - [ ] **TASK-004** · P1 · mid · Add visual and conversion regression gates for documentation exports

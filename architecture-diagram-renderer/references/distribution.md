@@ -30,8 +30,24 @@ For use without a network, `assets/vendor/` holds exact copies of those same fil
 elkjs, gif.js and its worker, js-yaml) with their licence texts and a `manifest.json`; see its
 README. Each copy's SHA-384 equals the hash pinned for its CDN URL, `offline_assets.test.mjs`
 enforces that, and `scripts/vendor_assets.mjs` regenerates the directory (refusing any
-download that does not match the pinned hash). The vendored files are not loaded by the
-default template: building a presenter that uses them is the offline bundle's job. A browser refuses a file that does not
+download that does not match the pinned hash). The default template still loads the CDN copies; the offline build uses the vendored ones.
+
+## Offline presentation
+
+```bash
+python architecture-diagram-renderer/scripts/build_bundle.py --template architecture-diagram-renderer/assets/template.html --model model.json --output diagram.html --offline
+python architecture-diagram-renderer/scripts/build_bundle.py ... --offline --inline   # one self-contained file (about 2 MB)
+```
+
+`--offline` replaces every CDN `<script>` with the vendored copy (placed in `vendor/` beside the
+output, or inlined with `--inline`), embeds the GIF worker source in the page, and removes the
+CDN-only `integrity`/`crossorigin` attributes: trust comes from the build re-checking each
+vendored file against `vendor/manifest.json`. The build fails with a clear `offline build
+failed:` message if a vendored file or the manifest is missing, a file does not match its
+pinned hash, or a script has no vendored copy. The result loads nothing from the network:
+layout (Dagre and ELK), playback, zoom, search, routing and GIF export all work with every
+non-file request blocked (`offline_presenter.test.mjs`). If a library is missing at run time
+the page shows an alert naming it and the fix instead of staying blank. A browser refuses a file that does not
 match, so a changed or mis-served CDN file fails closed instead of running.
 
 ## Reconsider publishing when
