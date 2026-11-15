@@ -15,7 +15,7 @@
     - Done when: exported artifacts cover each selected state exactly once; `node --test architecture-diagram-renderer/tests/batch_snapshots.test.mjs`
   - [x] **FEAT-002.2** · mid · Generate a SHA-256 manifest identifying source model, view, stage, output and renderer
     - Done when: manifest hashes match bytes and reject missing or tampered snapshots; `node --test architecture-diagram-renderer/tests/export_manifest.test.mjs`
-  - [ ] **FEAT-002.3** · low · Produce Markdown-friendly links to snapshots and the interactive presenter
+  - [x] **FEAT-002.3** · low · Produce Markdown-friendly links to snapshots and the interactive presenter
     - Done when: generated links point to the correct state and preserve a static fallback; `node --test architecture-diagram-renderer/tests/documentation_links.test.mjs`
 
 - [ ] **FEAT-003** · P1 · high · Package an offline-capable interactive presentation without CDN dependencies

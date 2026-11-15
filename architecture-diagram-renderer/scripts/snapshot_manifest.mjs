@@ -38,6 +38,7 @@ export function buildManifest({ modelPath, template, files }) {
       return {
         view: entry.view,
         mode: entry.mode,
+        parameter: entry.parameter,
         state: { index: entry.index, id: entry.id, title: entry.title },
         file: entry.file,
         sha256: sha256(bytes),

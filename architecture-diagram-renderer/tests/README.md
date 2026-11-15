@@ -87,6 +87,11 @@ toolbar uses. A missing browser skips them locally and fails them under
   timestamps or paths); `verify_snapshots.mjs` rejects an edited, deleted or added snapshot, a
   changed model and a hostile manifest (path traversal, duplicates), with exit codes 0, 1 and 2.
 
+- `documentation_links.test.mjs` — `snapshots.md` gives every snapshot an image, a plain SVG
+  link and (with a viewer URL) a presenter link whose `view` and state parameters, opened in
+  Chromium, show the same nodes as the snapshot; it is reproducible, works without a viewer
+  URL, escapes titles and refuses a `javascript:`, `data:`, `file:` or protocol-relative viewer.
+
 ## `script_integrity_check.mjs` — pinned CDN scripts
 
 Every external script the pages load (D3, Dagre, ELK, gif.js and js-yaml) carries a
