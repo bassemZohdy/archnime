@@ -15,7 +15,7 @@
     - Done when: pan/zoom cannot crop SVG and missing font fails explicitly; `node --test architecture-diagram-renderer/tests/documentation_svg.test.mjs`
   - [x] **TASK-001.2** · mid · Validate documentation SVG rendering at narrow and full README widths
     - Done when: labels, arrows, node identity and trust boundaries remain readable at supported sizes; `node --test architecture-diagram-renderer/tests/documentation_embedding.test.mjs`
-  - [ ] **TASK-001.3** · mid · Verify the export preserves the selected flow step, stage and view without losing visible nodes
+  - [x] **TASK-001.3** · mid · Verify the export preserves the selected flow step, stage and view without losing visible nodes
     - Done when: every selected stage/view matches the presenter state and excluded IDs are never invented; `node --test architecture-diagram-renderer/tests/documentation_states.test.mjs`
 
 - [ ] **FEAT-002** · P0 · mid · Batch-export documented views and stages with reproducible provenance
