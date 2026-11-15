@@ -636,11 +636,17 @@
     let wires = [];
     try { wires = normalizeWires(flow.wires); } catch (error) { /* lintWires already reports the parse rule */ }
     const known = new Set(wires.filter(wire => typeof wire.from === "string" && typeof wire.to === "string").map(wire => `${wire.from}>${wire.to}`)), seenCalls = new Set();
+    const typed = new Set(wires.filter(wire => typeof wire.from === "string" && typeof wire.to === "string").map(wire => `${wire.from}>${wire.to}>${wire.type === undefined ? "data" : wire.type}`));
     const checkEdge = (text, kind, edgePath) => {
       let edge;
       try { edge = parseWireShorthand(text); } catch (error) { findings.push(finding("flow-step-unknown-edge", `flow step edge '${text}' is not a valid wire shorthand`, edgePath)); return; }
       const key = `${edge.from}>${edge.to}`, reverse = `${edge.to}>${edge.from}`, syntheticLoop = kind === "loop" && edge.from === edge.to;
       if (!flowNodeIds.has(edge.from) || !flowNodeIds.has(edge.to) || (!known.has(key) && !(kind === "return" && known.has(reverse)) && !syntheticLoop)) findings.push(finding("flow-step-unknown-edge", `flow step edge '${text}' is not present in flow.wires`, edgePath));
+      else if (!syntheticLoop) {
+        // The translator binds a step to a wire by endpoints and type; a mismatch leaves the step unbound.
+        const stepType = edge.type === undefined ? "data" : edge.type;
+        if (!typed.has(`${key}>${stepType}`) && !(kind === "return" && typed.has(`${reverse}>${stepType}`))) findings.push(finding("flow-step-wire-type-mismatch", `flow step edge '${text}' has type '${stepType}' but the wire between those nodes has a different type; write the step with the wire's type prefix`, edgePath));
+      }
       if (kind === "return" && !seenCalls.has(reverse)) findings.push(finding("flow-return-no-forward", `return edge '${text}' has no earlier forward call`, edgePath));
       else if (kind !== "return" && known.has(key)) seenCalls.add(key);
     };

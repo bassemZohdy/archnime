@@ -1,0 +1,13 @@
+dsl: transition-diagram/1.0
+meta:
+  title: Typed wire, untyped flow step
+catalog:
+  client: { label: Client, type: actor }
+  idp: { label: Identity provider, type: security }
+flow:
+  title: Typed wire, untyped flow step
+  nodes: [client, idp]
+  wires:
+    - "security: client -> idp: token check"
+  steps:
+    - edge: "client -> idp"

@@ -98,6 +98,7 @@ missing dependency).
 | `view-invalid` | An entry of `views:` is not a mapping | Replace it with a view mapping (`id`, `mode`, `title`, ...) |
 | `view-mode-required` | A view's `mode` is missing or not one of `system`, `transition`, `steps`, `scenarios`, `flow`, `deployment` | Use one of the six modes |
 | `flow-step-unknown-edge` | A flow step's edge is not valid wire shorthand, names a node outside `flow.nodes`, or matches no wire in `flow.wires` (a `return` may reverse a wire) | Fix the edge, or add the wire it follows |
+| `flow-step-wire-type-mismatch` | A flow step's edge has endpoints that match a flow wire but a different wire type (a `security:` wire followed by an untyped step), so the step binds to nothing | Write the step with the wire's type prefix, e.g. `security: a -> b` |
 | `flow-step-empty` | A flow step has none of `edge`, `group` or `parallel` | Give the step exactly one of them |
 | `flow-return-no-forward` | A `kind: return` step has no earlier forward call over the same wire | Add the call step first, or change the step's `kind` |
 | `deployment-duplicate-placement` | The same `(component, target)` pair is placed more than once | Combine the placements into one and use `replicas` |

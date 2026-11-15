@@ -24,6 +24,7 @@
   "duplicate-yaml-key": {"rules": ["duplicate-yaml-key"], "paths": ["$"]},
   "expanded-package-not-package": {"rules": ["expanded-package-not-package"], "paths": ["$.transition.states[1].expandedPackages"]},
   "flow-invalid-step": {"rules": ["flow-return-no-forward", "flow-step-unknown-edge"], "paths": ["$.flow.steps[0].edge", "$.flow.steps[1].edge"]},
+  "flow-step-wire-type-mismatch": {"rules": ["flow-step-wire-type-mismatch"], "paths": ["$.flow.steps[0].edge"]},
   "flow-step-empty": {"rules": ["flow-step-empty", "schema"], "paths": ["$.flow.steps[1]", "$['flow']['steps'][1]"]},
   "frozen-field-override": {"rules": ["frozen-field-override", "schema"], "paths": ["$['system']['nodes'][1]", "$.system.nodes"]},
   "mode-required": {"rules": ["mode-required", "schema"], "paths": ["$"]},
