@@ -54,6 +54,7 @@
 - [ ] **FIX-011** · P1 · low · Print each finding and a distinct SKIP result in validate_artifact text output
   - Done when: text output lists rule and path per finding and exit codes match the JSON status; `python -m unittest discover -s architecture-diagram-validation/tests -p test_validate_artifact.py`
   - Links: Ref: architecture-diagram-validation/SKILL.md · Lane: hardening
+  - State: branch todo/FIX-011-print-each-finding-distinct from main; next: start FIX-011
 
 - [ ] **TASK-012** · P1 · mid · Close test-gate gaps so example drift cannot pass npm test
   - Done when: the example sync test runs under test:python and shipped example models match fresh translations; `npm run test:python`; regression: `npm test`
