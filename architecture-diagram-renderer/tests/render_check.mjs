@@ -101,6 +101,14 @@ try {
 
     const report = await page.evaluate(async () => {
       const wait = ms => new Promise(r => setTimeout(r, ms));
+      // TASK-016: renderer transitions run on d3 timers (500 ms) driven by animation
+      // frames, so a fixed sleep races a stalled frame. Poll for the state the
+      // assertions inspect instead; a state that never arrives still fails them.
+      const waitFor = async (settled, timeoutMs = 8000) => {
+        const deadline = performance.now() + timeoutMs;
+        while (performance.now() < deadline) { if (settled()) return true; await wait(40); }
+        return settled();
+      };
       const bundle = JSON.parse(document.getElementById("diagram-model").textContent);
       const rawView = Array.isArray(bundle.views) ? (bundle.views.find(view => view.viewId === new URL(location.href).searchParams.get("view")) || bundle.views[0]) : bundle;
       const materialize = view => view === bundle ? bundle : {
@@ -342,15 +350,21 @@ try {
         for (const button of flowButtons) {
           button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
           await wait(80);
+          if ((model.flow.steps[snapshots.length]?.kind || "call") !== "intro") await waitFor(() => document.querySelectorAll("g.wire.flow-active").length >= 1 && document.querySelectorAll("g.flow-marker.active").length >= 1);
           snapshots.push({ step: button.textContent, kind: model.flow.steps[snapshots.length]?.kind || "call", activeWires: document.querySelectorAll("g.wire.flow-active").length, activeMarkers: document.querySelectorAll("g.flow-marker.active").length, activeMarkerLabels: [...document.querySelectorAll("g.flow-marker.active text")].map(label => label.textContent), returnWires: document.querySelectorAll("g.wire.flow-return").length, parallelGlyphs: document.querySelectorAll("g.flow-decoration.fork, g.flow-decoration.join").length, loopBadges: document.querySelectorAll("g.flow-loop-badge").length, indicator: document.getElementById("stage-indicator")?.textContent || "", labels: [...document.querySelectorAll("text.wire-label")].map(label => ({ key: label.dataset.wireKey, text: label.textContent })) });
         }
         let returnArrow = null;
         const returnIndex = (model.flow.steps || []).findIndex(step => step?.kind === "return");
         if (returnIndex >= 0 && flowButtons[returnIndex]) {
           flowButtons[returnIndex].dispatchEvent(new MouseEvent("click", { bubbles: true }));
-          await wait(700);
-          const edge = (model.flow.steps[returnIndex].edges || []).find(item => item.kind === "return"), layout = window.__diagramLayoutForTest?.(), wire = layout?.wires?.find(item => edge && item.from === edge.wireFrom && item.to === edge.wireTo), active = document.querySelector("g.wire.flow-return.flow-active");
-          returnArrow = { mainMarker: active?.querySelector("path.main")?.getAttribute("marker-end") || null, flowMarker: active?.querySelector("path.flow")?.getAttribute("marker-end") || null, flowPath: active?.querySelector("path.flow")?.getAttribute("d") || "", expectedReversePath: wire?.reverseGeom?.path || "", forwardPath: wire?.geom?.path || "" };
+          const edge = (model.flow.steps[returnIndex].edges || []).find(item => item.kind === "return");
+          const sampleReturnArrow = () => {
+            const layout = window.__diagramLayoutForTest?.(), wire = layout?.wires?.find(item => edge && item.from === edge.wireFrom && item.to === edge.wireTo), active = document.querySelector("g.wire.flow-return.flow-active");
+            return { mainMarker: active?.querySelector("path.main")?.getAttribute("marker-end") || null, flowMarker: active?.querySelector("path.flow")?.getAttribute("marker-end") || null, flowPath: active?.querySelector("path.flow")?.getAttribute("d") || "", expectedReversePath: wire?.reverseGeom?.path || "", forwardPath: wire?.geom?.path || "" };
+          };
+          await wait(80);
+          await waitFor(() => { const sample = sampleReturnArrow(); return !!sample.flowMarker && sample.flowPath !== "" && sample.flowPath === sample.expectedReversePath; });
+          returnArrow = sampleReturnArrow();
         }
         out.flow = { stepCount: model.flow.steps?.length || 0, timelineCount: flowButtons.length, render: model.meta?.flow?.render || "stepwise", intro: !!model.meta?.flow?.intro, introNote: model.flow.steps?.[0]?.note || "", initial, allMarkers: document.querySelectorAll("g.flow-marker").length, markerLabels: [...document.querySelectorAll("g.flow-marker text")].map(label => label.textContent), activeMarkersAtEnd: document.querySelectorAll("g.flow-marker.active").length, activeMarkerLabelsAtEnd: [...document.querySelectorAll("g.flow-marker.active text")].map(label => label.textContent), sequenceButtonVisible: document.getElementById("btn-export-sequence")?.hidden === false, sequenceHeader: sequence.startsWith("sequenceDiagram\n"), returnArrow, snapshots };
       }

@@ -30,7 +30,7 @@
 - [/] **TASK-016** · P0 · low · Poll for flow-step state instead of fixed waits in render_check so full-suite runs stop flaking
   - Done when: flow probes wait for the active marker and reverse path under a deadline with every assertion unchanged; `node architecture-diagram-renderer/tests/render_check.mjs checkout-flow`
   - Links: Ref: architecture-diagram-renderer/tests/README.md · Lane: hardening
-  - State: attempts 0/3; baseline 46 passing; branch todo/TASK-016-poll-flow-step-state from main; next: build
+  - State: attempts 0/3; baseline 46 passing; branch todo/TASK-016-poll-flow-step-state from main; next: drain
 
 - [ ] **FEAT-003** · P1 · high · Package an offline-capable interactive presentation without CDN dependencies
   - Done when: demos retain playback, zoom, search and routing with network access disabled; `npm test`
