@@ -34,12 +34,14 @@
       "client": {
         "label": "Checkout client",
         "type": "actor",
-        "shape": "actor"
+        "shape": "actor",
+        "kind": "existing"
       },
       "gateway": {
         "label": "API gateway",
         "type": "gateway",
-        "shape": "gateway"
+        "shape": "gateway",
+        "kind": "existing"
       },
       "monolith": {
         "label": "Commerce monolith",
@@ -56,7 +58,8 @@
       "ordersdb": {
         "label": "Orders database",
         "type": "database",
-        "shape": "db"
+        "shape": "db",
+        "kind": "existing"
       }
     },
     "packages": {
@@ -113,6 +116,9 @@
               "flow": false,
               "label": "/other"
             }
+          ],
+          "expandedPackages": [
+            "commerce"
           ]
         }
       ],
@@ -169,6 +175,9 @@
               "flow": false,
               "label": "SQL"
             }
+          ],
+          "expandedPackages": [
+            "commerce"
           ]
         }
       ],

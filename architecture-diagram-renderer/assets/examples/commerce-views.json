@@ -20,23 +20,27 @@
         "label": "Checkout web app",
         "type": "actor",
         "shape": "actor",
+        "kind": "existing",
         "navigateTo": "checkout"
       },
       "gateway": {
         "label": "API gateway",
         "type": "gateway",
         "shape": "gateway",
+        "kind": "existing",
         "contains": "commerce"
       },
       "orders": {
         "label": "Orders service",
         "type": "service",
-        "shape": "service"
+        "shape": "service",
+        "kind": "existing"
       },
       "ordersdb": {
         "label": "Orders database",
         "type": "database",
-        "shape": "db"
+        "shape": "db",
+        "kind": "existing"
       }
     },
     "packages": {
@@ -195,6 +199,7 @@
           "label": "API gateway · orders-host",
           "type": "gateway",
           "shape": "gateway",
+          "kind": "existing",
           "contains": "commerce",
           "deploymentComponent": "gateway",
           "deploymentTarget": "orders-host"
@@ -203,6 +208,7 @@
           "label": "Orders service · replica 1",
           "type": "service",
           "shape": "service",
+          "kind": "existing",
           "deploymentComponent": "orders",
           "deploymentTarget": "orders-host"
         },
@@ -210,6 +216,7 @@
           "label": "Orders service · replica 2",
           "type": "service",
           "shape": "service",
+          "kind": "existing",
           "deploymentComponent": "orders",
           "deploymentTarget": "orders-host"
         },
@@ -217,6 +224,7 @@
           "label": "Orders database · orders-db-host",
           "type": "database",
           "shape": "db",
+          "kind": "existing",
           "deploymentComponent": "ordersdb",
           "deploymentTarget": "orders-db-host"
         }
@@ -224,7 +232,6 @@
       "packages": {
         "deployment_us-east": {
           "label": "US East",
-          "detail": null,
           "kind": "existing",
           "children": [
             "deployment_orders-cluster"
@@ -233,7 +240,6 @@
         },
         "deployment_orders-cluster": {
           "label": "Orders cluster",
-          "detail": null,
           "kind": "existing",
           "children": [
             "deployment_orders-host",
@@ -243,7 +249,6 @@
         },
         "deployment_orders-host": {
           "label": "Orders hosts",
-          "detail": null,
           "kind": "existing",
           "children": [
             "gateway-orders-host-1",
@@ -254,7 +259,6 @@
         },
         "deployment_orders-db-host": {
           "label": "Database hosts",
-          "detail": null,
           "kind": "existing",
           "children": [
             "ordersdb-orders-db-host-1"
@@ -297,7 +301,10 @@
               "label": "INSERT"
             }
           ],
-          "docs": "docs/checkout-request.md"
+          "docs": "docs/checkout-request.md",
+          "expandedPackages": [
+            "commerce"
+          ]
         }
       ],
       "flow": {
@@ -334,38 +341,43 @@
         ],
         "steps": [
           {
-            "id": "step-1",
             "kind": "call",
             "edges": [
               {
                 "from": "client",
                 "to": "gateway",
                 "kind": "call",
+                "wireType": "data",
                 "wireFrom": "client",
                 "wireTo": "gateway"
               }
             ],
             "title": "Request",
-            "note": "Browser request"
+            "note": "Browser request",
+            "id": "step-1"
           },
           {
-            "id": "step-2",
             "kind": "call",
             "edges": [
               {
                 "from": "orders",
                 "to": "ordersdb",
                 "kind": "call",
+                "wireType": "data",
                 "wireFrom": "orders",
                 "wireTo": "ordersdb"
               }
             ],
             "title": "Persist",
             "note": "Store the order",
-            "navigateTo": "production"
+            "navigateTo": "production",
+            "id": "step-2"
           }
         ],
-        "docs": "docs/checkout-request.md"
+        "docs": "docs/checkout-request.md",
+        "expandedPackages": [
+          "commerce"
+        ]
       },
       "viewId": "checkout",
       "viewTitle": "Checkout request path",

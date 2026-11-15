@@ -612,7 +612,7 @@ architecture-diagram-renderer/
       nested-sibling-packages-model.json  regression fixture: two sibling packages nested under one parent, both auto-expanding, plus a nearby free-standing node
       wire-merge-model.json               regression fixture: member-to-member wires of the same type merge into one line when their packages collapse
       boundary-label-collision-model.json  regression fixture: two boundary titles forced onto the same spot
-      comparison-views.json               v2 comparison options with criteria and trade-offs
+      comparison-views.json               v2 comparison options with criteria and trade-offs; generated from the DSL example
       commerce-views.json                 v2 context/deployment/flow bundle with infrastructure nesting and navigation; generated from the DSL example
   scripts/
     build_bundle.py                     deterministic model-to-HTML builder; linked multi-file default, --inline embeds the sidecars for single-file delivery
