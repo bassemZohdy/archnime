@@ -321,6 +321,20 @@ def _lint_duplicate_nodes(entries, path_prefix: str) -> list[Finding]:
     return findings
 
 
+def _lint_duplicate_boundaries(boundaries, path_prefix: str) -> list[Finding]:
+    """Boundary ids address a trust scope, so two scopes sharing one id are ambiguous."""
+    findings, seen, reported = [], set(), set()
+    for boundary in _seq(boundaries):
+        ident = _map(boundary).get("id")
+        if not isinstance(ident, str):
+            continue
+        if ident in seen and ident not in reported:
+            reported.add(ident)
+            findings.append(Finding("duplicate-boundary-id", f"boundary id {ident!r} is used more than once in this state", f"{path_prefix}.boundaries"))
+        seen.add(ident)
+    return findings
+
+
 def _lint_state(state: dict, known_ids: set, package_ids: set, path_prefix: str, duplicates: bool = True) -> list[Finding]:
     findings = []
     if not isinstance(state, dict):
@@ -329,6 +343,7 @@ def _lint_state(state: dict, known_ids: set, package_ids: set, path_prefix: str,
     node_ids = _node_ids(nodes)
     if duplicates:
         findings += _lint_duplicate_nodes(nodes, path_prefix)
+        findings += _lint_duplicate_boundaries(state.get("boundaries"), path_prefix)
     for nid in sorted(node_ids):
         if nid not in known_ids:
             findings.append(Finding("unknown-catalog-ref", f"node {nid!r} is not a catalog or package id", f"{path_prefix}.nodes"))
@@ -383,6 +398,7 @@ def _lint_steps(steps_doc: dict, known_ids: set, package_ids: set, path_prefix: 
             if step_id in seen_step_ids:
                 findings.append(Finding("duplicate-id", f"step id {step_id!r} appears more than once", f"{path}.id"))
             seen_step_ids.add(step_id)
+        findings += _lint_duplicate_boundaries(step.get("boundaries"), path)
         current_nodes = _node_ids(current.get("nodes"))
         try:
             current_wires = normalize_wires(current.get("wires"))
@@ -513,6 +529,7 @@ def _lint_flow(flow: dict, known_ids: set, path_prefix: str) -> list[Finding]:
         return findings
     node_ids = _node_ids(flow.get("nodes"))
     findings += _lint_duplicate_nodes(flow.get("nodes"), path_prefix)
+    findings += _lint_duplicate_boundaries(flow.get("boundaries"), path_prefix)
     for node_id in sorted(node_ids):
         if node_id not in known_ids:
             findings.append(Finding("unknown-catalog-ref", f"node {node_id!r} is not a catalog or package id", f"{path_prefix}.nodes"))

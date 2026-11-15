@@ -528,11 +528,23 @@
     return findings;
   }
 
+  // Boundary ids address a trust scope, so two scopes sharing one id are ambiguous.
+  function lintDuplicateBoundaries(boundaries, pathPrefix) {
+    const findings = [], seen = new Set(), reported = new Set();
+    arr(boundaries).forEach(boundary => {
+      const id = obj(boundary).id;
+      if (typeof id !== "string") return;
+      if (seen.has(id) && !reported.has(id)) { reported.add(id); findings.push(finding("duplicate-boundary-id", `boundary id '${id}' is used more than once in this state`, `${pathPrefix}.boundaries`)); }
+      seen.add(id);
+    });
+    return findings;
+  }
+
   function lintState(state, knownIds, packageIds, pathPrefix, duplicates = true) {
     const findings = [];
     if (!isObject(state)) return findings;
     const nodes = arr(state.nodes), stateNodeIds = nodeIds(nodes);
-    if (duplicates) findings.push(...lintDuplicateNodes(nodes, pathPrefix));
+    if (duplicates) { findings.push(...lintDuplicateNodes(nodes, pathPrefix)); findings.push(...lintDuplicateBoundaries(state.boundaries, pathPrefix)); }
     [...stateNodeIds].sort().forEach(id => { if (!knownIds.has(id)) findings.push(finding("unknown-catalog-ref", `node '${id}' is not a catalog or package id`, `${pathPrefix}.nodes`)); });
     findings.push(...lintFrozenFieldOverrides(nodes, pathPrefix));
     findings.push(...lintWires(state.wires, knownIds, stateNodeIds, pathPrefix));
@@ -563,6 +575,7 @@
         if (seenStepIds.has(stepId)) findings.push(finding("duplicate-id", `step id '${stepId}' appears more than once`, `${path}.id`));
         seenStepIds.add(stepId);
       }
+      findings.push(...lintDuplicateBoundaries(step.boundaries, path));
       const currentNodes = nodeIds(current.nodes), currentWires = (() => { try { return normalizeWires(current.wires); } catch (error) { return []; } })(), currentWireKeys = new Set(currentWires.map(wireIdentity)), add = isObject(step.add) ? step.add : {}, remove = isObject(step.remove) ? step.remove : {}, overrides = isObject(step.set) ? step.set : {}, addNodes = arr(add.nodes), addWires = arr(add.wires), removeNodes = new Set(strs(remove.nodes)), removeWires = arr(remove.wires);
       addNodes.forEach(node => { const id = nodeId(node); if (currentNodes.has(id)) findings.push(finding("step-add-existing-node", `step adds node '${id}', but it already exists`, `${path}.add.nodes`)); });
       removeNodes.forEach(id => { if (!currentNodes.has(id)) findings.push(finding("step-remove-absent", `step removes node '${id}', but it is absent`, `${path}.remove.nodes`)); });
@@ -594,6 +607,7 @@
     if (!isObject(flow)) return findings;
     const nodes = arr(flow.nodes), flowNodeIds = nodeIds(nodes);
     findings.push(...lintDuplicateNodes(nodes, pathPrefix));
+    findings.push(...lintDuplicateBoundaries(flow.boundaries, pathPrefix));
     [...flowNodeIds].sort().forEach(id => { if (!knownIds.has(id)) findings.push(finding("unknown-catalog-ref", `node '${id}' is not a catalog or package id`, `${pathPrefix}.nodes`)); });
     findings.push(...lintFrozenFieldOverrides(nodes, pathPrefix));
     findings.push(...lintWires(flow.wires, knownIds, flowNodeIds, pathPrefix));
