@@ -516,10 +516,23 @@
     return findings;
   }
 
-  function lintState(state, knownIds, packageIds, pathPrefix) {
+  // A node listed twice in one state would be drawn twice; report each repeated id once.
+  function lintDuplicateNodes(entries, pathPrefix) {
+    const findings = [], seen = new Set(), reported = new Set();
+    arr(entries).forEach(entry => {
+      const id = nodeId(entry);
+      if (id === null) return;
+      if (seen.has(id) && !reported.has(id)) { reported.add(id); findings.push(finding("duplicate-state-node", `node '${id}' is listed more than once in this state`, `${pathPrefix}.nodes`)); }
+      seen.add(id);
+    });
+    return findings;
+  }
+
+  function lintState(state, knownIds, packageIds, pathPrefix, duplicates = true) {
     const findings = [];
     if (!isObject(state)) return findings;
     const nodes = arr(state.nodes), stateNodeIds = nodeIds(nodes);
+    if (duplicates) findings.push(...lintDuplicateNodes(nodes, pathPrefix));
     [...stateNodeIds].sort().forEach(id => { if (!knownIds.has(id)) findings.push(finding("unknown-catalog-ref", `node '${id}' is not a catalog or package id`, `${pathPrefix}.nodes`)); });
     findings.push(...lintFrozenFieldOverrides(nodes, pathPrefix));
     findings.push(...lintWires(state.wires, knownIds, stateNodeIds, pathPrefix));
@@ -562,7 +575,7 @@
       current.wires = arr(current.wires).filter(wire => { const identity = wireIdentity(wire); return !removeWireKeys.has(identity) && !(identity && (removeNodes.has(identity.split(">", 2)[0]) || removeNodes.has(identity.split(">", 2)[1]))); }).concat(JSON.parse(JSON.stringify(addWires)));
       Object.entries(overrides).forEach(([id, override]) => { const nodeIndex = current.nodes.findIndex(node => nodeId(node) === id); if (nodeIndex >= 0) current.nodes[nodeIndex] = { ...(typeof current.nodes[nodeIndex] === "string" ? { id } : JSON.parse(JSON.stringify(current.nodes[nodeIndex]))), ...JSON.parse(JSON.stringify(override || {})) }; });
       ["id", "title", "summary", "changes", "callout", "boundaries", "changed", "disclosure", "expandedPackages", "layout"].forEach(key => { if (has(step, key)) current[key] = JSON.parse(JSON.stringify(step[key])); });
-      findings.push(...lintState(current, knownIds, packageIds, path));
+      findings.push(...lintState(current, knownIds, packageIds, path, false));
     });
     return findings;
   }
@@ -580,6 +593,7 @@
     const findings = [];
     if (!isObject(flow)) return findings;
     const nodes = arr(flow.nodes), flowNodeIds = nodeIds(nodes);
+    findings.push(...lintDuplicateNodes(nodes, pathPrefix));
     [...flowNodeIds].sort().forEach(id => { if (!knownIds.has(id)) findings.push(finding("unknown-catalog-ref", `node '${id}' is not a catalog or package id`, `${pathPrefix}.nodes`)); });
     findings.push(...lintFrozenFieldOverrides(nodes, pathPrefix));
     findings.push(...lintWires(flow.wires, knownIds, flowNodeIds, pathPrefix));

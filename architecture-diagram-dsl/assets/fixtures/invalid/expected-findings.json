@@ -18,6 +18,7 @@
   "deployment-unknown-target": {"rules": ["deployment-unknown-target"], "paths": ["$.views[0].deployment.placements[1].target"]},
   "deployment-unplaced-component": {"rules": ["deployment-unplaced-component"], "paths": ["$.views[0].deployment.placements"]},
   "duplicate-id": {"rules": ["duplicate-id"], "paths": ["$.catalog.shared"]},
+  "duplicate-state-node": {"rules": ["duplicate-state-node"], "paths": ["$.system.nodes"]},
   "duplicate-yaml-key": {"rules": ["duplicate-yaml-key"], "paths": ["$"]},
   "expanded-package-not-package": {"rules": ["expanded-package-not-package"], "paths": ["$.transition.states[1].expandedPackages"]},
   "flow-invalid-step": {"rules": ["flow-return-no-forward", "flow-step-unknown-edge"], "paths": ["$.flow.steps[0].edge", "$.flow.steps[1].edge"]},
