@@ -57,9 +57,8 @@
   - State: branch todo/TASK-012-close-test-gate-gaps from main; next: build children
   - [x] **TASK-012.1** · low · Rename example_sync.py to test_example_sync.py so unittest discovery runs it
     - Done when: discovery runs the sync test; `python -m unittest discover -s architecture-diagram-validation/tests -p test_example_sync.py`
-  - [/] **TASK-012.2** · mid · Regenerate the stale commerce-views and comparison-views example models and check them in regen_fixtures
+  - [x] **TASK-012.2** · mid · Regenerate the stale commerce-views and comparison-views example models and check them in regen_fixtures
     - Done when: check-fixtures fails on a stale example model and passes on regenerated ones; `npm run check-fixtures`
-    - State: attempts 0/3; baseline 46 passing; branch todo/TASK-012.2-regenerate-stale-commerce-views from todo/TASK-012-close-test-gate-gaps; next: build
 
 - [ ] **FEAT-017** · P1 · high · Add code-backed provenance: optional source on catalog entries and wires, plus a check that reports sources whose file or quoted words are gone and refuses unsafe paths
   - Done when: check flags a missing path and vanished words and rejects absolute, parent-escaping and secret-file sources in both validators; `python -m unittest discover -s architecture-diagram-dsl/tests -p test_sources.py`
