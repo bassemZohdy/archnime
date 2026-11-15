@@ -71,10 +71,10 @@
   - [ ] **TASK-006.2** · low · Compare SMIL only for verified unsupported CSS-animation targets
     - Done when: measured compatibility differences justify a choice without dual-renderer complexity; `node --test architecture-diagram-renderer/tests/animation_format.test.mjs`
 
-- [ ] **TASK-013** · P2 · low · Document every lint rule and guard the list with a contract test
+- [/] **TASK-013** · P2 · low · Document every lint rule and guard the list with a contract test
   - Done when: every rule a validator emits has a row in validation-and-review.md and a negative fixture; `python -m unittest discover -s architecture-diagram-dsl/tests -p test_rule_docs.py`
   - Links: Ref: architecture-diagram-dsl/references/validation-and-review.md · Lane: hardening
-  - State: branch todo/TASK-013-document-every-lint-rule from main; next: start TASK-013
+  - State: attempts 0/3; baseline 46 passing; branch todo/TASK-013-document-every-lint-rule from main; next: build
 
 - [ ] **FEAT-014** · P2 · mid · Add lint rules for duplicate node, wire and boundary ids and for flow steps whose edge type matches no flow wire
   - Done when: each new rule has a negative fixture and both validators agree; `python -m unittest discover -s architecture-diagram-dsl/tests -p test_validate_transition_diagram.py`
