@@ -52,6 +52,16 @@ headless Chromium, and checks:
   blocks remain painted above routes, and confirms Tune layout performs a
   multi-start search
 
+## `script_integrity_check.mjs` — pinned CDN scripts
+
+Every external script the pages load (D3, Dagre, ELK, gif.js and js-yaml) carries a
+`sha384` Subresource Integrity hash and `crossorigin="anonymous"`, and the gif worker,
+which is fetched rather than loaded by a tag, passes its hash to `fetch()`.
+`assets/cdn-integrity.json` is the one list of those hashes; the check is static and
+offline. `VERIFY_CDN_INTEGRITY=1 npm run check-integrity` also downloads each file and
+compares. When a pinned version changes, update the manifest from the new file, then both
+HTML pages and `GIF_WORKER_INTEGRITY` in `template.html`, and run the verifying form.
+
 ## `link_safety_check.mjs` — stage link safety
 
 Stage `docs` and `adr` values come from the model, so the renderer treats them as

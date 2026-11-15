@@ -1,0 +1,8 @@
+{
+  "https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js": "sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i",
+  "https://cdn.jsdelivr.net/npm/@dagrejs/dagre@1.1.4/dist/dagre.min.js": "sha384-lNbBZ8yeW7Otl9YsPLeAvfxwUjrpXOnk/ujXsbt5s9wWhKWCYzMeFdZwKBpYxeDT",
+  "https://cdn.jsdelivr.net/npm/elkjs@0.12.0/lib/elk.bundled.js": "sha384-ww57TDqx4cGknIavPm0QKO+aygLUR1BLSn2Vhbnt1XdYKWcwLyWTFKX7aZMaKIi2",
+  "https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js": "sha384-4RMW82CWFobXY+HRHXe5go/V5acBhiIVGCT+2k7TEoxi7AiWKw8WoWb9qMU+FAFu",
+  "https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js": "sha384-uL0SwIQSos1DfQU2KzlDbPuSz7Jwo+hmNPIhe86VJ+MWwyj0DvjngnAgWrkNi9eQ",
+  "https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.1/js-yaml.min.js": "sha384-ZeqCzuWczURac3RacSufGD7oSbzeaX7xxnnOr3PTcYTLx4Av0qBj0kBq7AeCtHLA"
+}
