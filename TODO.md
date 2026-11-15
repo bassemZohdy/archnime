@@ -15,9 +15,8 @@
     - Done when: each workspace state reports its artifacts, staleness and one recommended skill and command; `python -m unittest discover -s architecture-diagram/tests -p test_workspace_state.py`
   - [x] **FEAT-021.2** · mid · Write the aggregator SKILL.md and state machine so every scanner state routes to exactly one skill
     - Done when: every state the scanner can emit appears once in the skill's routing table with its owner skill; `python -m unittest discover -s architecture-diagram/tests -p test_skill_contract.py`
-  - [/] **FEAT-021.3** · low · Register the aggregator in the structure check, AGENTS.md, README, docs and the test scripts
+  - [x] **FEAT-021.3** · low · Register the aggregator in the structure check, AGENTS.md, README, docs and the test scripts
     - Done when: the structure check requires all five skills and the aggregator's tests run under npm test; `npm run check-skills`
-    - State: attempts 0/3; baseline 46 passing; branch todo/FEAT-021.3-register-aggregator-structure-check from todo/FEAT-021-add-aggregator-skill-reads; next: build
 
 - [ ] **FIX-005** · P1 · high · Prevent silent changes to non-Latin architecture labels during SVG export
   - Done when: Arabic and other supported-script labels retain shape and placement or trigger a clear rejection; `npm test`

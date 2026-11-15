@@ -1,11 +1,12 @@
 # diagram-skills
 
-Four portable Agent Skills for **interactive, animated architecture presentations** and **documentation-safe diagram exports**. A single validated YAML architecture model drives semantic validation, rendering, and export.
+Five portable Agent Skills (four domain skills and one aggregator) for **interactive, animated architecture presentations** and **documentation-safe diagram exports**. A single validated YAML architecture model drives semantic validation, rendering, and export.
 
 ## Skills
 
 | Skill | Responsibility |
 | --- | --- |
+| [architecture-diagram](architecture-diagram/) | Single entry point: scan the workspace, then route to the skill whose turn it is and re-check. |
 | [architecture-diagram-interview](architecture-diagram-interview/) | Elicit architecture facts, boundaries, assumptions, and diagram type. |
 | [architecture-diagram-dsl](architecture-diagram-dsl/) | Author, validate, and translate the renderer-independent YAML source. |
 | [architecture-diagram-renderer](architecture-diagram-renderer/) | Present interactive HTML/D3, animated flows, multi-stage migrations, and SVG/raster exports. |
@@ -55,4 +56,4 @@ npm run check-fonts
 
 ## License
 
-This repository's original scaffold and new integration files are MIT licensed under [LICENSE](LICENSE). The four architecture-diagram skills and their migrated implementation are Apache-2.0 licensed under [LICENSE-APACHE-2.0](LICENSE-APACHE-2.0) and each `SKILL.md` declares the same. The embedded Inter font is under the SIL Open Font License (see [font license](architecture-diagram-renderer/assets/fonts/LICENSE-Inter-OFL.txt)). Preserve these notices when distributing artifacts.
+This repository's original scaffold and new integration files are MIT licensed under [LICENSE](LICENSE). The architecture-diagram skills and their migrated implementation are Apache-2.0 licensed under [LICENSE-APACHE-2.0](LICENSE-APACHE-2.0) and each `SKILL.md` declares the same. The embedded Inter font is under the SIL Open Font License (see [font license](architecture-diagram-renderer/assets/fonts/LICENSE-Inter-OFL.txt)). Preserve these notices when distributing artifacts.
