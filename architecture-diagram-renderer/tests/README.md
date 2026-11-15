@@ -97,6 +97,10 @@ toolbar uses. A missing browser skips them locally and fails them under
   supporting wire, exporting leaves the presenter's wire count, button and status untouched,
   and a model without disclosure exports the same at any time.
 
+- `offline_assets.test.mjs` — `assets/vendor/` covers exactly the pinned CDN files, each
+  byte-identical to the pinned SHA-384 and version, with an allowed SPDX licence and its
+  recognisable licence text, and nothing unlisted beside them.
+
 ## `script_integrity_check.mjs` — pinned CDN scripts
 
 Every external script the pages load (D3, Dagre, ELK, gif.js and js-yaml) carries a
