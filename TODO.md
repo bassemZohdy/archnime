@@ -7,17 +7,6 @@
 
 ## 🌳 Task Tree
 
-- [ ] **TASK-001** · P0 · high · Verify documentation-safe SVG exports retain architecture semantics and render consistently
-  - Done when: static SVG is zoom-independent, complete, font-embedded, and rejects malformed output; `npm test`
-  - Links: Ref: architecture-diagram-renderer/references/documentation-export.md
-  - State: branch todo/TASK-001-verify-documentation-safe-svg from main; next: build children
-  - [x] **TASK-001.1** · mid · Add independent SVG-image regression for stage geometry and missing-font failure
-    - Done when: pan/zoom cannot crop SVG and missing font fails explicitly; `node --test architecture-diagram-renderer/tests/documentation_svg.test.mjs`
-  - [x] **TASK-001.2** · mid · Validate documentation SVG rendering at narrow and full README widths
-    - Done when: labels, arrows, node identity and trust boundaries remain readable at supported sizes; `node --test architecture-diagram-renderer/tests/documentation_embedding.test.mjs`
-  - [x] **TASK-001.3** · mid · Verify the export preserves the selected flow step, stage and view without losing visible nodes
-    - Done when: every selected stage/view matches the presenter state and excluded IDs are never invented; `node --test architecture-diagram-renderer/tests/documentation_states.test.mjs`
-
 - [ ] **FEAT-002** · P0 · mid · Batch-export documented views and stages with reproducible provenance
   - Done when: every requested architecture state has a stable snapshot and valid manifest; `npm test`
   - Links: Ref: architecture-diagram-renderer/references/documentation-export.md
