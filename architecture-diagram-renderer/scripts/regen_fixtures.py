@@ -14,13 +14,18 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 TRANSLATOR = ROOT / "architecture-diagram-dsl" / "scripts" / "translate_transition_diagram.py"
 FIXTURES = ROOT / "architecture-diagram-renderer" / "tests" / "fixtures"
+SHIPPED_EXAMPLES = ROOT / "architecture-diagram-renderer" / "assets" / "examples"
 
 # Keep this list explicit: every generated fixture must have a named semantic
 # source, while the remaining fixtures stay intentionally hand-authored.
 GENERATED_PAIRS = (
-    ("checkout-flow.yaml", "checkout-flow.json"),
-    ("commerce-views.yaml", "commerce-views.json"),
-    ("orders-failover-scenarios.yaml", "orders-failover-scenarios.json"),
+    ("checkout-flow.yaml", FIXTURES, "checkout-flow.json"),
+    ("commerce-views.yaml", FIXTURES, "commerce-views.json"),
+    ("orders-failover-scenarios.yaml", FIXTURES, "orders-failover-scenarios.json"),
+    # The shipped example models are what the renderer guide tells readers to copy,
+    # so they must stay in step with the DSL examples they come from.
+    ("commerce-views.yaml", SHIPPED_EXAMPLES, "commerce-views.json"),
+    ("comparison-views.yaml", SHIPPED_EXAMPLES, "comparison-views.json"),
 )
 
 
@@ -50,9 +55,9 @@ def main() -> int:
 
     failures = 0
     examples = ROOT / "architecture-diagram-dsl" / "assets" / "examples"
-    for source_name, fixture_name in GENERATED_PAIRS:
+    for source_name, directory, fixture_name in GENERATED_PAIRS:
         source = examples / source_name
-        fixture = FIXTURES / fixture_name
+        fixture = directory / fixture_name
         try:
             expected = translated_json(source)
         except (OSError, RuntimeError, json.JSONDecodeError) as error:
