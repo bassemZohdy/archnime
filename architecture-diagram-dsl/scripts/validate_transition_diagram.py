@@ -321,6 +321,35 @@ def _lint_duplicate_nodes(entries, path_prefix: str) -> list[Finding]:
     return findings
 
 
+def _wire_declaration_key(wire) -> str | None:
+    """Everything that makes a wire a distinct declaration; `flow` (the animation flag) is not part of it."""
+    try:
+        normalized = parse_wire_shorthand(wire) if isinstance(wire, str) else wire
+    except ValueError:
+        return None
+    if not isinstance(normalized, dict) or not isinstance(normalized.get("from"), str) or not isinstance(normalized.get("to"), str):
+        return None
+    parts = [normalized.get(key) for key in ("from", "to", "type", "label", "layer", "bundle", "offset", "priority", "ops")]
+    if parts[2] is None:
+        parts[2] = "data"
+    return json.dumps(parts, sort_keys=True, default=str)
+
+
+def _lint_duplicate_wires(wires, path_prefix: str) -> list[Finding]:
+    """The same wire declared twice draws on top of itself; parallel wires differ in label or routing."""
+    findings, seen, reported = [], set(), set()
+    for wire in _seq(wires):
+        key = _wire_declaration_key(wire)
+        if key is None:
+            continue
+        if key in seen and key not in reported:
+            reported.add(key)
+            from_id, to_id = json.loads(key)[:2]
+            findings.append(Finding("duplicate-wire", f"wire {from_id!r} -> {to_id!r} is declared more than once with the same type, label and routing options", f"{path_prefix}.wires"))
+        seen.add(key)
+    return findings
+
+
 def _lint_duplicate_boundaries(boundaries, path_prefix: str) -> list[Finding]:
     """Boundary ids address a trust scope, so two scopes sharing one id are ambiguous."""
     findings, seen, reported = [], set(), set()
@@ -344,6 +373,7 @@ def _lint_state(state: dict, known_ids: set, package_ids: set, path_prefix: str,
     if duplicates:
         findings += _lint_duplicate_nodes(nodes, path_prefix)
         findings += _lint_duplicate_boundaries(state.get("boundaries"), path_prefix)
+        findings += _lint_duplicate_wires(state.get("wires"), path_prefix)
     for nid in sorted(node_ids):
         if nid not in known_ids:
             findings.append(Finding("unknown-catalog-ref", f"node {nid!r} is not a catalog or package id", f"{path_prefix}.nodes"))
@@ -530,6 +560,7 @@ def _lint_flow(flow: dict, known_ids: set, path_prefix: str) -> list[Finding]:
     node_ids = _node_ids(flow.get("nodes"))
     findings += _lint_duplicate_nodes(flow.get("nodes"), path_prefix)
     findings += _lint_duplicate_boundaries(flow.get("boundaries"), path_prefix)
+    findings += _lint_duplicate_wires(flow.get("wires"), path_prefix)
     for node_id in sorted(node_ids):
         if node_id not in known_ids:
             findings.append(Finding("unknown-catalog-ref", f"node {node_id!r} is not a catalog or package id", f"{path_prefix}.nodes"))

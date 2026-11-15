@@ -1,0 +1,12 @@
+dsl: transition-diagram/1.0
+meta:
+  title: Identical wire declared twice
+catalog:
+  a: { label: A, type: service }
+  b: { label: B, type: service }
+system:
+  title: Identical wire declared twice
+  nodes: [a, b]
+  wires:
+    - "a -> b: call"
+    - { from: a, to: b, label: call }

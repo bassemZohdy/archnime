@@ -20,6 +20,7 @@
   "duplicate-boundary-id": {"rules": ["duplicate-boundary-id"], "paths": ["$.system.boundaries"]},
   "duplicate-id": {"rules": ["duplicate-id"], "paths": ["$.catalog.shared"]},
   "duplicate-state-node": {"rules": ["duplicate-state-node"], "paths": ["$.system.nodes"]},
+  "duplicate-wire": {"rules": ["duplicate-wire"], "paths": ["$.system.wires"]},
   "duplicate-yaml-key": {"rules": ["duplicate-yaml-key"], "paths": ["$"]},
   "expanded-package-not-package": {"rules": ["expanded-package-not-package"], "paths": ["$.transition.states[1].expandedPackages"]},
   "flow-invalid-step": {"rules": ["flow-return-no-forward", "flow-step-unknown-edge"], "paths": ["$.flow.steps[0].edge", "$.flow.steps[1].edge"]},

@@ -528,6 +528,27 @@
     return findings;
   }
 
+  // Everything that makes a wire a distinct declaration; `flow` (the animation flag) is not part of it.
+  function wireDeclarationKey(wire) {
+    let normalized;
+    try { normalized = typeof wire === "string" ? parseWireShorthand(wire) : wire; } catch (error) { return null; }
+    if (!isObject(normalized) || typeof normalized.from !== "string" || typeof normalized.to !== "string") return null;
+    const part = key => normalized[key] === undefined ? null : normalized[key];
+    return JSON.stringify([normalized.from, normalized.to, normalized.type === undefined ? "data" : normalized.type, part("label"), part("layer"), part("bundle"), part("offset"), part("priority"), part("ops")]);
+  }
+
+  // The same wire declared twice draws on top of itself; parallel wires differ in label or routing.
+  function lintDuplicateWires(wires, pathPrefix) {
+    const findings = [], seen = new Set(), reported = new Set();
+    arr(wires).forEach(wire => {
+      const key = wireDeclarationKey(wire);
+      if (key === null) return;
+      if (seen.has(key) && !reported.has(key)) { reported.add(key); const [from, to] = JSON.parse(key); findings.push(finding("duplicate-wire", `wire '${from}' -> '${to}' is declared more than once with the same type, label and routing options`, `${pathPrefix}.wires`)); }
+      seen.add(key);
+    });
+    return findings;
+  }
+
   // Boundary ids address a trust scope, so two scopes sharing one id are ambiguous.
   function lintDuplicateBoundaries(boundaries, pathPrefix) {
     const findings = [], seen = new Set(), reported = new Set();
@@ -544,7 +565,7 @@
     const findings = [];
     if (!isObject(state)) return findings;
     const nodes = arr(state.nodes), stateNodeIds = nodeIds(nodes);
-    if (duplicates) { findings.push(...lintDuplicateNodes(nodes, pathPrefix)); findings.push(...lintDuplicateBoundaries(state.boundaries, pathPrefix)); }
+    if (duplicates) { findings.push(...lintDuplicateNodes(nodes, pathPrefix)); findings.push(...lintDuplicateBoundaries(state.boundaries, pathPrefix)); findings.push(...lintDuplicateWires(state.wires, pathPrefix)); }
     [...stateNodeIds].sort().forEach(id => { if (!knownIds.has(id)) findings.push(finding("unknown-catalog-ref", `node '${id}' is not a catalog or package id`, `${pathPrefix}.nodes`)); });
     findings.push(...lintFrozenFieldOverrides(nodes, pathPrefix));
     findings.push(...lintWires(state.wires, knownIds, stateNodeIds, pathPrefix));
@@ -608,6 +629,7 @@
     const nodes = arr(flow.nodes), flowNodeIds = nodeIds(nodes);
     findings.push(...lintDuplicateNodes(nodes, pathPrefix));
     findings.push(...lintDuplicateBoundaries(flow.boundaries, pathPrefix));
+    findings.push(...lintDuplicateWires(flow.wires, pathPrefix));
     [...flowNodeIds].sort().forEach(id => { if (!knownIds.has(id)) findings.push(finding("unknown-catalog-ref", `node '${id}' is not a catalog or package id`, `${pathPrefix}.nodes`)); });
     findings.push(...lintFrozenFieldOverrides(nodes, pathPrefix));
     findings.push(...lintWires(flow.wires, knownIds, flowNodeIds, pathPrefix));
