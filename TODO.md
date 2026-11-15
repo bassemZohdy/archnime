@@ -54,6 +54,7 @@
 - [ ] **FIX-008** · P1 · high · Make the browser validator and translator agree with the Python reference on valid, invalid and malformed input
   - Done when: both implementations return the same rule set and the same model for every probe document, and malformed input yields findings instead of exceptions; `node architecture-diagram-dsl/tests/browser_validator_check.mjs`
   - Links: Ref: architecture-diagram-dsl/references/runtime.md · Lane: hardening
+  - State: branch todo/FIX-008-make-browser-validator-translator from main; next: build children
   - [ ] **FIX-008.1** · mid · Translate v2 steps, transition and scenarios views in the browser without rejecting the view id and title
     - Done when: v2 steps and transition views translate to the Python model; `node architecture-diagram-dsl/tests/browser_validator_check.mjs`
   - [ ] **FIX-008.2** · mid · Never throw on malformed documents in the browser validator and report them cleanly from Python
@@ -84,6 +85,18 @@
     - Done when: discovery runs the sync test; `python -m unittest discover -s architecture-diagram-validation/tests -p test_example_sync.py`
   - [ ] **TASK-012.2** · mid · Regenerate the stale commerce-views and comparison-views example models and check them in regen_fixtures
     - Done when: check-fixtures fails on a stale example model and passes on regenerated ones; `npm run check-fixtures`
+
+- [ ] **FEAT-017** · P1 · high · Add code-backed provenance: optional source on catalog entries and wires, plus a check that reports sources whose file or quoted words are gone and refuses unsafe paths
+  - Done when: check flags a missing path and vanished words and rejects absolute, parent-escaping and secret-file sources in both validators; `python -m unittest discover -s architecture-diagram-dsl/tests -p test_sources.py`
+  - State: next: decompose
+
+- [ ] **FEAT-018** · P1 · high · Add an agent-first extraction workflow: reader contract, evidence-only drawing from code, a spec brief printer, a density budget warning and a one-command install
+  - Done when: the extraction contract, density warning and spec brief are enforced by tests and the README documents the install; `python -m unittest discover -s architecture-diagram-interview/tests -p test_extraction_contract.py`
+  - State: next: decompose
+
+- [ ] **FEAT-019** · P1 · high · Reach static-SVG parity: headless CLI export, one SVG for light and dark, byte-stable output, refused flows, node variants and AI kinds, and a native sequence view
+  - Done when: a headless command writes identical SVG bytes twice, carries both themes and draws a refused flow; `node architecture-diagram-renderer/tests/static_svg_cli_check.mjs`
+  - State: next: decompose
 
 - [ ] **TASK-006** · P2 · mid · Establish an animated SVG compatibility policy for documentation targets
   - Done when: the recommended animation format has tested static fallback and reduced-motion behavior; `npm test`
