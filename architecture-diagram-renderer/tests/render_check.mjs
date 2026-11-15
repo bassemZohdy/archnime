@@ -286,7 +286,8 @@ try {
       };
 
       const documentationSvg = window.serializeDocumentationSvg();
-      // A documentation image must not depend on the presenter's pan/zoom.
+      // A documentation image must not depend on the presenter's pan/zoom
+      // (FIX-007: the rounded viewBox must match byte for byte at any zoom).
       const liveViewport = document.querySelector("g.viewport");
       const savedViewportTransform = liveViewport?.getAttribute("transform") ?? null;
       let zoomIndependent = false;
