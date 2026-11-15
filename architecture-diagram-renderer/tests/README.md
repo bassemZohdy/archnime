@@ -65,6 +65,12 @@ toolbar uses. A missing browser skips them locally and fails them under
   and no external references; a missing pinned font or an empty scene makes the export fail
   with a visible status and no download.
 
+- `documentation_embedding.test.mjs` — the export keeps every node id and label, every trust
+  boundary (title and area) and every arrowhead (each referenced marker is defined in the file),
+  and as an `<img>` at 880 px (README column), 640 px and 360 px it is not blank, not cropped,
+  and its smallest text stays above 6 px and 4.5 px at the first two widths. Checked on a flow,
+  a model with colliding trust-boundary labels and nested packages.
+
 ## `script_integrity_check.mjs` — pinned CDN scripts
 
 Every external script the pages load (D3, Dagre, ELK, gif.js and js-yaml) carries a
