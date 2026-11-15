@@ -121,8 +121,22 @@ export therefore **refuses** such a diagram, in the toolbar and in `export_snaps
 with a message that names the script and the characters (`Arabic: خ ... (U+062E ...)`). Words
 the font covers are never listed, so a mixed Latin/Arabic label reports only its Arabic part.
 The presenter itself still draws the diagram with the viewer's fonts. Its own join and loop
-symbols are not checked; the loop's repeat condition is. A licensed font and metrics for
-non-Latin scripts is the follow-up (FIX-005.2).
+symbols are not checked; the loop's repeat condition is.
+
+**Which scripts are supported.** Only Latin, through the pinned Inter subset; no other font is
+embedded. `FONT_SCRIPTS` in `assets/diagram-engine.js` is the registry (script, font file,
+version, SPDX licence, licence text, SHA-256), and `DiagramEngine.fontScripts()` reads it.
+`node scripts/gen_font_assets.mjs --check` verifies the font bytes, the licence text and that
+every character of the advance table exists in the font's own `cmap` (read by
+`scripts/font_cmap.mjs`; a canvas silently measures a missing character with another font, so
+the table alone proves nothing). `tests/font_portability.test.mjs` also loads the exported SVG
+with the network blocked and compares the painted widths with what the layout measured.
+
+**Adding a script.** Scripts that are painted one character at a time, such as Cyrillic and
+Greek, can be added by registering a licensed font with its licence text and SHA-256 and
+extending the advance table. Joined or shaped scripts (Arabic, Devanagari, Thai and similar)
+change glyph shape and width with their neighbours, so per-character advances would reintroduce
+the silent width mismatch; they stay refused until the layout measures shaped strings.
 
 ## Automated visual gates
 
