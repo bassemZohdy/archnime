@@ -268,9 +268,14 @@
     const emitEdge = (edge, step, indent) => { const source = edge.from, target = edge.to; if (!aliases[source] || !aliases[target]) return; const kind = edge.kind || step.kind || "call", arrow = kind === "async" || kind === "return" ? "-->>" : "->>"; lines.push(`${indent}${aliases[source]}${arrow}${aliases[target]}: ${wireLabel(edge, step)}`); };
     const emitStep = (step, indent = "    ", nested = false) => {
       const kind = step.kind || "call"; if (kind === "intro") return;
-      const title = String(step.title || step.label || "parallel work").replace(/\n/g, " "), people = participants(step).filter(id => aliases[id]).map(id => aliases[id]).join(",");
+      const title = String(step.title || step.label || "parallel work").replace(/\n/g, " "), named = participants(step).filter(id => aliases[id]).map(id => aliases[id]), people = (named.length < 2 ? named : [named[0], named[named.length - 1]]).join(",");
       if (!nested && step.note && people) lines.push(`${indent}Note over ${people}: ${String(step.note).replace(/\n/g, " ")}`);
-      if (step.parallel === true) { lines.push(`${indent}par ${title}`); edgeEntries(step).forEach((edge, index) => { if (index) lines.push(`${indent}and parallel branch`); emitStep({ kind: edge.kind || "call", edges: [edge], repeat: edge.repeat || step.repeat, label: step.label }, `${indent}    `, true); }); lines.push(`${indent}end`); return; }
+      if (step.parallel === true) {
+        lines.push(`${indent}par ${title}`);
+        if (Array.isArray(step.steps) && step.steps.length) step.steps.forEach((child, index) => { if (index) lines.push(`${indent}and ${String(child.title || child.label || "parallel branch").replace(/\n/g, " ")}`); emitStep(child, `${indent}    `, true); });
+        else edgeEntries(step).forEach((edge, index) => { if (index) lines.push(`${indent}and parallel branch`); emitStep({ kind: edge.kind || "call", edges: [edge], repeat: edge.repeat || step.repeat, label: step.label }, `${indent}    `, true); });
+        lines.push(`${indent}end`); return;
+      }
       if (Array.isArray(step.parallel)) { lines.push(`${indent}par ${title}`); step.parallel.forEach((child, index) => { if (index) lines.push(`${indent}and ${String(child.title || child.label || "parallel branch").replace(/\n/g, " ")}`); emitStep(child, `${indent}    `, true); }); lines.push(`${indent}end`); return; }
       const edges = edgeEntries(step); if (kind === "loop") { lines.push(`${indent}loop ${String(step.repeat || "repeat").replace(/\n/g, " ")}`); edges.forEach(edge => emitEdge(edge, step, `${indent}    `)); lines.push(`${indent}end`); return; } edges.forEach(edge => emitEdge(edge, step, indent));
     };

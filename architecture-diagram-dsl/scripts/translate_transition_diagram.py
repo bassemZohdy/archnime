@@ -564,16 +564,26 @@ def sequence_mermaid(model: dict[str, Any]) -> str:
         title = str(step.get("title") or step.get("label") or "parallel work").replace("\n", " ")
         if not nested and step.get("note") and participants(step):
             note = str(step["note"]).replace("\n", " ")
-            people = ",".join(aliases[ident] for ident in participants(step) if ident in aliases)
+            named = [aliases[ident] for ident in participants(step) if ident in aliases]
+            # Mermaid allows a note over one or two participants: keep the span's two ends.
+            people = ",".join(named[:1] if len(named) < 2 else [named[0], named[-1]])
             if people:
                 lines.append(f"{indent}Note over {people}: {note}")
         if step.get("parallel") is True:
             lines.append(f"{indent}par {title}")
-            for index, edge in enumerate(edge_entries(step)):
-                if index:
-                    lines.append(f"{indent}and parallel branch")
-                child = {"kind": edge.get("kind") or "call", "edges": [edge], "repeat": edge.get("repeat") or step.get("repeat"), "label": step.get("label")}
-                emit_step(child, indent + "    ", nested=True)
+            children = step.get("steps") if isinstance(step.get("steps"), list) and step["steps"] else None
+            if children:
+                # Keep each authored branch (its title or label and its own edges, groups and loops).
+                for index, child in enumerate(children):
+                    if index:
+                        lines.append(f"{indent}and {str(child.get('title') or child.get('label') or 'parallel branch').replace(chr(10), ' ')}")
+                    emit_step(child, indent + "    ", nested=True)
+            else:
+                for index, edge in enumerate(edge_entries(step)):
+                    if index:
+                        lines.append(f"{indent}and parallel branch")
+                    child = {"kind": edge.get("kind") or "call", "edges": [edge], "repeat": edge.get("repeat") or step.get("repeat"), "label": step.get("label")}
+                    emit_step(child, indent + "    ", nested=True)
             lines.append(f"{indent}end")
             return
         if isinstance(step.get("parallel"), list):

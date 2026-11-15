@@ -134,6 +134,31 @@ try {
   }
 } finally { rmSync(translationScratch, { recursive: true, force: true }); }
 
+// FIX-009.1: the browser Mermaid sequence companion must match the Python one byte for byte,
+// and Mermaid allows a note over at most two participants.
+const sequenceDocuments = [
+  ["checkout-flow", null],
+  ["titled-parallel", { dsl: "transition-diagram/1.0", meta: { title: "Titles" }, catalog: { a: { label: "A", type: "service" }, b: { label: "B", type: "service" }, c: { label: "C", type: "service" } }, flow: { title: "F", nodes: ["a", "b", "c"], wires: ["a -> b: one", "a -> c: two"], steps: [{ title: "Fan out", parallel: [{ title: "Left", edge: "a -> b" }, { title: "Right", edge: "a -> c" }] }] } }],
+];
+const sequenceScratch = mkdtempSync(join(tmpdir(), "diagram-sequence-parity-"));
+try {
+  for (const [name, inline] of sequenceDocuments) {
+    const sourcePath = inline ? join(sequenceScratch, `${name}.json`) : resolve(ROOT, "architecture-diagram-dsl/assets/examples/checkout-flow.yaml");
+    if (inline) writeFileSync(sourcePath, JSON.stringify(inline));
+    let pythonSequence, model;
+    try {
+      pythonSequence = execFileSync(python, [pythonTranslator, sourcePath, "--sequence"], { encoding: "utf8" });
+      const modelPath = join(sequenceScratch, `${name}.model.json`);
+      execFileSync(python, [pythonTranslator, sourcePath, "--output", modelPath], { encoding: "utf8" });
+      model = JSON.parse(readFileSync(modelPath, "utf8"));
+    } catch (error) { failures.push(`${name}: Python translation failed: ${String(error.stderr || error.message).split("\n")[0]}`); continue; }
+    const browserSequence = translator.sequenceMermaid(model);
+    if (browserSequence !== pythonSequence) failures.push(`${name}: browser sequence differs from Python`);
+    const wide = browserSequence.split("\n").filter(line => line.trim().startsWith("Note over ")).filter(line => line.trim().slice(10).split(":")[0].split(",").length > 2);
+    if (wide.length) failures.push(`${name}: Mermaid Note over lists more than two participants: ${wide[0].trim()}`);
+  }
+} finally { rmSync(sequenceScratch, { recursive: true, force: true }); }
+
 if (failures.length) {
   failures.forEach(item => console.error(`✗ ${item}`));
   process.exit(1);

@@ -19,7 +19,26 @@ TRANSLATOR = SKILL / "scripts" / "translate_transition_diagram.py"
 EXAMPLES = SKILL / "assets" / "examples"
 sys.path.insert(0, str(TRANSLATOR.parent))
 import translate_transition_diagram as module
-from translate_transition_diagram import architecture_mermaid
+from translate_transition_diagram import architecture_mermaid, sequence_mermaid
+
+
+TITLED_PARALLEL_YAML = """\
+dsl: transition-diagram/1.0
+meta: { title: Titles }
+catalog:
+  a: { label: A, type: service }
+  b: { label: B, type: service }
+  c: { label: C, type: service }
+flow:
+  title: F
+  nodes: [a, b, c]
+  wires: ["a -> b: one", "a -> c: two"]
+  steps:
+    - title: Fan out
+      parallel:
+        - { title: Left, edge: "a -> b" }
+        - { title: Right, edge: "a -> c" }
+"""
 
 
 class TranslatorTests(unittest.TestCase):
@@ -247,6 +266,24 @@ system:
         self.assertIn("events-->>notify", result.stdout)
         self.assertIn("par Deliver and retry", result.stdout)
         self.assertIn("loop until delivered", result.stdout)
+
+    def test_sequence_notes_name_at_most_two_participants(self) -> None:
+        """FIX-009.1: Mermaid rejects `Note over a,b,c`; keep the first and last participant."""
+        output = sequence_mermaid(self.translate(EXAMPLES / "checkout-flow.yaml"))
+        notes = [line.strip() for line in output.splitlines() if line.strip().startswith("Note over ")]
+        self.assertTrue(notes)
+        for line in notes:
+            participants = line[len("Note over "):].split(":", 1)[0].split(",")
+            self.assertLessEqual(len(participants), 2, line)
+        self.assertIn("Note over orders,events: The order is persisted", output)
+
+    def test_sequence_parallel_branches_keep_their_titles(self) -> None:
+        """FIX-009.1: a titled parallel child must not collapse to `and parallel branch`."""
+        model = self.translate_text(TITLED_PARALLEL_YAML)
+        output = sequence_mermaid(model)
+        self.assertIn("par Fan out", output)
+        self.assertIn("and Right", output)
+        self.assertNotIn("and parallel branch", output)
 
     def test_architecture_output_emits_lossy_single_state_projection(self) -> None:
         result = subprocess.run(
