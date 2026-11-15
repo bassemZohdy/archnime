@@ -54,6 +54,7 @@
 - [ ] **TASK-012** · P1 · mid · Close test-gate gaps so example drift cannot pass npm test
   - Done when: the example sync test runs under test:python and shipped example models match fresh translations; `npm run test:python`; regression: `npm test`
   - Links: Ref: architecture-diagram-renderer/tests/README.md · Lane: hardening
+  - State: branch todo/TASK-012-close-test-gate-gaps from main; next: build children
   - [ ] **TASK-012.1** · low · Rename example_sync.py to test_example_sync.py so unittest discovery runs it
     - Done when: discovery runs the sync test; `python -m unittest discover -s architecture-diagram-validation/tests -p test_example_sync.py`
   - [ ] **TASK-012.2** · mid · Regenerate the stale commerce-views and comparison-views example models and check them in regen_fixtures
