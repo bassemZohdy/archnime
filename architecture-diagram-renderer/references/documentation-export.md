@@ -50,6 +50,24 @@ Replace URLs with actual published artifact locations; never promise that a
 The ordinary **SVG (this view)** action deliberately retains current presenter
 zoom. It is not a documentation-safe export.
 
+## Batch export
+
+To export every important state in one command instead of clicking through the toolbar:
+
+```bash
+node architecture-diagram-renderer/scripts/export_snapshots.mjs --model model.json --out snapshots
+node architecture-diagram-renderer/scripts/export_snapshots.mjs --model bundle.json --out snapshots --views production,checkout
+node architecture-diagram-renderer/scripts/export_snapshots.mjs --model model.json --out snapshots --states 2,target
+```
+
+The model is built with `build_bundle.py`, opened in Chromium, and each view's states
+(migration stages, scenario variants, flow steps) are selected through the presenter's own
+`?view=` and `?stage=` / `?variant=` / `?step=` parameters. Each is written once, as the exact
+SVG that **SVG (documentation)** produces, to `<model>--[<view>--]<NN>-<state>.svg`. `--views`
+and `--states` (1-based numbers or state ids) narrow the request; an unknown view or state is
+reported with the available ones before anything is built or written. The same model always
+produces byte-identical files. Playwright and Chromium are required.
+
 ## Release checks
 
 - The exported SVG must parse as XML, load as an image, include local font data
