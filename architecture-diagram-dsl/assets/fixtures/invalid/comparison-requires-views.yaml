@@ -1,0 +1,9 @@
+dsl: transition-diagram/2.0
+meta:
+  title: Comparison without a views list
+  comparison:
+    criteria:
+      - { id: cost, label: Cost }
+catalog:
+  web: { label: Web, type: actor }
+views: {}

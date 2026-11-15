@@ -1,0 +1,12 @@
+dsl: transition-diagram/1.0
+meta:
+  title: Empty scenarios variants
+  composition: scenarios
+catalog:
+  client: { label: Client, type: actor }
+scenarios:
+  base:
+    title: Steady state
+    nodes: [client]
+    wires: []
+  variants: []

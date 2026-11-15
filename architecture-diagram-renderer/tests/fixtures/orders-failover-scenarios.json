@@ -1,0 +1,193 @@
+{
+  "meta": {
+    "title": "Orders failover scenarios",
+    "subtitle": "Named database and region variants over one shared architecture",
+    "composition": "scenarios",
+    "layout": "auto",
+    "direction": "LR",
+    "levels": [
+      "Container"
+    ]
+  },
+  "canvas": {
+    "w": 1600,
+    "h": 900,
+    "minWidth": 960
+  },
+  "catalog": {
+    "client": {
+      "label": "Checkout web app",
+      "type": "actor",
+      "shape": "actor",
+      "kind": "existing"
+    },
+    "gateway": {
+      "label": "API gateway",
+      "type": "gateway",
+      "shape": "gateway",
+      "kind": "existing",
+      "detail": "routes order traffic"
+    },
+    "orders": {
+      "label": "Orders service",
+      "type": "service",
+      "shape": "service",
+      "kind": "existing",
+      "detail": "owns order lifecycle"
+    },
+    "ordersdb": {
+      "label": "Orders primary",
+      "type": "database",
+      "shape": "db",
+      "kind": "existing",
+      "detail": "PostgreSQL primary"
+    },
+    "ordersdbReplica": {
+      "label": "Orders replica",
+      "type": "database",
+      "shape": "db",
+      "kind": "existing",
+      "detail": "PostgreSQL replica"
+    }
+  },
+  "packages": {},
+  "stages": [
+    {
+      "id": "base",
+      "title": "Steady state",
+      "nodes": [
+        "client",
+        "gateway",
+        "orders",
+        "ordersdb",
+        "ordersdbReplica"
+      ],
+      "wires": [
+        {
+          "from": "client",
+          "to": "gateway",
+          "type": "data",
+          "flow": true,
+          "label": "HTTPS"
+        },
+        {
+          "from": "gateway",
+          "to": "orders",
+          "type": "data",
+          "flow": true,
+          "label": "POST /orders"
+        },
+        {
+          "from": "orders",
+          "to": "ordersdb",
+          "type": "data",
+          "flow": false,
+          "label": "RW"
+        },
+        {
+          "from": "orders",
+          "to": "ordersdbReplica",
+          "type": "data",
+          "flow": false,
+          "label": "replication"
+        }
+      ],
+      "summary": "Orders writes to the primary database and streams a read replica."
+    },
+    {
+      "id": "primary-down",
+      "title": "Primary database failover",
+      "nodes": [
+        "client",
+        "gateway",
+        "orders",
+        {
+          "id": "ordersdb",
+          "detail": "unreachable",
+          "kind": "retired"
+        },
+        {
+          "id": "ordersdbReplica",
+          "detail": "promoted to primary",
+          "kind": "new"
+        }
+      ],
+      "wires": [
+        {
+          "from": "client",
+          "to": "gateway",
+          "type": "data",
+          "flow": true,
+          "label": "HTTPS"
+        },
+        {
+          "from": "gateway",
+          "to": "orders",
+          "type": "data",
+          "flow": true,
+          "label": "POST /orders"
+        },
+        {
+          "from": "orders",
+          "to": "ordersdbReplica",
+          "type": "data",
+          "flow": false,
+          "label": "RW (promoted)"
+        }
+      ],
+      "summary": "The replica is promoted after the primary becomes unreachable.",
+      "changed": [
+        "ordersdb",
+        "ordersdbReplica"
+      ]
+    },
+    {
+      "id": "region-down",
+      "title": "Regional gateway degradation",
+      "nodes": [
+        "client",
+        {
+          "id": "gateway",
+          "detail": "routes to surviving region"
+        },
+        "orders",
+        "ordersdb",
+        "ordersdbReplica"
+      ],
+      "wires": [
+        {
+          "from": "client",
+          "to": "gateway",
+          "type": "data",
+          "flow": true,
+          "label": "HTTPS"
+        },
+        {
+          "from": "gateway",
+          "to": "orders",
+          "type": "data",
+          "flow": true,
+          "label": "POST /orders"
+        },
+        {
+          "from": "orders",
+          "to": "ordersdb",
+          "type": "data",
+          "flow": false,
+          "label": "RW"
+        },
+        {
+          "from": "orders",
+          "to": "ordersdbReplica",
+          "type": "data",
+          "flow": false,
+          "label": "replication"
+        }
+      ],
+      "summary": "The gateway routes traffic through the surviving regional path.",
+      "changed": [
+        "gateway"
+      ]
+    }
+  ]
+}

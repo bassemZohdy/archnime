@@ -1,0 +1,21 @@
+dsl: transition-diagram/2.0
+meta:
+  title: Duplicate placement
+catalog:
+  web: { label: Web, type: actor }
+  api: { label: API, type: service }
+  db: { label: Database, type: database }
+views:
+  - id: production
+    mode: deployment
+    title: Production
+    nodes: [web, api]
+    wires: ["web -> api"]
+    deployment:
+      infrastructure:
+        region: { label: Region, kind: region, children: [host] }
+        host: { label: Host, kind: host }
+      placements:
+        - { component: web, target: host }
+        - { component: api, target: host }
+        - { component: api, target: host }

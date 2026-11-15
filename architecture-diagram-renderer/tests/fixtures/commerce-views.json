@@ -1,0 +1,391 @@
+{
+  "meta": {
+    "title": "Commerce architecture pack",
+    "subtitle": "Logical, deployment, and request-path views over shared identities",
+    "direction": "LR",
+    "levels": [
+      "Context",
+      "Container",
+      "Component"
+    ]
+  },
+  "canvas": {
+    "w": 1600,
+    "h": 900,
+    "minWidth": 960
+  },
+  "shared": {
+    "catalog": {
+      "client": {
+        "label": "Checkout web app",
+        "type": "actor",
+        "shape": "actor",
+        "kind": "existing",
+        "navigateTo": "checkout"
+      },
+      "gateway": {
+        "label": "API gateway",
+        "type": "gateway",
+        "shape": "gateway",
+        "kind": "existing",
+        "contains": "commerce"
+      },
+      "orders": {
+        "label": "Orders service",
+        "type": "service",
+        "shape": "service",
+        "kind": "existing"
+      },
+      "ordersdb": {
+        "label": "Orders database",
+        "type": "database",
+        "shape": "db",
+        "kind": "existing"
+      }
+    },
+    "packages": {
+      "commerce": {
+        "label": "Commerce platform",
+        "children": [
+          "gateway",
+          "orders",
+          "ordersdb"
+        ]
+      }
+    }
+  },
+  "views": [
+    {
+      "stages": [
+        {
+          "id": "context",
+          "title": "Commerce context",
+          "nodes": [
+            "client",
+            "commerce"
+          ],
+          "wires": [
+            {
+              "from": "client",
+              "to": "commerce",
+              "type": "data",
+              "flow": true,
+              "label": "HTTPS"
+            }
+          ],
+          "docs": "docs/commerce-context.md",
+          "adr": "docs/adr/0042-commerce-boundary.md"
+        }
+      ],
+      "viewId": "context",
+      "viewTitle": "Commerce context",
+      "viewMode": "system"
+    },
+    {
+      "stages": [
+        {
+          "id": "production",
+          "title": "Production deployment",
+          "nodes": [
+            "gateway-orders-host-1",
+            "orders-orders-host-1",
+            "orders-orders-host-2",
+            "ordersdb-orders-db-host-1"
+          ],
+          "wires": [
+            {
+              "from": "gateway-orders-host-1",
+              "to": "orders-orders-host-1",
+              "type": "data",
+              "flow": true,
+              "label": "HTTPS",
+              "logicalFrom": "gateway",
+              "logicalTo": "orders",
+              "replicaFanout": "representative"
+            },
+            {
+              "from": "orders-orders-host-1",
+              "to": "ordersdb-orders-db-host-1",
+              "type": "data",
+              "flow": false,
+              "label": "SQL",
+              "logicalFrom": "orders",
+              "logicalTo": "ordersdb",
+              "replicaFanout": "representative"
+            }
+          ],
+          "expandedPackages": [
+            "deployment_us-east",
+            "deployment_orders-cluster",
+            "deployment_orders-host",
+            "deployment_orders-db-host"
+          ],
+          "layout": "deployment",
+          "boundaries": []
+        }
+      ],
+      "deployment": {
+        "infrastructure": [
+          {
+            "id": "us-east",
+            "label": "US East",
+            "kind": "region",
+            "parent": null,
+            "children": [
+              "orders-cluster"
+            ]
+          },
+          {
+            "id": "orders-cluster",
+            "label": "Orders cluster",
+            "kind": "cluster",
+            "parent": "us-east",
+            "children": [
+              "orders-host",
+              "orders-db-host"
+            ]
+          },
+          {
+            "id": "orders-host",
+            "label": "Orders hosts",
+            "kind": "host",
+            "parent": "orders-cluster",
+            "children": []
+          },
+          {
+            "id": "orders-db-host",
+            "label": "Database hosts",
+            "kind": "host",
+            "parent": "orders-cluster",
+            "children": []
+          }
+        ],
+        "roots": [
+          "us-east"
+        ],
+        "placements": [
+          {
+            "component": "gateway",
+            "target": "orders-host",
+            "replicas": 1,
+            "instanceIds": [
+              "gateway-orders-host-1"
+            ]
+          },
+          {
+            "component": "orders",
+            "target": "orders-host",
+            "replicas": 2,
+            "instanceIds": [
+              "orders-orders-host-1",
+              "orders-orders-host-2"
+            ]
+          },
+          {
+            "component": "ordersdb",
+            "target": "orders-db-host",
+            "replicas": 1,
+            "instanceIds": [
+              "ordersdb-orders-db-host-1"
+            ]
+          }
+        ]
+      },
+      "viewId": "production",
+      "viewTitle": "Production deployment",
+      "viewMode": "deployment",
+      "catalog": {
+        "gateway-orders-host-1": {
+          "label": "API gateway · orders-host",
+          "type": "gateway",
+          "shape": "gateway",
+          "kind": "existing",
+          "contains": "commerce",
+          "deploymentComponent": "gateway",
+          "deploymentTarget": "orders-host"
+        },
+        "orders-orders-host-1": {
+          "label": "Orders service · replica 1",
+          "type": "service",
+          "shape": "service",
+          "kind": "existing",
+          "deploymentComponent": "orders",
+          "deploymentTarget": "orders-host"
+        },
+        "orders-orders-host-2": {
+          "label": "Orders service · replica 2",
+          "type": "service",
+          "shape": "service",
+          "kind": "existing",
+          "deploymentComponent": "orders",
+          "deploymentTarget": "orders-host"
+        },
+        "ordersdb-orders-db-host-1": {
+          "label": "Orders database · orders-db-host",
+          "type": "database",
+          "shape": "db",
+          "kind": "existing",
+          "deploymentComponent": "ordersdb",
+          "deploymentTarget": "orders-db-host"
+        }
+      },
+      "packages": {
+        "deployment_us-east": {
+          "label": "US East",
+          "detail": null,
+          "kind": "existing",
+          "children": [
+            "deployment_orders-cluster"
+          ],
+          "deploymentKind": "region"
+        },
+        "deployment_orders-cluster": {
+          "label": "Orders cluster",
+          "detail": null,
+          "kind": "existing",
+          "children": [
+            "deployment_orders-host",
+            "deployment_orders-db-host"
+          ],
+          "deploymentKind": "cluster"
+        },
+        "deployment_orders-host": {
+          "label": "Orders hosts",
+          "detail": null,
+          "kind": "existing",
+          "children": [
+            "gateway-orders-host-1",
+            "orders-orders-host-1",
+            "orders-orders-host-2"
+          ],
+          "deploymentKind": "host"
+        },
+        "deployment_orders-db-host": {
+          "label": "Database hosts",
+          "detail": null,
+          "kind": "existing",
+          "children": [
+            "ordersdb-orders-db-host-1"
+          ],
+          "deploymentKind": "host"
+        }
+      }
+    },
+    {
+      "stages": [
+        {
+          "id": "checkout",
+          "title": "Checkout request path",
+          "nodes": [
+            "client",
+            "gateway",
+            "orders",
+            "ordersdb"
+          ],
+          "wires": [
+            {
+              "from": "client",
+              "to": "gateway",
+              "type": "data",
+              "flow": true,
+              "label": "HTTPS"
+            },
+            {
+              "from": "gateway",
+              "to": "orders",
+              "type": "data",
+              "flow": true,
+              "label": "POST /orders"
+            },
+            {
+              "from": "orders",
+              "to": "ordersdb",
+              "type": "data",
+              "flow": false,
+              "label": "INSERT"
+            }
+          ],
+          "docs": "docs/checkout-request.md",
+          "expandedPackages": [
+            "commerce"
+          ]
+        }
+      ],
+      "flow": {
+        "id": "checkout",
+        "title": "Checkout request path",
+        "nodes": [
+          "client",
+          "gateway",
+          "orders",
+          "ordersdb"
+        ],
+        "wires": [
+          {
+            "from": "client",
+            "to": "gateway",
+            "type": "data",
+            "flow": true,
+            "label": "HTTPS"
+          },
+          {
+            "from": "gateway",
+            "to": "orders",
+            "type": "data",
+            "flow": true,
+            "label": "POST /orders"
+          },
+          {
+            "from": "orders",
+            "to": "ordersdb",
+            "type": "data",
+            "flow": false,
+            "label": "INSERT"
+          }
+        ],
+        "steps": [
+          {
+            "kind": "call",
+            "edges": [
+              {
+                "from": "client",
+                "to": "gateway",
+                "kind": "call",
+                "wireType": "data",
+                "wireFrom": "client",
+                "wireTo": "gateway"
+              }
+            ],
+            "title": "Request",
+            "note": "Browser request",
+            "id": "step-1"
+          },
+          {
+            "kind": "call",
+            "edges": [
+              {
+                "from": "orders",
+                "to": "ordersdb",
+                "kind": "call",
+                "wireType": "data",
+                "wireFrom": "orders",
+                "wireTo": "ordersdb"
+              }
+            ],
+            "title": "Persist",
+            "note": "Store the order",
+            "navigateTo": "production",
+            "id": "step-2"
+          }
+        ],
+        "docs": "docs/checkout-request.md",
+        "expandedPackages": [
+          "commerce"
+        ]
+      },
+      "viewId": "checkout",
+      "viewTitle": "Checkout request path",
+      "viewMode": "flow"
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+dsl: transition-diagram/2.0
+
+meta:
+  title: Checkout architecture options
+  subtitle: Compare two request paths against latency, cost, and operability
+  direction: LR
+  comparison:
+    criteria:
+      - { id: latency, label: Latency, weight: 2 }
+      - { id: cost, label: Cost, weight: 1 }
+      - { id: operability, label: Operability, weight: 2 }
+    recommended: option-b
+
+catalog:
+  client: { label: Checkout client, type: actor }
+  gateway: { label: API gateway, type: gateway }
+  monolith: { label: Commerce monolith, type: service, kind: existing }
+  orders: { label: Orders service, type: service, kind: new }
+  ordersdb: { label: Orders database, type: database }
+
+packages:
+  commerce: { label: Commerce platform, children: [gateway, monolith, orders, ordersdb] }
+
+views:
+  - id: option-a
+    mode: system
+    title: Option A · strangler
+    expandedPackages: [commerce]
+    nodes: [client, gateway, monolith, orders, ordersdb]
+    wires:
+      - "client => gateway: HTTPS"
+      - "gateway => orders: /orders"
+      - "orders -> ordersdb: SQL"
+      - "gateway -> monolith: /other"
+    comparison:
+      tradeoffs:
+        latency: { rating: 4, note: Low extra hop for orders traffic. }
+        cost: { rating: 3, note: Two services to operate during migration. }
+        operability: { rating: 3, note: Shared database keeps rollback simple. }
+
+  - id: option-b
+    mode: system
+    title: Option B · direct ownership
+    expandedPackages: [commerce]
+    nodes: [client, gateway, orders, ordersdb]
+    wires:
+      - "client => gateway: HTTPS"
+      - "gateway => orders: /orders"
+      - "orders -> ordersdb: SQL"
+    comparison:
+      tradeoffs:
+        latency: { rating: 4, note: Direct request path after cutover. }
+        cost: { rating: 4, note: Fewer runtime components after retirement. }
+        operability: { rating: 4, note: Clear ownership and smaller failure surface. }

@@ -1,0 +1,8 @@
+dsl: transition-diagram/1.0
+meta: { title: Missing steps base }
+catalog:
+  client: { label: Client, type: actor }
+steps:
+  sequence:
+    - id: first
+      title: First step

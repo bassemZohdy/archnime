@@ -1,0 +1,347 @@
+{
+  "meta": {
+    "title": "Checkout request walkthrough",
+    "subtitle": "A fixed-layout request path with returns, grouping, and parallel work",
+    "layout": "auto",
+    "direction": "LR",
+    "levels": [
+      "Container"
+    ],
+    "flow": {
+      "intro": true,
+      "autoAdvanceMs": 1200,
+      "loop": false
+    }
+  },
+  "canvas": {
+    "w": 1600,
+    "h": 900,
+    "minWidth": 960
+  },
+  "catalog": {
+    "client": {
+      "label": "Checkout web app",
+      "type": "actor",
+      "shape": "actor",
+      "kind": "existing"
+    },
+    "gateway": {
+      "label": "API gateway",
+      "type": "gateway",
+      "shape": "gateway",
+      "kind": "existing",
+      "detail": "routing and rate limits"
+    },
+    "idp": {
+      "label": "Identity provider",
+      "type": "security",
+      "shape": "security",
+      "kind": "security",
+      "detail": "OIDC token check"
+    },
+    "orders": {
+      "label": "Orders service",
+      "type": "service",
+      "shape": "service",
+      "kind": "existing",
+      "detail": "creates the order"
+    },
+    "ordersdb": {
+      "label": "Orders database",
+      "type": "database",
+      "shape": "db",
+      "kind": "existing",
+      "detail": "PostgreSQL"
+    },
+    "events": {
+      "label": "Event bus",
+      "type": "queue",
+      "shape": "queue",
+      "kind": "existing",
+      "detail": "OrderPlaced"
+    },
+    "notify": {
+      "label": "Notification service",
+      "type": "service",
+      "shape": "service",
+      "kind": "new",
+      "detail": "email and push delivery"
+    }
+  },
+  "packages": {},
+  "stages": [
+    {
+      "id": "flow",
+      "title": "Checkout request path",
+      "nodes": [
+        "client",
+        "gateway",
+        "idp",
+        "orders",
+        "ordersdb",
+        "events",
+        "notify"
+      ],
+      "wires": [
+        {
+          "from": "client",
+          "to": "gateway",
+          "type": "data",
+          "flow": true,
+          "label": "HTTPS"
+        },
+        {
+          "from": "gateway",
+          "to": "idp",
+          "type": "data",
+          "flow": false,
+          "label": "token check"
+        },
+        {
+          "from": "gateway",
+          "to": "orders",
+          "type": "data",
+          "flow": true,
+          "label": "POST /orders"
+        },
+        {
+          "from": "orders",
+          "to": "ordersdb",
+          "type": "data",
+          "flow": false,
+          "label": "INSERT order"
+        },
+        {
+          "from": "orders",
+          "to": "events",
+          "type": "data",
+          "flow": true,
+          "label": "publish OrderPlaced"
+        },
+        {
+          "from": "events",
+          "to": "notify",
+          "type": "data",
+          "flow": true,
+          "label": "deliver notification"
+        }
+      ],
+      "summary": "Follow one request from the browser through authentication, persistence, and asynchronous notification.",
+      "callout": "The topology stays fixed while the active step moves through the request."
+    }
+  ],
+  "flow": {
+    "id": "flow",
+    "title": "Checkout request path",
+    "nodes": [
+      "client",
+      "gateway",
+      "idp",
+      "orders",
+      "ordersdb",
+      "events",
+      "notify"
+    ],
+    "wires": [
+      {
+        "from": "client",
+        "to": "gateway",
+        "type": "data",
+        "flow": true,
+        "label": "HTTPS"
+      },
+      {
+        "from": "gateway",
+        "to": "idp",
+        "type": "data",
+        "flow": false,
+        "label": "token check"
+      },
+      {
+        "from": "gateway",
+        "to": "orders",
+        "type": "data",
+        "flow": true,
+        "label": "POST /orders"
+      },
+      {
+        "from": "orders",
+        "to": "ordersdb",
+        "type": "data",
+        "flow": false,
+        "label": "INSERT order"
+      },
+      {
+        "from": "orders",
+        "to": "events",
+        "type": "data",
+        "flow": true,
+        "label": "publish OrderPlaced"
+      },
+      {
+        "from": "events",
+        "to": "notify",
+        "type": "data",
+        "flow": true,
+        "label": "deliver notification"
+      }
+    ],
+    "steps": [
+      {
+        "id": "flow-intro",
+        "title": "Flow overview",
+        "kind": "intro",
+        "edges": [],
+        "note": "Steps: Client request → Authenticate request → Return authentication → Create order → Persist and publish → Deliver and retry"
+      },
+      {
+        "kind": "call",
+        "edges": [
+          {
+            "from": "client",
+            "to": "gateway",
+            "kind": "call",
+            "wireType": "data",
+            "wireFrom": "client",
+            "wireTo": "gateway"
+          }
+        ],
+        "title": "Client request",
+        "note": "The browser sends the checkout request to the edge.",
+        "id": "step-1"
+      },
+      {
+        "kind": "call",
+        "edges": [
+          {
+            "from": "gateway",
+            "to": "idp",
+            "kind": "call",
+            "wireType": "data",
+            "wireFrom": "gateway",
+            "wireTo": "idp"
+          }
+        ],
+        "title": "Authenticate request",
+        "note": "The gateway validates the bearer token.",
+        "id": "step-2"
+      },
+      {
+        "kind": "return",
+        "edges": [
+          {
+            "from": "idp",
+            "to": "gateway",
+            "kind": "return",
+            "wireType": "data",
+            "wireFrom": "gateway",
+            "wireTo": "idp"
+          }
+        ],
+        "title": "Return authentication",
+        "note": "Authentication returns to the gateway.",
+        "id": "step-3"
+      },
+      {
+        "kind": "call",
+        "edges": [
+          {
+            "from": "gateway",
+            "to": "orders",
+            "kind": "call",
+            "wireType": "data",
+            "wireFrom": "gateway",
+            "wireTo": "orders"
+          }
+        ],
+        "title": "Create order",
+        "note": "The gateway forwards an authenticated order command.",
+        "label": "POST /orders · authenticated",
+        "id": "step-4"
+      },
+      {
+        "kind": "call",
+        "edges": [
+          {
+            "from": "orders",
+            "to": "ordersdb",
+            "kind": "call",
+            "wireType": "data",
+            "wireFrom": "orders",
+            "wireTo": "ordersdb"
+          },
+          {
+            "from": "orders",
+            "to": "events",
+            "kind": "call",
+            "wireType": "data",
+            "wireFrom": "orders",
+            "wireTo": "events"
+          }
+        ],
+        "title": "Persist and publish",
+        "note": "The order is persisted and the domain event is published.",
+        "group": true,
+        "id": "step-5"
+      },
+      {
+        "kind": "call",
+        "edges": [
+          {
+            "from": "events",
+            "to": "notify",
+            "kind": "async",
+            "wireType": "data",
+            "wireFrom": "events",
+            "wireTo": "notify"
+          },
+          {
+            "from": "notify",
+            "to": "notify",
+            "kind": "loop",
+            "wireType": "data",
+            "wireFrom": null,
+            "wireTo": null,
+            "repeat": "until delivered"
+          }
+        ],
+        "title": "Deliver and retry",
+        "note": "Notification delivery runs asynchronously and retries until acknowledged.",
+        "parallel": true,
+        "steps": [
+          {
+            "kind": "async",
+            "edges": [
+              {
+                "from": "events",
+                "to": "notify",
+                "kind": "async",
+                "wireType": "data",
+                "wireFrom": "events",
+                "wireTo": "notify"
+              }
+            ]
+          },
+          {
+            "kind": "loop",
+            "edges": [
+              {
+                "from": "notify",
+                "to": "notify",
+                "kind": "loop",
+                "wireType": "data",
+                "wireFrom": null,
+                "wireTo": null,
+                "repeat": "until delivered"
+              }
+            ],
+            "repeat": "until delivered"
+          }
+        ],
+        "id": "step-6"
+      }
+    ],
+    "summary": "Follow one request from the browser through authentication, persistence, and asynchronous notification.",
+    "callout": "The topology stays fixed while the active step moves through the request."
+  }
+}

@@ -1,0 +1,79 @@
+dsl: transition-diagram/2.0
+
+meta:
+  title: Commerce architecture pack
+  subtitle: Logical, deployment, and request-path views over shared identities
+  direction: LR
+  levels: [Context, Container, Component]
+
+catalog:
+  client:
+    label: Checkout web app
+    type: actor
+    navigateTo: checkout
+  gateway:
+    label: API gateway
+    type: gateway
+    contains: commerce
+  orders:
+    label: Orders service
+    type: service
+  ordersdb:
+    label: Orders database
+    type: database
+
+packages:
+  commerce:
+    label: Commerce platform
+    children: [gateway, orders, ordersdb]
+
+views:
+  - id: context
+    mode: system
+    title: Commerce context
+    docs: docs/commerce-context.md
+    adr: docs/adr/0042-commerce-boundary.md
+    nodes: [client, commerce]
+    wires: ["client => commerce: HTTPS"]
+
+  - id: production
+    mode: deployment
+    title: Production deployment
+    nodes: [gateway, orders, ordersdb]
+    wires:
+      - "gateway => orders: HTTPS"
+      - "orders -> ordersdb: SQL"
+    deployment:
+      infrastructure:
+        us-east:
+          label: US East
+          kind: region
+          children: [orders-cluster]
+        orders-cluster:
+          label: Orders cluster
+          kind: cluster
+          children: [orders-host, orders-db-host]
+        orders-host:
+          label: Orders hosts
+          kind: host
+        orders-db-host:
+          label: Database hosts
+          kind: host
+      placements:
+        - { component: gateway, target: orders-host }
+        - { component: orders, target: orders-host, replicas: 2 }
+        - { component: ordersdb, target: orders-db-host }
+
+  - id: checkout
+    mode: flow
+    title: Checkout request path
+    docs: docs/checkout-request.md
+    expandedPackages: [commerce]
+    nodes: [client, gateway, orders, ordersdb]
+    wires:
+      - "client => gateway: HTTPS"
+      - "gateway => orders: POST /orders"
+      - "orders -> ordersdb: INSERT"
+    steps:
+      - { title: Request, edge: "client => gateway", note: Browser request }
+      - { title: Persist, edge: "orders -> ordersdb", note: Store the order, navigateTo: production }

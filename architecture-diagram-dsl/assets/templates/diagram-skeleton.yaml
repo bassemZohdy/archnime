@@ -1,0 +1,27 @@
+dsl: transition-diagram/1.0
+
+meta:
+  title: TODO diagram title
+  layout: auto
+  direction: LR
+  levels: [Context, Container, Component]
+
+catalog:
+  client:
+    label: TODO client label
+    type: actor
+    kind: existing
+  service:
+    label: TODO service label
+    type: service
+    kind: existing
+
+# Use system: for one state with no transition. Delete this block and use
+# transition: instead (see references/dsl-reference.md) for a current-state
+# to target-state sequence.
+system:
+  title: TODO state title
+  summary: TODO one-sentence summary
+  nodes: [client, service]
+  wires:
+    - "client -> service: TODO label"

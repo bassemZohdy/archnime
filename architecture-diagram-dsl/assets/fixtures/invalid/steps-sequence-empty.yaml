@@ -1,0 +1,11 @@
+dsl: transition-diagram/1.0
+meta: { title: Empty steps sequence }
+catalog:
+  client: { label: Client, type: actor }
+steps:
+  base:
+    id: current
+    title: Current state
+    nodes: [client]
+    wires: []
+  sequence: []

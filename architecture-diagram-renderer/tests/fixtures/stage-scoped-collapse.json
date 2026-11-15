@@ -1,0 +1,374 @@
+{
+ "meta": {
+  "title": "Stage-scoped package collapse",
+  "subtitle": "The same runtime hierarchy keeps independent visibility across stages",
+  "layout": "dagre",
+  "direction": "LR",
+  "levels": [
+   "Context",
+   "Container",
+   "Component"
+  ],
+  "autoExpandChangedPackages": false,
+  "flowPresentation": {
+   "secondaryTypes": [
+    "control",
+    "neutral"
+   ],
+   "mode": "deemphasize",
+   "secondaryRoute": "direct"
+  },
+  "layoutValidation": {
+   "maxTrials": 14,
+   "maxExpansionScenarios": 24
+  },
+  "gif": {
+   "fps": 8,
+   "maxDurationMs": 9000
+  }
+ },
+ "canvas": {
+  "w": 1900,
+  "h": 900,
+  "minWidth": 1000
+ },
+ "catalog": {
+  "client": {
+   "label": "Operator client",
+   "detail": "request origin",
+   "type": "actor",
+   "shape": "actor",
+   "kind": "existing",
+   "w": 165,
+   "h": 58,
+   "level": "Context"
+  },
+  "edge": {
+   "label": "Edge gateway",
+   "detail": "authentication and routing",
+   "type": "gateway",
+   "shape": "gateway",
+   "kind": "existing",
+   "w": 175,
+   "h": 68,
+   "level": "Container"
+  },
+  "api": {
+   "label": "Application API",
+   "detail": "request coordination",
+   "type": "service",
+   "shape": "service",
+   "kind": "existing",
+   "w": 175,
+   "h": 66,
+   "level": "Container"
+  },
+  "worker": {
+   "label": "Background worker",
+   "detail": "asynchronous processing",
+   "type": "service",
+   "shape": "service",
+   "kind": "new",
+   "w": 180,
+   "h": 66,
+   "level": "Component"
+  },
+  "records": {
+   "label": "Runtime records",
+   "detail": "durable state",
+   "type": "database",
+   "shape": "db",
+   "kind": "existing",
+   "w": 170,
+   "h": 78,
+   "level": "Component"
+  },
+  "audit": {
+   "label": "Audit topic",
+   "detail": "operational evidence",
+   "type": "topic",
+   "shape": "queue",
+   "kind": "existing",
+   "w": 165,
+   "h": 56,
+   "level": "Component"
+  }
+ },
+ "packages": {
+  "runtime": {
+   "label": "Application runtime",
+   "detail": "edge, API, and worker",
+   "level": "Container",
+   "children": [
+    "edge",
+    "api",
+    "worker"
+   ]
+  },
+  "dataPlane": {
+   "label": "Durable state plane",
+   "detail": "records and audit",
+   "level": "Container",
+   "children": [
+    "records",
+    "audit"
+   ]
+  },
+  "platform": {
+   "label": "Platform execution hierarchy",
+   "detail": "nested runtime and state planes",
+   "level": "Container",
+   "children": [
+    "runtime",
+    "dataPlane"
+   ]
+  }
+ },
+ "stages": [
+  {
+   "id": "inspected",
+   "title": "Inspected runtime",
+   "summary": "The first review opens the platform hierarchy so the runtime internals are visible.",
+   "callout": "Collapse this stage, switch stages, and return to confirm the override stays local.",
+   "expandedPackages": [
+    "platform",
+    "runtime"
+   ],
+   "boundaries": [
+    {
+     "id": "requestZone",
+     "label": "Request trust zone",
+     "tone": "security",
+     "contains": [
+      "client",
+      "edge"
+     ]
+    },
+    {
+     "id": "platformZone",
+     "label": "Platform processing zone",
+     "contains": [
+      "api",
+      "worker",
+      "records",
+      "audit"
+     ]
+    }
+   ],
+   "nodes": [
+    "client",
+    "edge",
+    "api",
+    "worker",
+    "records",
+    "audit"
+   ],
+   "wires": [
+    {
+     "from": "client",
+     "to": "edge",
+     "type": "data",
+     "label": "HTTPS request",
+     "flow": true
+    },
+    {
+     "from": "edge",
+     "to": "api",
+     "type": "data",
+     "label": "routed request",
+     "flow": true
+    },
+    {
+     "from": "api",
+     "to": "worker",
+     "type": "data",
+     "label": "enqueue work",
+     "flow": false
+    },
+    {
+     "from": "worker",
+     "to": "records",
+     "type": "data",
+     "label": "persist state",
+     "flow": false
+    },
+    {
+     "from": "worker",
+     "to": "audit",
+     "type": "data",
+     "label": "emit evidence",
+     "flow": false
+    },
+    {
+     "from": "audit",
+     "to": "api",
+     "type": "control",
+     "label": "reconcile status",
+     "flow": false
+    }
+   ]
+  },
+  {
+   "id": "peer-review",
+   "title": "Peer review runtime",
+   "summary": "A second stage starts with the same nested runtime hierarchy open for an independent review.",
+   "callout": "Collapse the runtime here, switch back, and confirm the first stage remains independently expandable.",
+   "expandedPackages": [
+    "platform",
+    "runtime"
+   ],
+   "boundaries": [
+    {
+     "id": "requestZone",
+     "label": "Request trust zone",
+     "tone": "security",
+     "contains": [
+      "client",
+      "edge"
+     ]
+    },
+    {
+     "id": "platformZone",
+     "label": "Platform processing zone",
+     "contains": [
+      "api",
+      "worker",
+      "records",
+      "audit"
+     ]
+    }
+   ],
+   "nodes": [
+    "client",
+    "edge",
+    "api",
+    "worker",
+    "records",
+    "audit"
+   ],
+   "wires": [
+    {
+     "from": "client",
+     "to": "edge",
+     "type": "data",
+     "label": "HTTPS request",
+     "flow": true
+    },
+    {
+     "from": "edge",
+     "to": "api",
+     "type": "data",
+     "label": "routed request",
+     "flow": true
+    },
+    {
+     "from": "api",
+     "to": "worker",
+     "type": "data",
+     "label": "enqueue work",
+     "flow": false
+    },
+    {
+     "from": "worker",
+     "to": "records",
+     "type": "data",
+     "label": "persist state",
+     "flow": false
+    },
+    {
+     "from": "worker",
+     "to": "audit",
+     "type": "data",
+     "label": "emit evidence",
+     "flow": false
+    },
+    {
+     "from": "audit",
+     "to": "api",
+     "type": "control",
+     "label": "reconcile status",
+     "flow": false
+    }
+   ]
+  },
+  {
+   "id": "collapsed",
+   "title": "Collapsed overview",
+   "summary": "The final review intentionally starts with the platform hierarchy collapsed.",
+   "callout": "A stage-local collapse or expansion must not change this stage's independent default.",
+   "nodes": [
+    "client",
+    "edge",
+    "api",
+    "worker",
+    "records",
+    "audit"
+   ],
+   "wires": [
+    {
+     "from": "client",
+     "to": "edge",
+     "type": "data",
+     "label": "HTTPS request",
+     "flow": true
+    },
+    {
+     "from": "edge",
+     "to": "api",
+     "type": "data",
+     "label": "routed request",
+     "flow": true
+    },
+    {
+     "from": "api",
+     "to": "worker",
+     "type": "data",
+     "label": "enqueue work",
+     "flow": false
+    },
+    {
+     "from": "worker",
+     "to": "records",
+     "type": "data",
+     "label": "persist state",
+     "flow": false
+    },
+    {
+     "from": "worker",
+     "to": "audit",
+     "type": "data",
+     "label": "emit evidence",
+     "flow": false
+    },
+    {
+     "from": "audit",
+     "to": "api",
+     "type": "control",
+     "label": "reconcile status",
+     "flow": false
+    }
+   ],
+   "boundaries": [
+    {
+     "id": "requestZone",
+     "label": "Request trust zone",
+     "tone": "security",
+     "contains": [
+      "client",
+      "edge"
+     ]
+    },
+    {
+     "id": "platformZone",
+     "label": "Platform processing zone",
+     "contains": [
+      "api",
+      "worker",
+      "records",
+      "audit"
+     ]
+    }
+   ]
+  }
+ ]
+}

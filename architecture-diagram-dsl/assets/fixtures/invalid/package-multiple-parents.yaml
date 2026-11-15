@@ -1,0 +1,21 @@
+dsl: transition-diagram/1.0
+meta:
+  title: Multiple package parents
+catalog:
+  a:
+    label: A
+    type: service
+packages:
+  first:
+    label: First
+    children: [child]
+  second:
+    label: Second
+    children: [child]
+  child:
+    label: Child
+    children: [a]
+system:
+  title: Multiple package parents
+  nodes: [a]
+  wires: []

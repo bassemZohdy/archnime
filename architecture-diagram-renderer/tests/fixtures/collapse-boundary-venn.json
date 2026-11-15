@@ -1,0 +1,73 @@
+{
+  "meta": {
+    "title": "Zero-trust service move",
+    "subtitle": "Replace perimeter-only trust with workload identity and policy enforcement",
+    "layout": "auto",
+    "direction": "LR",
+    "levels": ["Context", "Container", "Component"],
+    "autoExpandChangedPackages": true,
+    "flowPresentation": { "secondaryTypes": ["control", "neutral"], "mode": "deemphasize", "secondaryRoute": "direct" },
+    "gif": { "fps": 7, "maxDurationMs": 10000 }
+  },
+  "canvas": { "w": 2000, "h": 980, "minWidth": 1060 },
+  "catalog": {
+    "user": { "label": "Internal user", "detail": "browser client", "type": "actor", "shape": "actor", "kind": "existing", "w": 150, "h": 58, "level": "Context" },
+    "edge": { "label": "Edge gateway", "detail": "perimeter auth", "type": "gateway", "shape": "gateway", "kind": "mixed", "w": 175, "h": 68, "level": "Container" },
+    "idp": { "label": "Identity provider", "detail": "workforce OIDC", "type": "security", "shape": "security", "kind": "security", "w": 160, "h": 68, "level": "Container" },
+    "policy": { "label": "Policy engine", "detail": "workload authorization", "type": "security", "shape": "security", "kind": "new", "w": 175, "h": 70, "level": "Component" },
+    "serviceA": { "label": "Accounts service", "detail": "workload A", "type": "service", "shape": "service", "kind": "existing", "w": 170, "h": 64, "level": "Container" },
+    "serviceB": { "label": "Profile service", "detail": "workload B", "type": "service", "shape": "service", "kind": "existing", "w": 170, "h": 64, "level": "Container" },
+    "secrets": { "label": "Secrets vault", "detail": "short-lived credentials", "type": "database", "shape": "db", "kind": "existing", "w": 160, "h": 80, "level": "Component" },
+    "telemetry": { "label": "Security telemetry", "detail": "access events", "type": "topic", "shape": "queue", "kind": "existing", "w": 170, "h": 54, "level": "Component" }
+  },
+  "packages": {
+    "workloads": { "label": "Application workloads", "detail": "service-to-service traffic", "level": "Container", "children": ["serviceA", "serviceB"] },
+    "securityPlane": { "label": "Security plane", "detail": "identity and policy", "level": "Container", "children": ["idp", "policy", "secrets"] }
+  },
+  "stages": [
+    {
+      "id": "perimeter",
+      "title": "Perimeter trust",
+      "summary": "The edge authenticates users, but internal calls rely on network placement and shared vault access.",
+      "changes": ["Baseline: trust is established at the perimeter", "Retained: service A calls service B directly"],
+      "callout": "The missing workload-level decision is the architectural gap this transition addresses.",
+      "boundaries": [
+        { "id": "edgeZone", "label": "Perimeter trust zone", "tone": "security", "contains": ["edge", "idp"] },
+        { "id": "workloadsZone", "label": "Internal workloads", "contains": ["serviceA", "serviceB", "secrets"] }
+      ],
+      "nodes": [{ "id": "user" }, { "id": "edge" }, { "id": "idp" }, { "id": "serviceA" }, { "id": "serviceB" }, { "id": "secrets" }, { "id": "telemetry" }],
+      "wires": [
+        { "from": "user", "to": "edge", "type": "data", "label": "HTTPS", "flow": true },
+        { "from": "edge", "to": "idp", "type": "security", "label": "user token", "flow": false },
+        { "from": "edge", "to": "serviceA", "type": "data", "label": "request", "flow": true },
+        { "from": "serviceA", "to": "serviceB", "type": "data", "label": "internal call", "flow": true },
+        { "from": "serviceA", "to": "secrets", "type": "neutral", "label": "shared secret", "flow": false },
+        { "from": "serviceB", "to": "telemetry", "type": "data", "label": "access logs", "flow": false }
+      ],
+      "changed": []
+    },
+    {
+      "id": "workload-identity",
+      "title": "Workload identity",
+      "summary": "Each service call is checked by a policy engine and uses workload identity to reach the next hop.",
+      "changes": ["Introduced: policy engine", "Repurposed: service A to service B uses workload identity", "Retained: edge user authentication"],
+      "callout": "Security wires stay explicit and visually distinct from the request data path.",
+      "boundaries": [
+        { "id": "edgeZone", "label": "Perimeter trust zone", "tone": "security", "contains": ["edge", "idp"] },
+        { "id": "workloadsZone", "label": "Internal workloads", "contains": ["serviceA", "serviceB", "secrets", "policy"] }
+      ],
+      "nodes": [{ "id": "user" }, { "id": "edge" }, { "id": "idp" }, { "id": "policy" }, { "id": "serviceA" }, { "id": "serviceB" }, { "id": "secrets" }, { "id": "telemetry" }],
+      "wires": [
+        { "from": "user", "to": "edge", "type": "data", "label": "HTTPS", "flow": true },
+        { "from": "edge", "to": "idp", "type": "security", "label": "user token", "flow": false },
+        { "from": "edge", "to": "policy", "type": "data", "label": "ingress decision", "flow": true },
+        { "from": "edge", "to": "serviceA", "type": "data", "label": "allowed request", "flow": true },
+        { "from": "serviceA", "to": "policy", "type": "security", "label": "workload check", "flow": false },
+        { "from": "serviceA", "to": "serviceB", "type": "security", "label": "mTLS identity", "flow": true },
+        { "from": "serviceA", "to": "secrets", "type": "security", "label": "short-lived lease", "flow": false },
+        { "from": "serviceB", "to": "telemetry", "type": "data", "label": "access logs", "flow": false }
+      ],
+      "changed": ["edge", "policy", "serviceA", "serviceB"]
+    }
+  ]
+}

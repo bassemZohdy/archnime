@@ -1,0 +1,6 @@
+dsl: transition-diagram/2.0
+meta:
+  title: Empty views
+catalog:
+  web: { label: Web, type: actor }
+views: []

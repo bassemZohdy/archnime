@@ -1,0 +1,15 @@
+dsl: transition-diagram/1.0
+meta:
+  title: Duplicate id across catalog and packages
+catalog:
+  shared: { label: Shared, type: service }
+  b: { label: B, type: service }
+packages:
+  shared:
+    label: Shared package
+    children: [b]
+system:
+  title: One state
+  nodes: [shared, b]
+  wires:
+    - "shared -> b: call"

@@ -1,0 +1,46 @@
+{
+  "meta": {
+    "title": "Wire lanes and routing styles",
+    "subtitle": "Regression fixture for parallel wires, bundled secondary routes, and block paint order",
+    "layout": "manual",
+    "direction": "LR",
+    "routing": "curved",
+    "wireJumps": "none",
+    "flowPresentation": {
+      "secondaryTypes": ["control", "neutral"],
+      "mode": "deemphasize",
+      "secondaryRoute": "bundle",
+      "bundleSpacing": 22
+    }
+  },
+  "canvas": {
+    "w": 1200,
+    "h": 700,
+    "minWidth": 900
+  },
+  "catalog": {
+    "source": { "label": "Source service", "type": "service", "shape": "service", "kind": "existing", "w": 170, "h": 70 },
+    "target": { "label": "Target service", "type": "service", "shape": "service", "kind": "new", "w": 170, "h": 70 },
+    "audit": { "label": "Audit store", "type": "database", "shape": "db", "kind": "existing", "w": 160, "h": 78 }
+  },
+  "stages": [
+    {
+      "id": "parallel",
+      "title": "Parallel wires stay visible",
+      "summary": "All routes intentionally use the same source and target blocks. Explicit zero offsets must still resolve to separate lanes, and bundled secondary routes must follow the selected routing style.",
+      "nodes": [
+        { "id": "source", "x": 250, "y": 350 },
+        { "id": "target", "x": 650, "y": 350 },
+        { "id": "audit", "x": 950, "y": 350 }
+      ],
+      "wires": [
+        { "from": "source", "to": "target", "type": "data", "label": "request", "offset": 0 },
+        { "from": "source", "to": "target", "type": "security", "label": "identity", "offset": 0 },
+        { "from": "source", "to": "target", "type": "control", "label": "route policy", "offset": 0, "bundle": "source-target-support" },
+        { "from": "target", "to": "source", "type": "neutral", "label": "acknowledge", "offset": 0, "bundle": "source-target-support" },
+        { "from": "target", "to": "audit", "type": "data", "label": "audit event", "offset": 0 }
+      ],
+      "changed": ["target"]
+    }
+  ]
+}

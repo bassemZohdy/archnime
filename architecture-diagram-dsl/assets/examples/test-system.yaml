@@ -1,0 +1,79 @@
+dsl: transition-diagram/1.0
+
+meta:
+  title: Test System architecture
+  subtitle: Component-level logical architecture
+  layout: auto
+  direction: LR
+  levels: [Context, Container, Component]
+  perspectives: [all, data, security, devops]
+
+catalog:
+  users: {label: Users, type: actor, kind: existing}
+  web_client: {label: Web client, type: actor, kind: existing}
+  mobile_client: {label: Mobile client, type: actor, kind: existing}
+  gateway:
+    {label: API gateway, type: gateway, kind: existing, detail: routes requests to the appropriate BFF}
+  web_bff:
+    {label: Web BFF, type: service, kind: existing, detail: web-specific API composition}
+  mobile_bff:
+    {label: Mobile BFF, type: service, kind: existing, detail: mobile-specific API composition}
+  order_api:
+    {label: Order API, type: service, kind: existing, detail: order microservice}
+  profile_api:
+    {label: Profile API, type: service, kind: existing, detail: profile microservice}
+  items_api:
+    {label: Items API, type: service, kind: existing, detail: items microservice}
+  auth_server:
+    {label: Auth server, type: security, kind: security, detail: "authenticates gateway, BFFs, and APIs"}
+  order_db:
+    {label: Order DB, type: database, kind: existing, detail: order service datastore}
+  profile_db:
+    {label: Profile DB, type: database, kind: existing, detail: profile service datastore}
+  items_db:
+    {label: Items DB, type: database, kind: existing, detail: items service datastore}
+  redis:
+    {label: Redis cache, type: cache, kind: existing, detail: shared cache server}
+
+packages:
+  clients: {label: Client applications, level: Container, children: [web_client, mobile_client]}
+  edge: {label: Edge and BFF namespace, level: Container, children: [gateway, web_bff, mobile_bff]}
+  services: {label: Microservice namespace, level: Container, children: [order_api, profile_api, items_api]}
+  data: {label: Data namespace, level: Container, children: [profile_db, order_db, items_db, redis]}
+  identity: {label: Identity namespace, level: Container, children: [auth_server]}
+
+system:
+  title: Test System component architecture
+  summary: Users access web or mobile clients, which reach the API gateway and corresponding BFF before calling peer microservices with isolated datastores and a shared Redis cache.
+  callout: Server-side ownership is shown as a trust boundary; namespaces are logical packages and may be deployed independently.
+  boundaries:
+    - id: server_side
+      label: Server side
+      tone: trust
+      contains: [gateway, web_bff, mobile_bff, order_api, profile_api, items_api, auth_server, order_db, profile_db, items_db, redis]
+  nodes: [users, web_client, mobile_client, gateway, web_bff, mobile_bff, order_api, profile_api, items_api, auth_server, order_db, profile_db, items_db, redis]
+  wires:
+    - "users => web_client: use web app"
+    - "users => mobile_client: use mobile app"
+    - "web_client => gateway: HTTPS"
+    - "mobile_client => gateway: HTTPS"
+    - "gateway => web_bff: web route"
+    - "gateway => mobile_bff: mobile route"
+    - "web_bff => order_api: order requests"
+    - "web_bff => profile_api: profile requests"
+    - "web_bff => items_api: items requests"
+    - "mobile_bff => order_api: order requests"
+    - "mobile_bff => profile_api: profile requests"
+    - "mobile_bff => items_api: items requests"
+    - "security: gateway -> auth_server: token validation"
+    - "security: web_bff -> auth_server: token validation"
+    - "security: mobile_bff -> auth_server: token validation"
+    - "security: order_api -> auth_server: token validation"
+    - "security: profile_api -> auth_server: token validation"
+    - "security: items_api -> auth_server: token validation"
+    - "order_api -> order_db: read/write orders"
+    - "profile_api -> profile_db: read/write profiles"
+    - "items_api -> items_db: read/write items"
+    - "order_api -> redis: cache access"
+    - "profile_api -> redis: cache access"
+    - "items_api -> redis: cache access"

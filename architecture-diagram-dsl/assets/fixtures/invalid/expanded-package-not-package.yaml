@@ -1,0 +1,22 @@
+dsl: transition-diagram/1.0
+meta:
+  title: Invalid expansion hint
+catalog:
+  a:
+    label: A
+    type: service
+packages:
+  platform:
+    label: Platform
+    children: [a]
+transition:
+  states:
+    - id: current
+      title: Current
+      nodes: [a]
+      wires: []
+    - id: target
+      title: Target
+      nodes: [a]
+      wires: []
+      expandedPackages: [a]

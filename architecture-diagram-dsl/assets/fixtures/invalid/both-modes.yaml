@@ -1,0 +1,23 @@
+dsl: transition-diagram/1.0
+meta:
+  title: Both modes present
+catalog:
+  a: { label: A, type: service }
+  b: { label: B, type: service }
+system:
+  title: One state
+  nodes: [a, b]
+  wires:
+    - "a -> b: call"
+transition:
+  states:
+    - id: s1
+      title: State 1
+      nodes: [a, b]
+      wires:
+        - "a -> b: call"
+    - id: s2
+      title: State 2
+      nodes: [a, b]
+      wires:
+        - "a -> b: call"

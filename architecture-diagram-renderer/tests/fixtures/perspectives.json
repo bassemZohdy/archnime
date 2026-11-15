@@ -1,0 +1,71 @@
+{
+  "meta": {
+    "title": "Perspective contract",
+    "layout": "dagre",
+    "direction": "LR",
+    "perspectives": ["migration", "zones", "devops"]
+  },
+  "canvas": {
+    "w": 1500,
+    "h": 650,
+    "minWidth": 900
+  },
+  "catalog": {
+    "client": {
+      "label": "Client",
+      "type": "actor",
+      "shape": "actor",
+      "kind": "existing",
+      "w": 150,
+      "h": 56
+    },
+    "gateway": {
+      "label": "Gateway",
+      "type": "gateway",
+      "shape": "gateway",
+      "kind": "existing",
+      "w": 160,
+      "h": 60
+    },
+    "ops": {
+      "label": "Operations controller",
+      "detail": "deploy + observe",
+      "type": "service",
+      "shape": "service",
+      "kind": "new",
+      "ops": true,
+      "w": 190,
+      "h": 68
+    },
+    "retired": {
+      "label": "Legacy adapter",
+      "detail": "compatibility only",
+      "type": "service",
+      "shape": "service",
+      "kind": "retired",
+      "w": 180,
+      "h": 68
+    }
+  },
+  "stages": [
+    {
+      "id": "only",
+      "title": "Explicit perspective list",
+      "nodes": ["client", "gateway", "ops", "retired"],
+      "boundaries": [
+        {
+          "id": "trust-zone",
+          "label": "Checkout trust zone",
+          "tone": "security",
+          "ops": true,
+          "contains": ["client", "gateway"]
+        }
+      ],
+      "wires": [
+        { "from": "client", "to": "gateway", "type": "data", "label": "request" },
+        { "from": "gateway", "to": "ops", "type": "control", "ops": true, "label": "deploy" },
+        { "from": "gateway", "to": "retired", "type": "compat", "label": "fallback" }
+      ]
+    }
+  ]
+}

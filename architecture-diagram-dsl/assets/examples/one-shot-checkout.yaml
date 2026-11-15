@@ -1,0 +1,69 @@
+dsl: transition-diagram/1.0
+
+meta:
+  title: Payments checkout path
+  subtitle: One-shot hierarchical request flow
+  layout: auto
+  direction: LR
+  levels: [Container]
+
+catalog:
+  client:
+    label: Checkout web app
+    type: actor
+    kind: existing
+  idp:
+    label: Identity provider
+    type: security
+    kind: security
+    detail: OIDC
+  gateway:
+    label: API gateway
+    type: gateway
+    kind: existing
+    detail: "routing · rate limit"
+  checkout:
+    label: Checkout service
+    type: service
+    kind: existing
+    detail: orchestrates order + payment
+  payments:
+    label: Payments service
+    type: service
+    kind: existing
+    detail: charges + refunds
+  inventory:
+    label: Inventory service
+    type: service
+    kind: existing
+    detail: reserves stock
+  ordersdb:
+    label: Orders DB
+    type: database
+    kind: existing
+    detail: PostgreSQL
+  paycache:
+    label: Payment cache
+    type: cache
+    kind: existing
+    detail: Redis
+  stripe:
+    label: Card processor
+    type: external
+    kind: existing
+    detail: external
+
+system:
+  title: Checkout request path
+  summary: A single checkout request fans out from the gateway through orchestration into payments and inventory.
+  nodes: [client, idp, gateway, checkout, payments, inventory, ordersdb, paycache, stripe]
+  wires:
+    - "client => gateway: HTTPS"
+    - "security: gateway -> idp: token check"
+    - "gateway => checkout: POST /checkout"
+    - "checkout -> inventory: reserve stock"
+    - "control: checkout -> inventory: reservation TTL"
+    - "checkout => payments: charge"
+    - "checkout -> ordersdb: write order"
+    - "payments -> paycache: idempotency key"
+    - "payments => stripe: charge card"

@@ -1,0 +1,15 @@
+dsl: transition-diagram/1.0
+meta: { title: Remove absent item }
+catalog:
+  client: { label: Client, type: actor }
+steps:
+  base:
+    id: current
+    title: Current state
+    nodes: [client]
+    wires: []
+  sequence:
+    - id: missing
+      title: Remove missing node
+      remove:
+        nodes: [gateway]

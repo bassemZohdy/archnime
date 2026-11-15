@@ -1,0 +1,159 @@
+dsl: transition-diagram/1.0
+
+meta:
+  title: Orders/Inventory extraction
+  subtitle: Strangler migration into two domain services with nested packages
+  layout: auto
+  direction: LR
+  levels: [Context, Container, Component]
+
+catalog:
+  client:
+    label: Web & mobile clients
+    type: actor
+    kind: existing
+    level: Context
+  idp:
+    label: Identity provider
+    type: security
+    kind: security
+    detail: OIDC
+    level: Container
+  gateway:
+    label: API gateway
+    type: gateway
+    kind: existing
+    detail: "routing · auth"
+    level: Container
+  monolith:
+    label: Commerce monolith
+    type: service
+    kind: existing
+    detail: "orders · inventory · accounts"
+    level: Container
+  monolithdb:
+    label: Monolith DB
+    type: database
+    kind: existing
+    detail: PostgreSQL
+    level: Container
+  orders:
+    label: Orders service
+    type: service
+    kind: new
+    detail: owns order lifecycle
+    level: Component
+  inventory:
+    label: Inventory service
+    type: service
+    kind: new
+    detail: owns stock levels
+    level: Component
+  ordersdb:
+    label: Orders DB
+    type: database
+    kind: new
+    detail: PostgreSQL
+    level: Component
+  invdb:
+    label: Inventory DB
+    type: database
+    kind: new
+    detail: PostgreSQL
+    level: Component
+
+packages:
+  commercePlatform:
+    label: Commerce platform
+    level: Container
+    detail: "Container · Commerce team"
+    children: [domain, dataLayer]
+  domain:
+    label: Domain services
+    level: Component
+    children: [orders, inventory]
+  dataLayer:
+    label: Data layer
+    level: Component
+    children: [ordersdb, invdb]
+
+transition:
+  states:
+    - id: current
+      title: Current state
+      summary: Every request passes through the gateway into the monolith, which is the only owner of orders and inventory data.
+      boundaries:
+        - id: regulated
+          label: Cardholder + PII scope
+          tone: security
+          contains: [monolith, monolithdb]
+      nodes: [client, idp, gateway, monolith, monolithdb]
+      wires:
+        - "client -> gateway: HTTPS"
+        - "security: gateway -> idp: token check"
+        - "gateway => monolith: all paths"
+        - "monolith -> monolithdb: SQL"
+
+    - id: transition
+      title: Extract Orders and Inventory behind the gateway
+      summary: New Orders and Inventory services take live traffic while the monolith keeps serving accounts and legacy order lookups.
+      changes:
+        - "Introduced: Orders and Inventory services with their own databases"
+        - "Repurposed: gateway now splits traffic across the monolith and the two new services"
+        - "Retained temporarily: monolith answers legacy order lookups via a compat route"
+      boundaries:
+        - id: regulated
+          label: Cardholder + PII scope
+          tone: security
+          contains: [monolithdb, ordersdb, invdb]
+      nodes:
+        - client
+        - idp
+        - { id: gateway, kind: mixed, detail: "auth · domain routing" }
+        - { id: monolith, detail: "accounts · legacy order lookups" }
+        - monolithdb
+        - orders
+        - inventory
+        - ordersdb
+        - invdb
+      wires:
+        - "client -> gateway: HTTPS"
+        - "security: gateway -> idp: token check"
+        - "gateway -> monolith: accounts + legacy"
+        - "gateway => orders: /orders"
+        - "gateway => inventory: /inventory"
+        - "monolith -> monolithdb: SQL"
+        - "orders -> ordersdb: SQL"
+        - "inventory -> invdb: SQL"
+        - "compat: orders -> monolith: legacy account lookups"
+      changed: [gateway, monolith, orders, inventory, ordersdb, invdb]
+
+    - id: target
+      title: Target state
+      summary: Orders and Inventory fully own their domains and databases. The monolith is retired.
+      changes:
+        - "Repurposed: gateway sends 100% of domain traffic to the new services"
+        - "Retired: commerce monolith and its database"
+        - "Introduced: a direct stock-check call between the two domain services"
+      boundaries:
+        - id: regulated
+          label: Cardholder + PII scope
+          tone: security
+          contains: [orders, inventory, ordersdb, invdb]
+      nodes:
+        - client
+        - idp
+        - { id: gateway, kind: existing, detail: "auth · domain routing" }
+        - orders
+        - inventory
+        - ordersdb
+        - invdb
+      wires:
+        - "client -> gateway: HTTPS"
+        - "security: gateway -> idp: token check"
+        - "gateway => orders: /orders"
+        - "gateway => inventory: /inventory"
+        - "orders -> ordersdb: SQL"
+        - "inventory -> invdb: SQL"
+        - "orders -> inventory: stock check"
+      changed: [gateway]

@@ -1,0 +1,29 @@
+{
+  "meta": {
+    "title": "Single-flow export",
+    "flow": { "render": "single", "intro": true }
+  },
+  "canvas": { "w": 1000, "h": 600, "minWidth": 720 },
+  "catalog": {
+    "client": { "label": "Client", "type": "actor", "kind": "existing" },
+    "gateway": { "label": "Gateway", "type": "gateway", "kind": "existing" }
+  },
+  "packages": {},
+  "stages": [{
+    "id": "flow",
+    "title": "Single-flow export",
+    "nodes": ["client", "gateway"],
+    "wires": [{ "from": "client", "to": "gateway", "type": "data", "flow": true, "label": "request" }]
+  }],
+  "flow": {
+    "id": "flow",
+    "title": "Single-flow export",
+    "nodes": ["client", "gateway"],
+    "wires": [{ "from": "client", "to": "gateway", "type": "data", "flow": true, "label": "request" }],
+    "steps": [
+      { "id": "flow-intro", "title": "Flow overview", "kind": "intro", "edges": [], "note": "Steps: Request → Retry" },
+      { "id": "request", "title": "Request", "kind": "call", "edges": [{ "from": "client", "to": "gateway", "wireFrom": "client", "wireTo": "gateway" }] },
+      { "id": "retry", "title": "Retry", "kind": "call", "edges": [{ "from": "client", "to": "gateway", "wireFrom": "client", "wireTo": "gateway" }] }
+    ]
+  }
+}

@@ -1,0 +1,432 @@
+{
+  "meta": {
+    "title": "Orders/Inventory extraction",
+    "subtitle": "Regression fixture: two sibling packages nested under one parent, both auto-expanding, plus a nearby free-standing node",
+    "layout": "auto",
+    "direction": "LR",
+    "levels": [
+      "Context",
+      "Container",
+      "Component"
+    ],
+    "autoExpandChangedPackages": true,
+    "gif": {
+      "fps": 8,
+      "maxDurationMs": 10000
+    }
+  },
+  "canvas": {
+    "w": 1850,
+    "h": 950,
+    "minWidth": 1000
+  },
+  "catalog": {
+    "client": {
+      "label": "Web & mobile clients",
+      "type": "actor",
+      "shape": "actor",
+      "kind": "existing",
+      "w": 160,
+      "h": 52,
+      "level": "Context"
+    },
+    "idp": {
+      "label": "Identity provider",
+      "detail": "OIDC",
+      "type": "security",
+      "shape": "security",
+      "kind": "security",
+      "w": 150,
+      "h": 64,
+      "level": "Container"
+    },
+    "gateway": {
+      "label": "API gateway",
+      "detail": "routing \u00b7 auth",
+      "type": "gateway",
+      "shape": "gateway",
+      "kind": "existing",
+      "w": 160,
+      "h": 64,
+      "level": "Container"
+    },
+    "monolith": {
+      "label": "Commerce monolith",
+      "detail": "orders \u00b7 inventory \u00b7 accounts",
+      "type": "service",
+      "shape": "service",
+      "kind": "existing",
+      "w": 190,
+      "h": 72,
+      "level": "Container"
+    },
+    "monolithdb": {
+      "label": "Monolith DB",
+      "detail": "PostgreSQL",
+      "type": "database",
+      "shape": "db",
+      "kind": "existing",
+      "w": 130,
+      "h": 76,
+      "level": "Container"
+    },
+    "orders": {
+      "label": "Orders service",
+      "detail": "owns order lifecycle",
+      "type": "service",
+      "shape": "service",
+      "kind": "new",
+      "w": 170,
+      "h": 64,
+      "level": "Component"
+    },
+    "inventory": {
+      "label": "Inventory service",
+      "detail": "owns stock levels",
+      "type": "service",
+      "shape": "service",
+      "kind": "new",
+      "w": 170,
+      "h": 64,
+      "level": "Component"
+    },
+    "ordersdb": {
+      "label": "Orders DB",
+      "detail": "PostgreSQL",
+      "type": "database",
+      "shape": "db",
+      "kind": "new",
+      "w": 130,
+      "h": 76,
+      "level": "Component"
+    },
+    "invdb": {
+      "label": "Inventory DB",
+      "detail": "PostgreSQL",
+      "type": "database",
+      "shape": "db",
+      "kind": "new",
+      "w": 130,
+      "h": 76,
+      "level": "Component"
+    }
+  },
+  "packages": {
+    "commercePlatform": {
+      "label": "Commerce platform",
+      "detail": "Container \u00b7 Commerce team",
+      "type": "package",
+      "kind": "new",
+      "level": "Container",
+      "children": [
+        "domain",
+        "dataLayer"
+      ]
+    },
+    "domain": {
+      "label": "Domain services",
+      "detail": "Component",
+      "type": "package",
+      "kind": "new",
+      "level": "Component",
+      "children": [
+        "orders",
+        "inventory"
+      ]
+    },
+    "dataLayer": {
+      "label": "Data layer",
+      "detail": "Component",
+      "type": "package",
+      "kind": "new",
+      "level": "Component",
+      "children": [
+        "ordersdb",
+        "invdb"
+      ]
+    }
+  },
+  "stages": [
+    {
+      "id": "current",
+      "title": "Current state",
+      "summary": "Every request passes through the gateway into the monolith, which is the only owner of orders and inventory data.",
+      "changes": [
+        "Retained: gateway routes all paths to the monolith",
+        "Retained: monolith is the sole reader/writer of its database"
+      ],
+      "boundaries": [
+        {
+          "id": "regulated",
+          "label": "Cardholder + PII scope",
+          "tone": "security",
+          "contains": [
+            "monolith",
+            "monolithdb"
+          ]
+        }
+      ],
+      "nodes": [
+        {
+          "id": "client"
+        },
+        {
+          "id": "idp"
+        },
+        {
+          "id": "gateway"
+        },
+        {
+          "id": "monolith"
+        },
+        {
+          "id": "monolithdb"
+        }
+      ],
+      "wires": [
+        {
+          "from": "client",
+          "to": "gateway",
+          "type": "data",
+          "label": "HTTPS"
+        },
+        {
+          "from": "gateway",
+          "to": "idp",
+          "type": "security",
+          "label": "token check"
+        },
+        {
+          "from": "gateway",
+          "to": "monolith",
+          "type": "data",
+          "label": "all paths",
+          "flow": true
+        },
+        {
+          "from": "monolith",
+          "to": "monolithdb",
+          "type": "data",
+          "label": "SQL"
+        }
+      ],
+      "changed": []
+    },
+    {
+      "id": "transition",
+      "title": "Extract Orders and Inventory behind the gateway",
+      "summary": "New Orders and Inventory services take live traffic while the monolith keeps serving accounts and legacy order lookups. Two sibling packages (Domain services, Data layer) are both introduced here and both auto-expand at once \u2014 the exact shape that used to overlap before the package-heading and free-node-clearance fixes.",
+      "changes": [
+        "Introduced: Orders and Inventory services with their own databases",
+        "Repurposed: gateway now splits traffic across the monolith and the two new services",
+        "Retained temporarily: monolith answers legacy order lookups via a compat route"
+      ],
+      "boundaries": [
+        {
+          "id": "regulated",
+          "label": "Cardholder + PII scope",
+          "tone": "security",
+          "contains": [
+            "monolithdb",
+            "ordersdb",
+            "invdb"
+          ]
+        }
+      ],
+      "nodes": [
+        {
+          "id": "client"
+        },
+        {
+          "id": "idp"
+        },
+        {
+          "id": "gateway",
+          "kind": "mixed",
+          "detail": "auth \u00b7 domain routing"
+        },
+        {
+          "id": "monolith",
+          "detail": "accounts \u00b7 legacy order lookups"
+        },
+        {
+          "id": "monolithdb"
+        },
+        {
+          "id": "orders"
+        },
+        {
+          "id": "inventory"
+        },
+        {
+          "id": "ordersdb"
+        },
+        {
+          "id": "invdb"
+        }
+      ],
+      "wires": [
+        {
+          "from": "client",
+          "to": "gateway",
+          "type": "data",
+          "label": "HTTPS"
+        },
+        {
+          "from": "gateway",
+          "to": "idp",
+          "type": "security",
+          "label": "token check"
+        },
+        {
+          "from": "gateway",
+          "to": "monolith",
+          "type": "data",
+          "label": "accounts + legacy"
+        },
+        {
+          "from": "gateway",
+          "to": "orders",
+          "type": "data",
+          "label": "/orders",
+          "flow": true
+        },
+        {
+          "from": "gateway",
+          "to": "inventory",
+          "type": "data",
+          "label": "/inventory",
+          "flow": true
+        },
+        {
+          "from": "monolith",
+          "to": "monolithdb",
+          "type": "data",
+          "label": "SQL"
+        },
+        {
+          "from": "orders",
+          "to": "ordersdb",
+          "type": "data",
+          "label": "SQL"
+        },
+        {
+          "from": "inventory",
+          "to": "invdb",
+          "type": "data",
+          "label": "SQL"
+        },
+        {
+          "from": "orders",
+          "to": "monolith",
+          "type": "compat",
+          "label": "legacy account lookups"
+        }
+      ],
+      "changed": [
+        "gateway",
+        "monolith",
+        "orders",
+        "inventory",
+        "ordersdb",
+        "invdb"
+      ]
+    },
+    {
+      "id": "target",
+      "title": "Target state",
+      "summary": "Orders and Inventory fully own their domains and databases. The monolith is retired.",
+      "changes": [
+        "Repurposed: gateway sends 100% of domain traffic to the new services",
+        "Retired: commerce monolith and its database",
+        "Introduced: a direct stock-check call between the two domain services"
+      ],
+      "boundaries": [
+        {
+          "id": "regulated",
+          "label": "Cardholder + PII scope",
+          "tone": "security",
+          "contains": [
+            "orders",
+            "inventory",
+            "ordersdb",
+            "invdb"
+          ]
+        }
+      ],
+      "nodes": [
+        {
+          "id": "client"
+        },
+        {
+          "id": "idp"
+        },
+        {
+          "id": "gateway",
+          "detail": "auth \u00b7 domain routing"
+        },
+        {
+          "id": "orders"
+        },
+        {
+          "id": "inventory"
+        },
+        {
+          "id": "ordersdb"
+        },
+        {
+          "id": "invdb"
+        }
+      ],
+      "wires": [
+        {
+          "from": "client",
+          "to": "gateway",
+          "type": "data",
+          "label": "HTTPS"
+        },
+        {
+          "from": "gateway",
+          "to": "idp",
+          "type": "security",
+          "label": "token check"
+        },
+        {
+          "from": "gateway",
+          "to": "orders",
+          "type": "data",
+          "label": "/orders",
+          "flow": true
+        },
+        {
+          "from": "gateway",
+          "to": "inventory",
+          "type": "data",
+          "label": "/inventory",
+          "flow": true
+        },
+        {
+          "from": "orders",
+          "to": "ordersdb",
+          "type": "data",
+          "label": "SQL"
+        },
+        {
+          "from": "inventory",
+          "to": "invdb",
+          "type": "data",
+          "label": "SQL"
+        },
+        {
+          "from": "orders",
+          "to": "inventory",
+          "type": "data",
+          "label": "stock check"
+        }
+      ],
+      "changed": [
+        "gateway"
+      ]
+    }
+  ]
+}

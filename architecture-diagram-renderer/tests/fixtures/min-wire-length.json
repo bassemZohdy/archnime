@@ -1,0 +1,46 @@
+{
+  "meta": {
+    "title": "Minimum wire length",
+    "layout": "dagre",
+    "direction": "LR",
+    "minWireLen": 400
+  },
+  "canvas": {
+    "w": 1600,
+    "h": 500,
+    "minWidth": 900
+  },
+  "catalog": {
+    "client": {
+      "label": "Client",
+      "type": "actor",
+      "shape": "actor",
+      "kind": "existing",
+      "w": 150,
+      "h": 56
+    },
+    "gateway": {
+      "label": "Gateway",
+      "type": "gateway",
+      "shape": "gateway",
+      "kind": "new",
+      "w": 150,
+      "h": 56
+    }
+  },
+  "stages": [
+    {
+      "id": "only",
+      "title": "Minimum edge correction",
+      "nodes": ["client", "gateway"],
+      "wires": [
+        {
+          "from": "client",
+          "to": "gateway",
+          "type": "data",
+          "label": "HTTPS"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+dsl: transition-diagram/1.0
+meta:
+  title: Duplicate YAML key
+catalog:
+  a:
+    label: First A
+    type: service
+  a:
+    label: Second A
+    type: service
+system:
+  title: Duplicate YAML key
+  nodes: [a]
+  wires: []

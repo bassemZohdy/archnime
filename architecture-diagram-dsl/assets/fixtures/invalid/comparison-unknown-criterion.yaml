@@ -1,0 +1,17 @@
+dsl: transition-diagram/2.0
+meta:
+  title: Invalid comparison
+  comparison:
+    criteria:
+      - { id: latency, label: Latency }
+catalog:
+  client: { label: Client, type: actor }
+views:
+  - id: option-a
+    mode: system
+    title: Option A
+    nodes: [client]
+    wires: []
+    comparison:
+      tradeoffs:
+        cost: { rating: 3, note: Unknown criterion }

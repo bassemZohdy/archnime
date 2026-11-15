@@ -1,0 +1,94 @@
+dsl: transition-diagram/1.0
+
+meta:
+  title: Checkout request walkthrough
+  subtitle: A fixed-layout request path with returns, grouping, and parallel work
+  layout: auto
+  direction: LR
+  levels: [Container]
+  flow:
+    intro: true
+    autoAdvanceMs: 1200
+    loop: false
+
+canvas:
+  w: 1600
+  h: 900
+  minWidth: 960
+
+catalog:
+  client:
+    label: Checkout web app
+    type: actor
+    kind: existing
+  gateway:
+    label: API gateway
+    type: gateway
+    kind: existing
+    detail: routing and rate limits
+  idp:
+    label: Identity provider
+    type: security
+    kind: security
+    detail: OIDC token check
+  orders:
+    label: Orders service
+    type: service
+    kind: existing
+    detail: creates the order
+  ordersdb:
+    label: Orders database
+    type: database
+    kind: existing
+    detail: PostgreSQL
+  events:
+    label: Event bus
+    type: queue
+    kind: existing
+    detail: OrderPlaced
+  notify:
+    label: Notification service
+    type: service
+    kind: new
+    detail: email and push delivery
+
+flow:
+  title: Checkout request path
+  summary: Follow one request from the browser through authentication, persistence, and asynchronous notification.
+  callout: The topology stays fixed while the active step moves through the request.
+  nodes: [client, gateway, idp, orders, ordersdb, events, notify]
+  wires:
+    - "client => gateway: HTTPS"
+    - "gateway -> idp: token check"
+    - "gateway => orders: POST /orders"
+    - "orders -> ordersdb: INSERT order"
+    - "orders => events: publish OrderPlaced"
+    - "events => notify: deliver notification"
+  steps:
+    - title: Client request
+      edge: "client => gateway"
+      note: The browser sends the checkout request to the edge.
+    - title: Authenticate request
+      edge: "gateway -> idp"
+      note: The gateway validates the bearer token.
+    - title: Return authentication
+      edge: "idp -> gateway"
+      kind: return
+      note: Authentication returns to the gateway.
+    - title: Create order
+      edge: "gateway => orders"
+      label: POST /orders · authenticated
+      note: The gateway forwards an authenticated order command.
+    - title: Persist and publish
+      group:
+        - "orders -> ordersdb"
+        - "orders => events"
+      note: The order is persisted and the domain event is published.
+    - title: Deliver and retry
+      parallel:
+        - edge: "events => notify"
+          kind: async
+        - edge: "notify -> notify"
+          kind: loop
+          repeat: until delivered
+      note: Notification delivery runs asynchronously and retries until acknowledged.

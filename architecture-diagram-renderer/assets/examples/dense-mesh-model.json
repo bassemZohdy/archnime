@@ -1,0 +1,348 @@
+{
+  "meta": {
+    "title": "Dense event mesh",
+    "subtitle": "A reusable fixture for crowded routes, nested packages, and progressive flow disclosure",
+    "layout": "manual",
+    "direction": "LR",
+    "levels": [
+      "Context",
+      "Container",
+      "Component"
+    ],
+    "flowPresentation": {
+      "secondaryTypes": [
+        "control",
+        "neutral"
+      ],
+      "mode": "bundle",
+      "secondaryRoute": "bundle",
+      "bundleBend": 34,
+      "bundleSpacing": 16
+    },
+    "gif": {
+      "fps": 8,
+      "maxDurationMs": 10000
+    }
+  },
+  "canvas": {
+    "w": 1700,
+    "h": 1050,
+    "minWidth": 1100
+  },
+  "catalog": {
+    "client": {
+      "label": "Client applications",
+      "type": "actor",
+      "shape": "actor",
+      "kind": "existing",
+      "w": 150,
+      "h": 54,
+      "x": 150,
+      "y": 525
+    },
+    "gateway": {
+      "label": "Ingress gateway",
+      "detail": "auth \u00b7 routing",
+      "type": "gateway",
+      "shape": "gateway",
+      "kind": "existing",
+      "w": 160,
+      "h": 64,
+      "x": 420,
+      "y": 525
+    },
+    "orders": {
+      "label": "Orders service",
+      "detail": "transaction owner",
+      "type": "service",
+      "shape": "service",
+      "kind": "new",
+      "w": 165,
+      "h": 64,
+      "x": 680,
+      "y": 260
+    },
+    "payments": {
+      "label": "Payments service",
+      "detail": "authorization",
+      "type": "service",
+      "shape": "service",
+      "kind": "new",
+      "w": 165,
+      "h": 64,
+      "x": 680,
+      "y": 500
+    },
+    "events": {
+      "label": "Event stream",
+      "detail": "orders \u00b7 payments",
+      "type": "topic",
+      "shape": "queue",
+      "kind": "new",
+      "w": 160,
+      "h": 54,
+      "x": 940,
+      "y": 180
+    },
+    "search": {
+      "label": "Search indexer",
+      "detail": "derived read model",
+      "type": "service",
+      "shape": "service",
+      "kind": "new",
+      "w": 160,
+      "h": 64,
+      "x": 680,
+      "y": 740
+    },
+    "ordersdb": {
+      "label": "Orders database",
+      "detail": "PostgreSQL",
+      "type": "database",
+      "shape": "db",
+      "kind": "existing",
+      "w": 140,
+      "h": 76,
+      "x": 940,
+      "y": 420
+    },
+    "cache": {
+      "label": "Read cache",
+      "detail": "key/value",
+      "type": "cache",
+      "shape": "db",
+      "kind": "existing",
+      "w": 130,
+      "h": 72,
+      "x": 940,
+      "y": 660
+    },
+    "observability": {
+      "label": "Observability",
+      "detail": "metrics \u00b7 traces",
+      "type": "external",
+      "shape": "external",
+      "kind": "existing",
+      "w": 150,
+      "h": 64,
+      "x": 1420,
+      "y": 280
+    },
+    "audit": {
+      "label": "Audit sink",
+      "detail": "immutable log",
+      "type": "external",
+      "shape": "external",
+      "kind": "existing",
+      "w": 140,
+      "h": 64,
+      "x": 1420,
+      "y": 560
+    }
+  },
+  "packages": {
+    "platform": {
+      "label": "Application platform",
+      "level": "Container",
+      "children": [
+        "runtime"
+      ]
+    },
+    "runtime": {
+      "label": "Runtime services",
+      "level": "Component",
+      "children": [
+        "gateway",
+        "orders",
+        "payments",
+        "events",
+        "search",
+        "ordersdb",
+        "cache"
+      ]
+    }
+  },
+  "stages": [
+    {
+      "id": "dense",
+      "title": "Dense event mesh",
+      "summary": "Primary request and event paths stay visible while supporting control, cache, and operations flows are progressively disclosed.",
+      "callout": "This fixture intentionally exercises force layout, high-degree nodes, parallel edges, nested packages, bundled secondary routes, and narrow-screen behavior.",
+      "expandedPackages": [
+        "platform",
+        "runtime"
+      ],
+      "disclosure": {
+        "mode": "progressive",
+        "initialStep": 0,
+        "intervalMs": 900,
+        "layers": [
+          {
+            "id": "primary",
+            "label": "primary"
+          },
+          {
+            "id": "secondary",
+            "label": "supporting"
+          }
+        ]
+      },
+      "nodes": [
+        {
+          "id": "client"
+        },
+        {
+          "id": "gateway"
+        },
+        {
+          "id": "orders"
+        },
+        {
+          "id": "payments"
+        },
+        {
+          "id": "events"
+        },
+        {
+          "id": "search"
+        },
+        {
+          "id": "ordersdb"
+        },
+        {
+          "id": "cache"
+        },
+        {
+          "id": "observability"
+        },
+        {
+          "id": "audit"
+        }
+      ],
+      "wires": [
+        {
+          "from": "client",
+          "to": "gateway",
+          "type": "data",
+          "label": "HTTPS",
+          "layer": "primary"
+        },
+        {
+          "from": "gateway",
+          "to": "orders",
+          "type": "data",
+          "label": "/orders",
+          "layer": "primary",
+          "flow": true
+        },
+        {
+          "from": "gateway",
+          "to": "payments",
+          "type": "data",
+          "label": "/payments",
+          "layer": "primary"
+        },
+        {
+          "from": "orders",
+          "to": "events",
+          "type": "data",
+          "label": "publish",
+          "layer": "primary",
+          "flow": true
+        },
+        {
+          "from": "payments",
+          "to": "events",
+          "type": "data",
+          "label": "publish",
+          "layer": "primary"
+        },
+        {
+          "from": "events",
+          "to": "search",
+          "type": "data",
+          "label": "index",
+          "layer": "primary"
+        },
+        {
+          "from": "orders",
+          "to": "ordersdb",
+          "type": "data",
+          "label": "write",
+          "layer": "primary"
+        },
+        {
+          "from": "payments",
+          "to": "ordersdb",
+          "type": "data",
+          "label": "ledger",
+          "layer": "primary"
+        },
+        {
+          "from": "gateway",
+          "to": "orders",
+          "type": "control",
+          "label": "route policy",
+          "layer": "secondary",
+          "bundle": "platform-ops"
+        },
+        {
+          "from": "gateway",
+          "to": "payments",
+          "type": "control",
+          "label": "route policy",
+          "layer": "secondary",
+          "bundle": "platform-ops"
+        },
+        {
+          "from": "orders",
+          "to": "cache",
+          "type": "neutral",
+          "label": "cache",
+          "layer": "secondary",
+          "bundle": "storage"
+        },
+        {
+          "from": "search",
+          "to": "cache",
+          "type": "neutral",
+          "label": "read model",
+          "layer": "secondary",
+          "bundle": "storage"
+        },
+        {
+          "from": "events",
+          "to": "observability",
+          "type": "neutral",
+          "label": "telemetry",
+          "layer": "secondary",
+          "bundle": "operations"
+        },
+        {
+          "from": "orders",
+          "to": "observability",
+          "type": "neutral",
+          "label": "traces",
+          "layer": "secondary",
+          "bundle": "operations"
+        },
+        {
+          "from": "payments",
+          "to": "audit",
+          "type": "neutral",
+          "label": "audit",
+          "layer": "secondary",
+          "bundle": "operations"
+        },
+        {
+          "from": "observability",
+          "to": "audit",
+          "type": "control",
+          "layer": "secondary",
+          "bundle": "operations"
+        }
+      ],
+      "changed": []
+    }
+  ]
+}

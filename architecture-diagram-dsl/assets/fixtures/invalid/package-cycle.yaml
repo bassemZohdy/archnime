@@ -1,0 +1,15 @@
+dsl: transition-diagram/1.0
+meta:
+  title: Package cycle
+catalog:
+  a:
+    label: A
+    type: service
+packages:
+  loop:
+    label: Loop
+    children: [loop]
+system:
+  title: Package cycle
+  nodes: [a]
+  wires: []
