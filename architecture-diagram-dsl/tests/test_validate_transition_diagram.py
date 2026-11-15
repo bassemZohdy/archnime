@@ -7,6 +7,7 @@ import contextlib
 import importlib.util
 import io
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -17,6 +18,9 @@ SCRIPT = ROOT / "architecture-diagram-dsl" / "scripts" / "validate_transition_di
 SPEC = importlib.util.spec_from_file_location("validate_transition_diagram", SCRIPT)
 assert SPEC and SPEC.loader
 MODULE = importlib.util.module_from_spec(SPEC)
+# dataclasses resolves string annotations through sys.modules, so register before executing;
+# without this the file only loads when another test module imported the validator first.
+sys.modules[SPEC.name] = MODULE
 SPEC.loader.exec_module(MODULE)
 
 
@@ -137,6 +141,30 @@ system:
         expected = json.loads((ROOT / "architecture-diagram-dsl" / "assets" / "fixtures" / "invalid" / "expected-findings.json").read_text(encoding="utf-8"))
         covered = {rule for entry in expected.values() for rule in entry["rules"]}
         self.assertEqual(sorted(python_rules - covered), [], "every validator rule needs a negative fixture in expected-findings.json")
+
+    def test_each_invalid_fixture_produces_exactly_its_expected_rules(self) -> None:
+        """FEAT-014: expected-findings.json is checked against what the validator really reports.
+
+        Without this, a fixture could stop failing (or fail for another reason) and the
+        rule it stands for would be uncovered while every name-level check still passed.
+        """
+        invalid = ROOT / "architecture-diagram-dsl" / "assets" / "fixtures" / "invalid"
+        expected = json.loads((invalid / "expected-findings.json").read_text(encoding="utf-8"))
+        schema = MODULE.load_schema(MODULE.DEFAULT_SCHEMA_PATH)
+        fixtures = sorted(path.stem for path in invalid.glob("*.yaml"))
+        self.assertEqual(fixtures, sorted(expected), "every invalid fixture needs an expected-findings.json entry and vice versa")
+        for name in fixtures:
+            with self.subTest(fixture=name):
+                try:
+                    findings = MODULE.validate_document(MODULE.load_document(str(invalid / f"{name}.yaml")), schema)
+                    actual_rules = {finding.rule for finding in findings}
+                    actual_paths = {finding.path for finding in findings}
+                except MODULE.DuplicateKeyError:
+                    actual_rules, actual_paths = {"duplicate-yaml-key"}, {"$"}
+                except MODULE.yaml.YAMLError:
+                    actual_rules, actual_paths = {"yaml-parse-error"}, {"$"}
+                self.assertEqual(sorted(actual_rules), sorted(expected[name]["rules"]))
+                self.assertTrue(actual_paths <= set(expected[name]["paths"]), f"unexpected paths {sorted(actual_paths - set(expected[name]['paths']))}")
 
 
 if __name__ == "__main__":

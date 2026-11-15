@@ -1,0 +1,11 @@
+dsl: transition-diagram/1.0
+meta:
+  title: Node listed twice in one state
+catalog:
+  a: { label: A, type: service }
+  b: { label: B, type: service }
+system:
+  title: Node listed twice
+  nodes: [a, b, a]
+  wires:
+    - "a -> b: call"
