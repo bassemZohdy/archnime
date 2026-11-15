@@ -1,0 +1,4 @@
+interface:
+  display_name: "Architecture Diagram"
+  short_description: "One entry point: scan the workspace, then route to the right diagram skill"
+  default_prompt: "Use $architecture-diagram to look at this workspace, tell me what diagram artifacts exist and which step is next, and carry it out with the right skill."
