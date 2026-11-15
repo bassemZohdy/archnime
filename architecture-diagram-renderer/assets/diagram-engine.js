@@ -52,6 +52,24 @@
     return (advances[low][index] + (advances[high][index] - advances[low][index]) * t) / upm;
   }
 
+  // Which characters of a string the pinned font can paint. The advance table is the font's coverage
+  // (printable Latin, Latin-1 and the punctuation of its latin subset); combining marks and zero-width
+  // format characters carry no glyph of their own. Anything else would be drawn with whichever
+  // fallback font a viewer has, so callers that need a portable result (the documentation export)
+  // refuse it instead of letting the script silently change.
+  const SCRIPT_TESTS = ["Arabic", "Hebrew", "Han", "Hiragana", "Katakana", "Hangul", "Cyrillic", "Greek", "Devanagari", "Thai", "Bengali", "Tamil", "Armenian", "Georgian", "Ethiopic"]
+    .map(name => [name, new RegExp(`\\p{Script=${name}}`, "u")]);
+  const scriptOf = char => /\p{Extended_Pictographic}|\p{Regional_Indicator}/u.test(char) ? "Emoji" : (SCRIPT_TESTS.find(([, test]) => test.test(char)) || [/\p{Script=Latin}/u.test(char) ? "Latin" : "Other"])[0];
+  function fontCoverage(text) {
+    const missing = new Map();
+    for (const char of String(text ?? "")) {
+      if (ADVANCE_INDEX.has(char) || /[\s\u0300-\u036f\u200b-\u200f\ufe0e\ufe0f]/u.test(char)) continue;
+      if (!missing.has(char)) missing.set(char, { char, codePoint: `U+${char.codePointAt(0).toString(16).toUpperCase().padStart(4, "0")}`, script: scriptOf(char) });
+    }
+    const characters = [...missing.values()];
+    return { supported: characters.length === 0, missing: characters, scripts: [...new Set(characters.map(item => item.script))] };
+  }
+
   function create(model, options) {
     options = options || {};
     const d3 = options.d3 || global.d3;
@@ -2385,6 +2403,7 @@
 
   global.DiagramEngine = {
     create,
+    fontCoverage,
     layoutFlow(model, options) {
       return Promise.resolve().then(() => {
         const engine = create(model, options);

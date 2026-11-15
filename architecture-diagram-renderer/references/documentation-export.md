@@ -110,6 +110,20 @@ written instead and the command says so and why (`png (fallback)` and the reason
 never silently ends up with a picture of text or a cropped page. The check uses a small reader
 for Chromium's PDF output (`scripts/pdf_text.mjs`); it needs no PDF library.
 
+## Non-Latin labels
+
+The embedded Inter subset paints Latin text only (printable Latin, Latin-1 and common
+typographic punctuation such as quotes, dashes, the ellipsis, the bullet and the euro sign).
+A label in another script (Arabic, Hebrew, Han, Cyrillic, Greek, Hangul, Devanagari ... or an
+emoji) would be drawn with whichever font each viewer happens to have, in another shape and
+width than the layout measured, and nothing in the file would say so. The documentation SVG
+export therefore **refuses** such a diagram, in the toolbar and in `export_snapshots.mjs`,
+with a message that names the script and the characters (`Arabic: خ ... (U+062E ...)`). Words
+the font covers are never listed, so a mixed Latin/Arabic label reports only its Arabic part.
+The presenter itself still draws the diagram with the viewer's fonts. Its own join and loop
+symbols are not checked; the loop's repeat condition is. A licensed font and metrics for
+non-Latin scripts is the follow-up (FIX-005.2).
+
 ## Automated visual gates
 
 `npm test` renders the exported SVG both as an image and inline for the dense, nested and

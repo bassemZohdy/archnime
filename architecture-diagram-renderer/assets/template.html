@@ -763,7 +763,25 @@ const MODEL = {
     try { renderCurrent(); return serializeDocumentationSvgAsShown(); }
     finally { disclosureStep = shownStep; renderCurrent(); DUR = shownDuration; document.getElementById("status").textContent = shownStatus; }
   }
+  // The pinned Inter subset paints Latin text only. A label in another script would be drawn with
+  // whichever fallback font each viewer has, in another shape and width than the layout measured,
+  // and nothing in the file would say so: refuse the export and name what the font cannot paint.
+  function assertPaintableText() {
+    const problems = new Map();
+    document.querySelectorAll("#diagram text").forEach(label => {
+      if (getComputedStyle(label).display === "none") return;
+      // The presenter's own join/loop symbols are generic marks it draws itself, not model text; the loop's
+      // repeat condition after the symbol is model text and is still checked.
+      const own = label.closest("g.flow-decoration") ? label.textContent.replace(/[⌃↻]/g, "") : label.textContent;
+      const coverage = DiagramEngine.fontCoverage(own);
+      coverage.missing.forEach(item => { const entry = problems.get(item.script) || problems.set(item.script, new Map()).get(item.script); entry.set(item.char, item.codePoint); });
+    });
+    if (!problems.size) return;
+    const described = [...problems].map(([script, characters]) => `${script}: ${[...characters.keys()].slice(0, 6).join(" ")}${characters.size > 6 ? " …" : ""} (${[...characters.values()].slice(0, 3).join(", ")}${characters.size > 3 ? ", …" : ""})`).join("; ");
+    throw new Error(`Documentation SVG export refused: some labels use characters the embedded Inter font does not contain (${described}). The image would be drawn with a different font on every viewer, changing the shape and width of those labels. Use Latin-script labels in documentation exports, or export from the presenter knowing it relies on the viewer's fonts.`);
+  }
   function serializeDocumentationSvgAsShown() {
+    assertPaintableText();
     const parsed = new DOMParser().parseFromString(serializeVisibleSvg(), "image/svg+xml");
     const root = parsed.documentElement, scene = root.querySelector("g.viewport"), bounds = documentationBounds();
     if (parsed.querySelector("parsererror") || !scene || !bounds
