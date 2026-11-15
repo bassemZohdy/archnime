@@ -107,6 +107,17 @@ toolbar uses. A missing browser skips them locally and fails them under
   or unlisted vendored file fails the build clearly, and a library that goes missing later shows
   an alert instead of a blank page.
 
+- `multilingual_font.test.mjs` — a label the pinned font cannot paint (Arabic, Hebrew, Han,
+  Cyrillic, Greek, Hangul, Devanagari, emoji, or a Latin letter missing from the subset) makes the
+  documentation export fail with a message naming the script and characters, in the toolbar and
+  the batch exporter, while accents, typographic punctuation and the euro still export.
+
+- `font_portability.test.mjs` — the supported-script registry (`FONT_SCRIPTS`) matches the pinned
+  font file, its SHA-256 and OFL licence text; every character of the advance table exists in the
+  font's own cmap (mutation proof: a Cyrillic letter appended to the table is caught); characters the
+  font lacks are refused; `gen_font_assets.mjs --check` passes; and offline, the exported SVG paints
+  with the widths the layout measured (a different font would be detected).
+
 - `documentation_visual.test.mjs` — visual gates for dense, nested and trust-boundary layouts in
   light and dark. No screenshots are committed (pixels differ across machines and fonts); the
   exported SVG is rendered as an `<img>` and inline in the page and the two must agree to within
