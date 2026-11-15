@@ -92,6 +92,11 @@ toolbar uses. A missing browser skips them locally and fails them under
   Chromium, show the same nodes as the snapshot; it is reproducible, works without a viewer
   URL, escapes titles and refuses a `javascript:`, `data:`, `file:` or protocol-relative viewer.
 
+- `documentation_disclosure.test.mjs` — for a progressive-disclosure stage the documentation
+  export taken mid-reveal equals the one taken after the reveal finishes and holds every
+  supporting wire, exporting leaves the presenter's wire count, button and status untouched,
+  and a model without disclosure exports the same at any time.
+
 ## `script_integrity_check.mjs` — pinned CDN scripts
 
 Every external script the pages load (D3, Dagre, ELK, gif.js and js-yaml) carries a

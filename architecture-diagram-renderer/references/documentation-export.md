@@ -47,6 +47,11 @@ Replace URLs with actual published artifact locations; never promise that a
 6. For Office/PDF or systems that sanitize SVG, render the documentation SVG
    to PNG at a chosen resolution and inspect the result in the actual document.
 
+A stage that uses progressive disclosure reveals its supporting flows layer by layer on a
+timer in the presenter. The documentation export always renders every layer, so the image shows
+the whole stage whenever it is taken, and then puts the presenter back at the layer it was
+showing: exporting never skips or advances the presenter's own reveal.
+
 The ordinary **SVG (this view)** action deliberately retains current presenter
 zoom. It is not a documentation-safe export.
 
