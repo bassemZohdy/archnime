@@ -11,7 +11,7 @@
     "check-fonts": "node architecture-diagram-renderer/scripts/gen_font_assets.mjs --check",
     "regen-fixtures": "npm run python -- architecture-diagram-renderer/scripts/regen_fixtures.py --write",
     "check-fixtures": "npm run python -- architecture-diagram-renderer/scripts/regen_fixtures.py",
-    "test:python": "npm run python -- -m unittest discover -s architecture-diagram-dsl/tests -q && npm run python -- -m unittest discover -s architecture-diagram-interview/tests -q && npm run python -- -m unittest discover -s architecture-diagram-renderer/tests -p 'test_*.py' -q && npm run python -- -m unittest discover -s architecture-diagram-validation/tests -p 'test_*.py' -q",
+    "test:python": "npm run python -- -m unittest discover -s architecture-diagram-dsl/tests -q && npm run python -- -m unittest discover -s architecture-diagram-interview/tests -q && npm run python -- -m unittest discover -s architecture-diagram-renderer/tests -p test_*.py -q && npm run python -- -m unittest discover -s architecture-diagram-validation/tests -p test_*.py -q",
     "test:browser": "node architecture-diagram-dsl/tests/browser_validator_check.mjs && node architecture-diagram-renderer/tests/translate_check.mjs && node architecture-diagram-renderer/tests/element_check.mjs && node architecture-diagram-renderer/tests/test_system_layout_check.mjs && node architecture-diagram-renderer/tests/routing_stability_check.mjs && node architecture-diagram-renderer/tests/route_fallback_check.mjs && node architecture-diagram-renderer/tests/render_check.mjs",
     "test": "npm run check-skills && npm run check-fonts && npm run check-fixtures && npm run test:python && npm run test:browser"
   },
