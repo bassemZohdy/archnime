@@ -78,6 +78,10 @@ toolbar uses. A missing browser skips them locally and fails them under
   a package the user collapsed in one stage is exported collapsed there and expanded in the
   stage where it stays expanded.
 
+- `batch_snapshots.test.mjs` — `scripts/export_snapshots.mjs` writes one named SVG per
+  stage, variant, flow step and bundle view, each exactly once with no stray files; `--views`
+  and `--states` select; two runs are byte-identical; a bad request fails before writing.
+
 ## `script_integrity_check.mjs` — pinned CDN scripts
 
 Every external script the pages load (D3, Dagre, ELK, gif.js and js-yaml) carries a
