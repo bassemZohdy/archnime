@@ -55,9 +55,8 @@
   - Done when: the example sync test runs under test:python and shipped example models match fresh translations; `npm run test:python`; regression: `npm test`
   - Links: Ref: architecture-diagram-renderer/tests/README.md · Lane: hardening
   - State: branch todo/TASK-012-close-test-gate-gaps from main; next: build children
-  - [/] **TASK-012.1** · low · Rename example_sync.py to test_example_sync.py so unittest discovery runs it
+  - [x] **TASK-012.1** · low · Rename example_sync.py to test_example_sync.py so unittest discovery runs it
     - Done when: discovery runs the sync test; `python -m unittest discover -s architecture-diagram-validation/tests -p test_example_sync.py`
-    - State: attempts 0/3; baseline 46 passing; branch todo/TASK-012.1-rename-example-sync-py from todo/TASK-012-close-test-gate-gaps; next: build
   - [ ] **TASK-012.2** · mid · Regenerate the stale commerce-views and comparison-views example models and check them in regen_fixtures
     - Done when: check-fixtures fails on a stale example model and passes on regenerated ones; `npm run check-fixtures`
 
