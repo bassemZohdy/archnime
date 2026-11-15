@@ -232,7 +232,6 @@
       "packages": {
         "deployment_us-east": {
           "label": "US East",
-          "detail": null,
           "kind": "existing",
           "children": [
             "deployment_orders-cluster"
@@ -241,7 +240,6 @@
         },
         "deployment_orders-cluster": {
           "label": "Orders cluster",
-          "detail": null,
           "kind": "existing",
           "children": [
             "deployment_orders-host",
@@ -251,7 +249,6 @@
         },
         "deployment_orders-host": {
           "label": "Orders hosts",
-          "detail": null,
           "kind": "existing",
           "children": [
             "gateway-orders-host-1",
@@ -262,7 +259,6 @@
         },
         "deployment_orders-db-host": {
           "label": "Database hosts",
-          "detail": null,
           "kind": "existing",
           "children": [
             "ordersdb-orders-db-host-1"

@@ -53,11 +53,15 @@ def parse_wire_shorthand(text: str) -> dict:
 
 def normalize_wires(wires: list) -> list[dict]:
     """Expand every shorthand string in a wires list into a full mapping.
-    A wire that's already a mapping (dict) passes through unchanged (copied).
+    A wire that's already a mapping (dict) passes through unchanged (copied);
+    anything else is skipped (the schema pass reports it).
     Raises ValueError on the first unparsable shorthand string."""
     out = []
-    for w in wires:
-        out.append(parse_wire_shorthand(w) if isinstance(w, str) else dict(w))
+    for w in wires if isinstance(wires, list) else []:
+        if isinstance(w, str):
+            out.append(parse_wire_shorthand(w))
+        elif isinstance(w, dict):
+            out.append(dict(w))
     return out
 
 
@@ -148,6 +152,21 @@ UniqueKeySafeLoader.add_constructor(
 )
 
 
+def _map(value) -> dict:
+    """The value when it is a mapping, else empty: the schema pass reports the wrong shape."""
+    return value if isinstance(value, dict) else {}
+
+
+def _seq(value) -> list:
+    """The value when it is a list, else empty: the schema pass reports the wrong shape."""
+    return value if isinstance(value, list) else []
+
+
+def _ids(value) -> list:
+    """Only the string entries of a list; hashable and safe to look up."""
+    return [item for item in _seq(value) if isinstance(item, str)]
+
+
 @dataclass
 class Finding:
     rule: str
@@ -181,24 +200,23 @@ def run_schema_pass(doc: Any, schema: dict) -> list[Finding]:
 
 
 def _collect_known_ids(doc: dict) -> set:
-    ids = set(doc.get("catalog", {}) or {})
-    ids |= set(doc.get("packages", {}) or {})
+    ids = set(_map(doc.get("catalog")))
+    ids |= set(_map(doc.get("packages")))
     return ids
 
 
 def _lint_duplicate_ids(doc: dict) -> list[Finding]:
     findings = []
-    catalog_ids = set(doc.get("catalog", {}) or {})
-    package_ids = set(doc.get("packages", {}) or {})
-    for dup in sorted(catalog_ids & package_ids):
+    catalog_ids = set(_map(doc.get("catalog")))
+    package_ids = set(_map(doc.get("packages")))
+    for dup in sorted(catalog_ids & package_ids, key=str):
         findings.append(Finding("duplicate-id", f"id {dup!r} is defined in both catalog and packages", f"$.catalog.{dup}"))
     return findings
 
 
 def _lint_icons_and_node_types(doc: dict) -> list[Finding]:
     findings = []
-    registered = doc.get("meta", {}).get("icons", {}) if isinstance(doc.get("meta"), dict) else {}
-    registered = registered if isinstance(registered, dict) else {}
+    registered = _map(_map(doc.get("meta")).get("icons"))
     for icon_type, definition in registered.items():
         if icon_type in BUILTIN_NODE_TYPES:
             findings.append(Finding("schema", f"meta.icons cannot replace built-in node type {icon_type!r}", f"$.meta.icons[{icon_type!r}]"))
@@ -206,14 +224,22 @@ def _lint_icons_and_node_types(doc: dict) -> list[Finding]:
         if isinstance(definition, str) and definition not in BUILTIN_NODE_TYPES:
             findings.append(Finding("schema", f"meta.icons alias must name a built-in node type, got {definition!r}", f"$.meta.icons[{icon_type!r}]"))
     known_types = BUILTIN_NODE_TYPES | set(registered)
-    for ident, entry in (doc.get("catalog", {}) or {}).items():
-        if isinstance(entry, dict) and entry.get("type") not in known_types:
+    for ident, entry in _map(doc.get("catalog")).items():
+        if isinstance(entry, dict) and isinstance(entry.get("type"), str) and entry.get("type") not in known_types:
             findings.append(Finding("schema", f"catalog type must be a built-in or registered meta.icons type, got {entry.get('type')!r}", f"$.catalog[{ident!r}].type"))
     return findings
 
 
-def _node_id(entry) -> str:
-    return entry if isinstance(entry, str) else entry.get("id")
+def _node_id(entry) -> str | None:
+    """A node entry's id, or None when the entry has none (the schema pass reports that)."""
+    if isinstance(entry, str):
+        return entry
+    ident = entry.get("id") if isinstance(entry, dict) else None
+    return ident if isinstance(ident, str) else None
+
+
+def _node_ids(entries) -> set:
+    return {ident for ident in (_node_id(entry) for entry in _seq(entries)) if ident is not None}
 
 
 def _lint_frozen_field_overrides(entries: list, path_prefix: str) -> list[Finding]:
@@ -247,14 +273,14 @@ def _looks_like_unquoted_shorthand(w: dict) -> str | None:
 
 def _lint_wires(wires: list, known_ids: set, state_node_ids: set, path_prefix: str) -> list[Finding]:
     findings = []
-    for w in wires:
+    for w in _seq(wires):
         if isinstance(w, str):
             try:
                 nw = parse_wire_shorthand(w)
             except ValueError as e:
                 findings.append(Finding("wire-shorthand-parse-error", str(e), f"{path_prefix}.wires"))
                 continue
-        else:
+        elif isinstance(w, dict):
             nw = dict(w)
             suggestion = _looks_like_unquoted_shorthand(nw)
             if suggestion is not None:
@@ -265,7 +291,11 @@ def _lint_wires(wires: list, known_ids: set, state_node_ids: set, path_prefix: s
                     f"{path_prefix}.wires",
                 ))
                 continue
+        else:
+            continue  # neither shorthand nor mapping: the schema pass reports it
         for end in ("from", "to"):
+            if not isinstance(nw.get(end), str):
+                continue
             if nw.get(end) not in known_ids:
                 findings.append(Finding("unknown-catalog-ref", f"wire {end} {nw.get(end)!r} is not a catalog or package id", f"{path_prefix}.wires"))
             elif nw.get(end) not in state_node_ids:
@@ -279,21 +309,23 @@ def _lint_wires(wires: list, known_ids: set, state_node_ids: set, path_prefix: s
 
 def _lint_state(state: dict, known_ids: set, package_ids: set, path_prefix: str) -> list[Finding]:
     findings = []
-    nodes = state.get("nodes", []) or []
-    node_ids = {_node_id(n) for n in nodes}
-    for nid in node_ids:
+    if not isinstance(state, dict):
+        return findings
+    nodes = _seq(state.get("nodes"))
+    node_ids = _node_ids(nodes)
+    for nid in sorted(node_ids):
         if nid not in known_ids:
             findings.append(Finding("unknown-catalog-ref", f"node {nid!r} is not a catalog or package id", f"{path_prefix}.nodes"))
     findings += _lint_frozen_field_overrides(nodes, path_prefix)
-    findings += _lint_wires(state.get("wires", []) or [], known_ids, node_ids, path_prefix)
-    for changed_id in state.get("changed", []) or []:
+    findings += _lint_wires(state.get("wires"), known_ids, node_ids, path_prefix)
+    for changed_id in _ids(state.get("changed")):
         if changed_id not in node_ids:
             findings.append(Finding("bad-changed-ref", f"changed id {changed_id!r} is not in this state's nodes", f"{path_prefix}.changed"))
-    for boundary in state.get("boundaries", []) or []:
-        for member in boundary.get("contains", []) or []:
+    for boundary in _seq(state.get("boundaries")):
+        for member in _ids(_map(boundary).get("contains")):
             if member not in known_ids:
-                findings.append(Finding("unknown-catalog-ref", f"boundary {boundary.get('id')!r} contains unknown id {member!r}", f"{path_prefix}.boundaries"))
-    for pkg_id in state.get("expandedPackages", []) or []:
+                findings.append(Finding("unknown-catalog-ref", f"boundary {_map(boundary).get('id')!r} contains unknown id {member!r}", f"{path_prefix}.boundaries"))
+    for pkg_id in _ids(state.get("expandedPackages")):
         if pkg_id not in package_ids:
             findings.append(Finding(
                 "expanded-package-not-package",
@@ -308,9 +340,10 @@ def _wire_identity(value) -> tuple | None:
         wire = parse_wire_shorthand(value) if isinstance(value, str) else value
     except (AttributeError, TypeError, ValueError):
         return None
-    if not isinstance(wire, dict) or wire.get("from") is None or wire.get("to") is None:
+    if not isinstance(wire, dict) or not isinstance(wire.get("from"), str) or not isinstance(wire.get("to"), str):
         return None
-    return wire.get("from"), wire.get("to"), wire.get("type", "data")
+    wire_type = wire.get("type", "data")
+    return wire.get("from"), wire.get("to"), wire_type if isinstance(wire_type, str) else "data"
 
 
 def _lint_steps(steps_doc: dict, known_ids: set, package_ids: set, path_prefix: str) -> list[Finding]:
@@ -319,7 +352,7 @@ def _lint_steps(steps_doc: dict, known_ids: set, package_ids: set, path_prefix: 
         findings.append(Finding("step-base-required", "steps.base is required and must be a full state", f"{path_prefix}.base"))
         return findings
     base = copy.deepcopy(steps_doc["base"])
-    sequence = steps_doc.get("sequence", []) or []
+    sequence = _seq(steps_doc.get("sequence"))
     findings += _lint_state(base, known_ids, package_ids, f"{path_prefix}.base")
     if len(sequence) < 1:
         findings.append(Finding("step-sequence-too-short", "steps.sequence must contain at least one step", f"{path_prefix}.sequence"))
@@ -330,22 +363,23 @@ def _lint_steps(steps_doc: dict, known_ids: set, package_ids: set, path_prefix: 
         if not isinstance(step, dict):
             continue
         step_id = step.get("id")
-        if step_id in seen_step_ids:
-            findings.append(Finding("duplicate-id", f"step id {step_id!r} appears more than once", f"{path}.id"))
-        seen_step_ids.add(step_id)
-        current_nodes = {_node_id(node) for node in current.get("nodes", []) or []}
+        if isinstance(step_id, str):
+            if step_id in seen_step_ids:
+                findings.append(Finding("duplicate-id", f"step id {step_id!r} appears more than once", f"{path}.id"))
+            seen_step_ids.add(step_id)
+        current_nodes = _node_ids(current.get("nodes"))
         try:
-            current_wires = normalize_wires(current.get("wires", []) or [])
+            current_wires = normalize_wires(current.get("wires"))
         except ValueError:
             current_wires = []
         current_wire_keys = {_wire_identity(wire) for wire in current_wires}
         add = step.get("add") if isinstance(step.get("add"), dict) else {}
         remove = step.get("remove") if isinstance(step.get("remove"), dict) else {}
         overrides = step.get("set") if isinstance(step.get("set"), dict) else {}
-        add_nodes = add.get("nodes", []) or []
-        add_wires = add.get("wires", []) or []
-        remove_nodes = set(remove.get("nodes", []) or [])
-        remove_wires = remove.get("wires", []) or []
+        add_nodes = _seq(add.get("nodes"))
+        add_wires = _seq(add.get("wires"))
+        remove_nodes = set(_ids(remove.get("nodes")))
+        remove_wires = _seq(remove.get("wires"))
         for node in add_nodes:
             node_id = _node_id(node)
             if node_id in current_nodes:
@@ -363,7 +397,7 @@ def _lint_steps(steps_doc: dict, known_ids: set, package_ids: set, path_prefix: 
             identity = _wire_identity(wire)
             if identity is not None and (identity[0] in remove_nodes or identity[1] in remove_nodes):
                 findings.append(Finding("step-removes-connected-node", f"step adds a wire still connected to node(s) being removed", f"{path}.add.wires"))
-        for node_id in step.get("changed", []) or []:
+        for node_id in _ids(step.get("changed")):
             if node_id in remove_nodes:
                 findings.append(Finding("step-removes-connected-node", f"step marks removed node {node_id!r} as changed", f"{path}.changed"))
         for node_id in overrides:
@@ -372,11 +406,11 @@ def _lint_steps(steps_doc: dict, known_ids: set, package_ids: set, path_prefix: 
             elif node_id in remove_nodes:
                 findings.append(Finding("step-removes-connected-node", f"step sets node {node_id!r} while removing it", f"{path}.set"))
 
-        current["nodes"] = [copy.deepcopy(node) for node in current.get("nodes", []) or [] if _node_id(node) not in remove_nodes]
+        current["nodes"] = [copy.deepcopy(node) for node in _seq(current.get("nodes")) if _node_id(node) not in remove_nodes]
         current["nodes"].extend(copy.deepcopy(add_nodes))
         remove_wire_keys = {_wire_identity(wire) for wire in remove_wires}
         retained_wires = []
-        for wire in current.get("wires", []) or []:
+        for wire in _seq(current.get("wires")):
             identity = _wire_identity(wire)
             if identity in remove_wire_keys or (identity is not None and (identity[0] in remove_nodes or identity[1] in remove_nodes)):
                 continue
@@ -385,7 +419,7 @@ def _lint_steps(steps_doc: dict, known_ids: set, package_ids: set, path_prefix: 
         current["wires"] = retained_wires
         for node_id, override in overrides.items():
             for node_index, node in enumerate(current["nodes"]):
-                if _node_id(node) != node_id:
+                if not isinstance(node_id, str) or _node_id(node) != node_id:
                     continue
                 merged = {"id": node_id}
                 merged.update(copy.deepcopy(override or {}))
@@ -403,7 +437,7 @@ def _lint_scenarios(scenarios_doc: dict, known_ids: set, package_ids: set, path_
     if not isinstance(scenarios_doc, dict) or not isinstance(scenarios_doc.get("base"), dict):
         findings.append(Finding("scenario-base-required", "scenarios.base is required and must be a full state", f"{path_prefix}.base"))
         return findings
-    variants = scenarios_doc.get("variants", []) or []
+    variants = scenarios_doc.get("variants")
     if not isinstance(variants, list) or len(variants) < 1:
         findings.append(Finding("scenario-variants-too-short", "scenarios.variants must contain at least one variant", f"{path_prefix}.variants"))
         return findings
@@ -430,7 +464,7 @@ def _lint_flow_step(step: dict, flow_wires: list[dict], flow_node_ids: set, seen
             findings.append(Finding("flow-step-unknown-edge", f"flow step edge {text!r} is not a valid wire shorthand", edge_path))
             return
         key = _flow_edge_key(edge)
-        known = {_flow_edge_key(wire) for wire in flow_wires}
+        known = {_flow_edge_key(wire) for wire in flow_wires if isinstance(wire.get("from"), str) and isinstance(wire.get("to"), str)}
         if key[0] not in flow_node_ids or key[1] not in flow_node_ids:
             findings.append(Finding("flow-step-unknown-edge", f"flow step edge {text!r} references a node not present in flow.nodes", edge_path))
             return
@@ -461,31 +495,31 @@ def _lint_flow(flow: dict, known_ids: set, path_prefix: str) -> list[Finding]:
     findings = []
     if not isinstance(flow, dict):
         return findings
-    node_ids = {_node_id(node) for node in flow.get("nodes", []) or []}
-    for node_id in node_ids:
+    node_ids = _node_ids(flow.get("nodes"))
+    for node_id in sorted(node_ids):
         if node_id not in known_ids:
             findings.append(Finding("unknown-catalog-ref", f"node {node_id!r} is not a catalog or package id", f"{path_prefix}.nodes"))
-    findings += _lint_frozen_field_overrides(flow.get("nodes", []) or [], path_prefix)
+    findings += _lint_frozen_field_overrides(_seq(flow.get("nodes")), path_prefix)
     try:
-        wires = normalize_wires(flow.get("wires", []) or [])
+        wires = normalize_wires(flow.get("wires"))
     except ValueError as error:
         findings.append(Finding("wire-shorthand-parse-error", str(error), f"{path_prefix}.wires"))
         wires = []
-    findings += _lint_wires(flow.get("wires", []) or [], known_ids, node_ids, path_prefix)
-    for boundary in flow.get("boundaries", []) or []:
-        for member in boundary.get("contains", []) or []:
+    findings += _lint_wires(flow.get("wires"), known_ids, node_ids, path_prefix)
+    for boundary in _seq(flow.get("boundaries")):
+        for member in _ids(_map(boundary).get("contains")):
             if member not in known_ids:
-                findings.append(Finding("unknown-catalog-ref", f"boundary {boundary.get('id')!r} contains unknown id {member!r}", f"{path_prefix}.boundaries"))
+                findings.append(Finding("unknown-catalog-ref", f"boundary {_map(boundary).get('id')!r} contains unknown id {member!r}", f"{path_prefix}.boundaries"))
     seen_calls: set[tuple[str, str]] = set()
-    for index, step in enumerate(flow.get("steps", []) or []):
+    for index, step in enumerate(_seq(flow.get("steps"))):
         findings += _lint_flow_step(step, wires, node_ids, seen_calls, f"{path_prefix}.steps[{index}]")
     return findings
 
 
 def _lint_deployment(view: dict, known_ids: set, path_prefix: str) -> list[Finding]:
     findings = []
-    deployment = view.get("deployment") or {}
-    infrastructure = deployment.get("infrastructure") or {}
+    deployment = _map(view.get("deployment"))
+    infrastructure = deployment.get("infrastructure")
     if not isinstance(infrastructure, dict) or not infrastructure:
         findings.append(Finding("deployment-infrastructure-empty", "deployment.infrastructure must be a non-empty map", f"{path_prefix}.deployment.infrastructure"))
         return findings
@@ -493,7 +527,7 @@ def _lint_deployment(view: dict, known_ids: set, path_prefix: str) -> list[Findi
     for infra_id, infra in infrastructure.items():
         if not isinstance(infra, dict):
             continue
-        for child in infra.get("children", []) or []:
+        for child in _ids(infra.get("children")):
             if child not in infrastructure:
                 findings.append(Finding("deployment-unknown-infrastructure", f"infrastructure child {child!r} is not declared", f"{path_prefix}.deployment.infrastructure.{infra_id}.children"))
             else:
@@ -512,7 +546,7 @@ def _lint_deployment(view: dict, known_ids: set, path_prefix: str) -> list[Findi
         if infra_id in visited or infra_id not in infrastructure:
             return
         visiting.add(infra_id)
-        for child in (infrastructure.get(infra_id) or {}).get("children", []) or []:
+        for child in _ids(_map(infrastructure.get(infra_id)).get("children")):
             visit(child, trail + [child])
         visiting.remove(infra_id)
         visited.add(infra_id)
@@ -520,15 +554,17 @@ def _lint_deployment(view: dict, known_ids: set, path_prefix: str) -> list[Findi
     for infra_id in infrastructure:
         visit(infra_id, [infra_id])
 
-    selected = {_node_id(node) for node in view.get("nodes", []) or []}
-    placements = deployment.get("placements") or []
+    selected = _node_ids(view.get("nodes"))
+    placements = _seq(deployment.get("placements"))
     placed: dict[str, int] = {}
     seen_placements: set[tuple[Any, Any]] = set()
-    leaves = {infra_id for infra_id, infra in infrastructure.items() if not (infra or {}).get("children")}
+    leaves = {infra_id for infra_id, infra in infrastructure.items() if not _map(infra).get("children")}
     for index, placement in enumerate(placements):
         if not isinstance(placement, dict):
             continue
         component, target = placement.get("component"), placement.get("target")
+        if not isinstance(component, str) or not isinstance(target, str):
+            continue  # the schema pass reports a placement without string ids
         path = f"{path_prefix}.deployment.placements[{index}]"
         placement_key = (component, target)
         if placement_key in seen_placements:
@@ -561,17 +597,17 @@ def _lint_view(view: dict, known_ids: set, package_ids: set, path_prefix: str) -
         return _lint_state(state, known_ids, package_ids, path_prefix)
     if mode == "transition":
         findings = []
-        states = view.get("states", []) or []
+        states = _seq(view.get("states"))
         if len(states) < 2:
             findings.append(Finding("transition-too-short", "view.states has fewer than 2 entries", f"{path_prefix}.states"))
         state_ids: set[Any] = set()
         for index, state in enumerate(states):
             state_id = state.get("id") if isinstance(state, dict) else None
-            if state_id in state_ids:
+            if isinstance(state_id, str) and state_id in state_ids:
                 findings.append(Finding("duplicate-id", f"state id {state_id!r} appears more than once", f"{path_prefix}.states[{index}].id"))
-            if state_id is not None:
+            if isinstance(state_id, str):
                 state_ids.add(state_id)
-            findings += _lint_state(state or {}, known_ids, package_ids, f"{path_prefix}.states[{index}]")
+            findings += _lint_state(state, known_ids, package_ids, f"{path_prefix}.states[{index}]")
         return findings
     if mode == "steps":
         return _lint_steps(view, known_ids, package_ids, path_prefix)
@@ -602,14 +638,14 @@ def _lint_comparison(doc: dict, view_ids: set[str]) -> list[Finding]:
         if not isinstance(criterion, dict):
             continue
         criterion_id = criterion.get("id")
-        if criterion_id in criterion_ids:
+        if isinstance(criterion_id, str) and criterion_id in criterion_ids:
             findings.append(Finding("comparison-duplicate-criterion", f"comparison criterion id {criterion_id!r} appears more than once", f"$.meta.comparison.criteria[{index}].id"))
         if isinstance(criterion_id, str):
             criterion_ids.add(criterion_id)
     recommended = comparison.get("recommended") if isinstance(comparison, dict) else None
-    if recommended is not None and recommended not in view_ids:
+    if isinstance(recommended, str) and recommended not in view_ids:
         findings.append(Finding("comparison-recommended-unknown", f"comparison recommended view {recommended!r} is not in views", "$.meta.comparison.recommended"))
-    for index, view in enumerate(doc.get("views", []) or []):
+    for index, view in enumerate(_seq(doc.get("views"))):
         if not isinstance(view, dict) or not isinstance(view.get("comparison"), dict):
             continue
         tradeoffs = view["comparison"].get("tradeoffs", {})
@@ -617,7 +653,7 @@ def _lint_comparison(doc: dict, view_ids: set[str]) -> list[Finding]:
             continue
         for criterion_id, tradeoff in tradeoffs.items():
             path = f"$.views[{index}].comparison.tradeoffs.{criterion_id}"
-            if criterion_id not in criterion_ids:
+            if isinstance(criterion_id, str) and criterion_id not in criterion_ids:
                 findings.append(Finding("comparison-criterion-unknown", f"view tradeoff refers to unknown comparison criterion {criterion_id!r}", path))
             if isinstance(tradeoff, dict) and "rating" in tradeoff:
                 rating = tradeoff["rating"]
@@ -630,41 +666,41 @@ def _lint_navigation_targets(doc: dict, view_ids: set[str]) -> list[Finding]:
     """Validate v2 links against the bundle's stable view and package ids."""
 
     findings: list[Finding] = []
-    package_ids = set(doc.get("packages", {}) or {})
+    package_ids = set(_map(doc.get("packages")))
 
     def check_catalog_entry(entry_id: str, entry: Any) -> None:
         if not isinstance(entry, dict):
             return
         path = f"$.catalog.{entry_id}"
         target = entry.get("navigateTo")
-        if target is not None and target not in view_ids:
+        if isinstance(target, str) and target not in view_ids:
             findings.append(Finding("navigation-target-unknown", f"catalog node {entry_id!r} navigates to unknown view {target!r}", f"{path}.navigateTo"))
         contained = entry.get("contains")
-        if contained is not None and contained not in package_ids and contained not in view_ids:
+        if isinstance(contained, str) and contained not in package_ids and contained not in view_ids:
             findings.append(Finding("contains-target-unknown", f"catalog node {entry_id!r} contains unknown package or view {contained!r}", f"{path}.contains"))
 
     def check_node_entries(entries: Any, path: str) -> None:
-        for index, entry in enumerate(entries or []):
+        for index, entry in enumerate(_seq(entries)):
             if not isinstance(entry, dict):
                 continue
             target = entry.get("navigateTo")
-            if target is not None and target not in view_ids:
+            if isinstance(target, str) and target not in view_ids:
                 findings.append(Finding("navigation-target-unknown", f"node override navigates to unknown view {target!r}", f"{path}[{index}].navigateTo"))
 
     def check_step(step: Any, path: str) -> None:
         if not isinstance(step, dict):
             return
         target = step.get("navigateTo")
-        if target is not None and target not in view_ids:
+        if isinstance(target, str) and target not in view_ids:
             findings.append(Finding("navigation-target-unknown", f"step navigates to unknown view {target!r}", f"{path}.navigateTo"))
-        for index, child in enumerate(step.get("parallel", []) or []):
+        for index, child in enumerate(_seq(step.get("parallel"))):
             check_step(child, f"{path}.parallel[{index}]")
 
     def check_state(state: Any, path: str) -> None:
         if not isinstance(state, dict):
             return
         target = state.get("navigateTo")
-        if target is not None and target not in view_ids:
+        if isinstance(target, str) and target not in view_ids:
             findings.append(Finding("navigation-target-unknown", f"state navigates to unknown view {target!r}", f"{path}.navigateTo"))
         check_node_entries(state.get("nodes"), f"{path}.nodes")
 
@@ -674,34 +710,34 @@ def _lint_navigation_targets(doc: dict, view_ids: set[str]) -> list[Finding]:
         check_node_entries(view.get("nodes"), f"{path}.nodes")
         mode = view.get("mode")
         if mode == "transition":
-            for index, state in enumerate(view.get("states", []) or []):
+            for index, state in enumerate(_seq(view.get("states"))):
                 check_state(state, f"{path}.states[{index}]")
         elif mode == "steps":
             check_state(view.get("base"), f"{path}.base")
-            for index, step in enumerate(view.get("sequence", []) or []):
+            for index, step in enumerate(_seq(view.get("sequence"))):
                 check_step(step, f"{path}.sequence[{index}]")
         elif mode == "scenarios":
             check_state(view.get("base"), f"{path}.base")
-            for index, step in enumerate(view.get("variants", []) or []):
+            for index, step in enumerate(_seq(view.get("variants"))):
                 check_step(step, f"{path}.variants[{index}]")
         elif mode == "flow":
-            for index, step in enumerate(view.get("steps", []) or []):
+            for index, step in enumerate(_seq(view.get("steps"))):
                 check_step(step, f"{path}.steps[{index}]")
 
-    for entry_id, entry in (doc.get("catalog", {}) or {}).items():
+    for entry_id, entry in _map(doc.get("catalog")).items():
         check_catalog_entry(entry_id, entry)
-    for index, view in enumerate(doc.get("views", []) or []):
+    for index, view in enumerate(_seq(doc.get("views"))):
         check_view(view, f"$.views[{index}]")
     return findings
 
 
 def _lint_package_graph(doc: dict) -> list[Finding]:
     findings = []
-    packages = doc.get("packages", {}) or {}
+    packages = _map(doc.get("packages"))
     known_ids = _collect_known_ids(doc)
     parents = {}
     for package_id, package in packages.items():
-        for child in (package or {}).get("children", []) or []:
+        for child in _ids(_map(package).get("children")):
             if child in known_ids:
                 parents.setdefault(child, []).append(package_id)
 
@@ -729,7 +765,7 @@ def _lint_package_graph(doc: dict) -> list[Finding]:
         if package_id in visited:
             return
         visiting.add(package_id)
-        for child in (packages.get(package_id) or {}).get("children", []) or []:
+        for child in _ids(_map(packages.get(package_id)).get("children")):
             if child in packages:
                 visit(child, trail + [child])
         visiting.remove(package_id)
@@ -750,10 +786,10 @@ def run_lint_pass(doc: dict) -> list[Finding]:
     findings += _lint_package_graph(doc)
 
     known_ids = _collect_known_ids(doc)
-    package_ids = set(doc.get("packages", {}) or {})
+    package_ids = set(_map(doc.get("packages")))
 
-    for pkg_id, pkg in (doc.get("packages", {}) or {}).items():
-        for child in (pkg or {}).get("children", []) or []:
+    for pkg_id, pkg in _map(doc.get("packages")).items():
+        for child in _ids(_map(pkg).get("children")):
             if child not in known_ids:
                 findings.append(Finding("unknown-catalog-ref", f"package {pkg_id!r} child {child!r} is not a catalog or package id", f"$.packages.{pkg_id}.children"))
 
@@ -764,39 +800,40 @@ def run_lint_pass(doc: dict) -> list[Finding]:
         seen_view_ids = set()
         for index, view in enumerate(views):
             path = f"$.views[{index}]"
-            view_id = (view or {}).get("id") if isinstance(view, dict) else None
-            if view_id in seen_view_ids:
-                findings.append(Finding("duplicate-id", f"view id {view_id!r} appears more than once", f"{path}.id"))
-            seen_view_ids.add(view_id)
+            view_id = view.get("id") if isinstance(view, dict) else None
+            if isinstance(view_id, str):
+                if view_id in seen_view_ids:
+                    findings.append(Finding("duplicate-id", f"view id {view_id!r} appears more than once", f"{path}.id"))
+                seen_view_ids.add(view_id)
             findings += _lint_view(view, known_ids, package_ids, path)
         findings += _lint_navigation_targets(doc, {view_id for view_id in seen_view_ids if isinstance(view_id, str)})
         findings += _lint_comparison(doc, {view_id for view_id in seen_view_ids if isinstance(view_id, str)})
         return findings
 
     if "system" in doc:
-        findings += _lint_state(doc["system"] or {}, known_ids, package_ids, "$.system")
+        findings += _lint_state(doc["system"], known_ids, package_ids, "$.system")
 
     if "transition" in doc:
-        states = (doc["transition"] or {}).get("states", []) or []
+        states = _seq(_map(doc["transition"]).get("states"))
         if len(states) < 2:
             findings.append(Finding("transition-too-short", "transition.states has fewer than 2 entries -- use system: instead", "$.transition.states"))
         seen_state_ids = set()
         for i, state in enumerate(states):
-            sid = (state or {}).get("id")
-            if sid in seen_state_ids:
+            sid = state.get("id") if isinstance(state, dict) else None
+            if isinstance(sid, str) and sid in seen_state_ids:
                 findings.append(Finding("duplicate-id", f"state id {sid!r} appears more than once", f"$.transition.states[{i}]"))
-            if sid is not None:
+            if isinstance(sid, str):
                 seen_state_ids.add(sid)
-            findings += _lint_state(state or {}, known_ids, package_ids, f"$.transition.states[{i}]")
+            findings += _lint_state(state, known_ids, package_ids, f"$.transition.states[{i}]")
 
     if "steps" in doc:
-        findings += _lint_steps(doc["steps"] or {}, known_ids, package_ids, "$.steps")
+        findings += _lint_steps(doc["steps"], known_ids, package_ids, "$.steps")
 
     if "scenarios" in doc:
-        findings += _lint_scenarios(doc["scenarios"] or {}, known_ids, package_ids, "$.scenarios")
+        findings += _lint_scenarios(doc["scenarios"], known_ids, package_ids, "$.scenarios")
 
     if "flow" in doc:
-        findings += _lint_flow(doc["flow"] or {}, known_ids, "$.flow")
+        findings += _lint_flow(doc["flow"], known_ids, "$.flow")
 
     return findings
 

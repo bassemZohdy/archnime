@@ -19,6 +19,11 @@
 
   const isObject = value => value !== null && typeof value === "object" && !Array.isArray(value);
   const has = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
+  // The lint pass trusts only well-formed fragments; the schema pass reports the
+  // malformed ones, so a wrong shape here is skipped rather than thrown on.
+  const arr = value => Array.isArray(value) ? value : [];
+  const obj = value => isObject(value) ? value : {};
+  const strs = value => arr(value).filter(item => typeof item === "string");
   const finding = (rule, message, path = "", severity = "error") => ({ rule, message, path, severity });
   const schema = (message, path = "$") => finding("schema", message, path);
   const pathKey = (base, key) => `${base}['${String(key).replaceAll("'", "\\'")}']`;
@@ -387,6 +392,7 @@
       if (!idValid(entry.type) || (!enumValid(entry.type, NODE_TYPES) && !registeredTypes.has(entry.type))) findings.push(schema(`type must be a built-in or registered meta.icons type`, pathKey(entryPath, "type")));
       if (has(entry, "kind") && !enumValid(entry.kind, KINDS)) findings.push(schema("kind has an invalid value", pathKey(entryPath, "kind")));
       if (has(entry, "detail") && typeof entry.detail !== "string") findings.push(schema("detail must be a string", pathKey(entryPath, "detail")));
+      if (has(entry, "level") && typeof entry.level !== "string") findings.push(schema("level must be a string", pathKey(entryPath, "level")));
       if (has(entry, "size")) checkSize(entry.size, pathKey(entryPath, "size"), findings);
       if (has(entry, "contains") && !idValid(entry.contains)) findings.push(schema("contains must be a valid id", pathKey(entryPath, "contains")));
       if (has(entry, "navigateTo") && !idValid(entry.navigateTo)) findings.push(schema("navigateTo must be a valid id", pathKey(entryPath, "navigateTo")));
@@ -411,6 +417,8 @@
         if (typeof pkg.label !== "string" || !pkg.label.length) findings.push(schema("package requires a non-empty label", pathKey(pkgPath, "label")));
         if (!Array.isArray(pkg.children) || pkg.children.length < 1 || !pkg.children.every(idValid)) findings.push(schema("package children must be a non-empty id array", pathKey(pkgPath, "children")));
         if (has(pkg, "kind") && !enumValid(pkg.kind, KINDS)) findings.push(schema("package kind has an invalid value", pathKey(pkgPath, "kind")));
+        if (has(pkg, "level") && typeof pkg.level !== "string") findings.push(schema("package level must be a string", pathKey(pkgPath, "level")));
+        if (has(pkg, "detail") && typeof pkg.detail !== "string") findings.push(schema("package detail must be a string", pathKey(pkgPath, "detail")));
         if (has(pkg, "ops") && typeof pkg.ops !== "boolean") findings.push(schema("package ops must be a boolean", pathKey(pkgPath, "ops")));
       });
     }
@@ -454,24 +462,25 @@
   }
 
   function normalizeWires(wires) {
-    return (wires || []).map(wire => typeof wire === "string" ? parseWireShorthand(wire) : { ...wire });
+    return arr(wires).filter(wire => typeof wire === "string" || isObject(wire)).map(wire => typeof wire === "string" ? parseWireShorthand(wire) : { ...wire });
   }
 
   function collectKnownIds(doc) {
-    return new Set([...Object.keys(doc.catalog || {}), ...Object.keys(doc.packages || {})]);
+    return new Set([...Object.keys(obj(doc.catalog)), ...Object.keys(obj(doc.packages))]);
   }
 
-  function nodeId(entry) { return typeof entry === "string" ? entry : entry && entry.id; }
+  function nodeId(entry) { return typeof entry === "string" ? entry : (isObject(entry) && typeof entry.id === "string" ? entry.id : null); }
+  function nodeIds(entries) { return new Set(arr(entries).map(nodeId).filter(id => id !== null)); }
 
   function lintDuplicateIds(doc) {
-    const findings = [], catalogIds = new Set(Object.keys(doc.catalog || {})), packageIds = new Set(Object.keys(doc.packages || {}));
+    const findings = [], catalogIds = new Set(Object.keys(obj(doc.catalog))), packageIds = new Set(Object.keys(obj(doc.packages)));
     [...catalogIds].filter(id => packageIds.has(id)).sort().forEach(id => findings.push(finding("duplicate-id", `id '${id}' is defined in both catalog and packages`, `$.catalog.${id}`)));
     return findings;
   }
 
   function lintFrozenFieldOverrides(entries, pathPrefix) {
     const findings = [];
-    (entries || []).forEach(entry => {
+    arr(entries).forEach(entry => {
       if (!isObject(entry)) return;
       const extra = Object.keys(entry).filter(key => !NODE_OVERRIDE_KEYS.has(key)).sort();
       if (extra.length) findings.push(finding("frozen-field-override", `node override for '${entry.id || "?"}' sets [${extra.map(key => `'${key}'`).join(", ")}] -- only ['detail', 'kind', 'label', 'navigateTo', 'size'] may be overridden per state; type is identity, fixed once in catalog`, `${pathPrefix}.nodes`));
@@ -487,17 +496,19 @@
 
   function lintWires(wires, knownIds, stateNodeIds, pathPrefix) {
     const findings = [];
-    (wires || []).forEach(wire => {
+    arr(wires).forEach(wire => {
       let normalized;
+      if (typeof wire !== "string" && !isObject(wire)) return;
       if (typeof wire === "string") {
         try { normalized = parseWireShorthand(wire); }
         catch (error) { findings.push(finding("wire-shorthand-parse-error", error.message, `${pathPrefix}.wires`)); return; }
       } else {
         const suggestion = looksLikeUnquotedShorthand(wire);
         if (suggestion) { findings.push(finding("wire-shorthand-needs-quoting", `wire entry ${JSON.stringify(wire)} looks like an unquoted shorthand string -- quote the whole string, e.g. ${suggestion}`, `${pathPrefix}.wires`)); return; }
-        normalized = { ...(wire || {}) };
+        normalized = { ...wire };
       }
       ["from", "to"].forEach(end => {
+        if (typeof normalized[end] !== "string") return;
         if (!knownIds.has(normalized[end])) findings.push(finding("unknown-catalog-ref", `wire ${end} '${normalized[end]}' is not a catalog or package id`, `${pathPrefix}.wires`));
         else if (!stateNodeIds.has(normalized[end])) findings.push(finding("wire-endpoint-not-in-state", `wire ${end} '${normalized[end]}' is not present in this state's nodes`, `${pathPrefix}.wires`));
       });
@@ -506,45 +517,49 @@
   }
 
   function lintState(state, knownIds, packageIds, pathPrefix) {
-    const findings = [], nodes = state.nodes || [], nodeIds = new Set(nodes.map(nodeId));
-    [...nodeIds].forEach(id => { if (!knownIds.has(id)) findings.push(finding("unknown-catalog-ref", `node '${id}' is not a catalog or package id`, `${pathPrefix}.nodes`)); });
+    const findings = [];
+    if (!isObject(state)) return findings;
+    const nodes = arr(state.nodes), stateNodeIds = nodeIds(nodes);
+    [...stateNodeIds].sort().forEach(id => { if (!knownIds.has(id)) findings.push(finding("unknown-catalog-ref", `node '${id}' is not a catalog or package id`, `${pathPrefix}.nodes`)); });
     findings.push(...lintFrozenFieldOverrides(nodes, pathPrefix));
-    findings.push(...lintWires(state.wires || [], knownIds, nodeIds, pathPrefix));
-    (state.changed || []).forEach(id => { if (!nodeIds.has(id)) findings.push(finding("bad-changed-ref", `changed id '${id}' is not in this state's nodes`, `${pathPrefix}.changed`)); });
-    (state.boundaries || []).forEach(boundary => (boundary.contains || []).forEach(member => { if (!knownIds.has(member)) findings.push(finding("unknown-catalog-ref", `boundary '${boundary.id}' contains unknown id '${member}'`, `${pathPrefix}.boundaries`)); }));
-    (state.expandedPackages || []).forEach(id => { if (!packageIds.has(id)) findings.push(finding("expanded-package-not-package", `expandedPackages id '${id}' is not a package id`, `${pathPrefix}.expandedPackages`)); });
+    findings.push(...lintWires(state.wires, knownIds, stateNodeIds, pathPrefix));
+    strs(state.changed).forEach(id => { if (!stateNodeIds.has(id)) findings.push(finding("bad-changed-ref", `changed id '${id}' is not in this state's nodes`, `${pathPrefix}.changed`)); });
+    arr(state.boundaries).forEach(boundary => strs(obj(boundary).contains).forEach(member => { if (!knownIds.has(member)) findings.push(finding("unknown-catalog-ref", `boundary '${obj(boundary).id}' contains unknown id '${member}'`, `${pathPrefix}.boundaries`)); }));
+    strs(state.expandedPackages).forEach(id => { if (!packageIds.has(id)) findings.push(finding("expanded-package-not-package", `expandedPackages id '${id}' is not a package id`, `${pathPrefix}.expandedPackages`)); });
     return findings;
   }
 
   function wireIdentity(value) {
     try {
       const wire = typeof value === "string" ? parseWireShorthand(value) : value;
-      return isObject(wire) && wire.from && wire.to ? `${wire.from}>${wire.to}>${wire.type || "data"}` : null;
+      return isObject(wire) && typeof wire.from === "string" && typeof wire.to === "string" ? `${wire.from}>${wire.to}>${typeof wire.type === "string" ? wire.type : "data"}` : null;
     } catch (error) { return null; }
   }
 
   function lintSteps(stepsDoc, knownIds, packageIds, pathPrefix) {
     const findings = [];
     if (!isObject(stepsDoc) || !isObject(stepsDoc.base)) { findings.push(finding("step-base-required", "steps.base is required and must be a full state", `${pathPrefix}.base`)); return findings; }
-    const current = JSON.parse(JSON.stringify(stepsDoc.base)), sequence = stepsDoc.sequence || [];
+    const current = JSON.parse(JSON.stringify(stepsDoc.base)), sequence = arr(stepsDoc.sequence);
     findings.push(...lintState(current, knownIds, packageIds, `${pathPrefix}.base`));
     if (sequence.length < 1) findings.push(finding("step-sequence-too-short", "steps.sequence must contain at least one step", `${pathPrefix}.sequence`));
     const seenStepIds = new Set();
     sequence.forEach((step, index) => {
       if (!isObject(step)) return;
       const path = `${pathPrefix}.sequence[${index}]`, stepId = step.id;
-      if (seenStepIds.has(stepId)) findings.push(finding("duplicate-id", `step id '${stepId}' appears more than once`, `${path}.id`));
-      seenStepIds.add(stepId);
-      const currentNodes = new Set((current.nodes || []).map(nodeId)), currentWires = (() => { try { return normalizeWires(current.wires || []); } catch (error) { return []; } })(), currentWireKeys = new Set(currentWires.map(wireIdentity)), add = isObject(step.add) ? step.add : {}, remove = isObject(step.remove) ? step.remove : {}, overrides = isObject(step.set) ? step.set : {}, addNodes = add.nodes || [], addWires = add.wires || [], removeNodes = new Set(remove.nodes || []), removeWires = remove.wires || [];
+      if (typeof stepId === "string") {
+        if (seenStepIds.has(stepId)) findings.push(finding("duplicate-id", `step id '${stepId}' appears more than once`, `${path}.id`));
+        seenStepIds.add(stepId);
+      }
+      const currentNodes = nodeIds(current.nodes), currentWires = (() => { try { return normalizeWires(current.wires); } catch (error) { return []; } })(), currentWireKeys = new Set(currentWires.map(wireIdentity)), add = isObject(step.add) ? step.add : {}, remove = isObject(step.remove) ? step.remove : {}, overrides = isObject(step.set) ? step.set : {}, addNodes = arr(add.nodes), addWires = arr(add.wires), removeNodes = new Set(strs(remove.nodes)), removeWires = arr(remove.wires);
       addNodes.forEach(node => { const id = nodeId(node); if (currentNodes.has(id)) findings.push(finding("step-add-existing-node", `step adds node '${id}', but it already exists`, `${path}.add.nodes`)); });
       removeNodes.forEach(id => { if (!currentNodes.has(id)) findings.push(finding("step-remove-absent", `step removes node '${id}', but it is absent`, `${path}.remove.nodes`)); });
       removeWires.forEach(wire => { const identity = wireIdentity(wire); if (identity && !currentWireKeys.has(identity)) findings.push(finding("step-remove-absent", `step removes wire '${identity}', but it is absent`, `${path}.remove.wires`)); if (identity && (removeNodes.has(identity.split(">", 2)[0]) || removeNodes.has(identity.split(">", 2)[1]))) findings.push(finding("step-removes-connected-node", "step removes a wire still connected to node(s) being removed", `${path}.remove.wires`)); });
       addWires.forEach(wire => { const identity = wireIdentity(wire); if (identity && (removeNodes.has(identity.split(">", 2)[0]) || removeNodes.has(identity.split(">", 2)[1]))) findings.push(finding("step-removes-connected-node", "step adds a wire still connected to node(s) being removed", `${path}.add.wires`)); });
-      (step.changed || []).forEach(id => { if (removeNodes.has(id)) findings.push(finding("step-removes-connected-node", `step marks removed node '${id}' as changed`, `${path}.changed`)); });
+      strs(step.changed).forEach(id => { if (removeNodes.has(id)) findings.push(finding("step-removes-connected-node", `step marks removed node '${id}' as changed`, `${path}.changed`)); });
       Object.keys(overrides).forEach(id => { if (!currentNodes.has(id)) findings.push(finding("step-set-unknown-node", `step sets node '${id}', but it is not present`, `${path}.set`)); else if (removeNodes.has(id)) findings.push(finding("step-removes-connected-node", `step sets node '${id}' while removing it`, `${path}.set`)); });
-      current.nodes = (current.nodes || []).filter(node => !removeNodes.has(nodeId(node))).concat(JSON.parse(JSON.stringify(addNodes)));
+      current.nodes = arr(current.nodes).filter(node => !removeNodes.has(nodeId(node))).concat(JSON.parse(JSON.stringify(addNodes)));
       const removeWireKeys = new Set(removeWires.map(wireIdentity));
-      current.wires = (current.wires || []).filter(wire => { const identity = wireIdentity(wire); return !removeWireKeys.has(identity) && !(identity && (removeNodes.has(identity.split(">", 2)[0]) || removeNodes.has(identity.split(">", 2)[1]))); }).concat(JSON.parse(JSON.stringify(addWires)));
+      current.wires = arr(current.wires).filter(wire => { const identity = wireIdentity(wire); return !removeWireKeys.has(identity) && !(identity && (removeNodes.has(identity.split(">", 2)[0]) || removeNodes.has(identity.split(">", 2)[1]))); }).concat(JSON.parse(JSON.stringify(addWires)));
       Object.entries(overrides).forEach(([id, override]) => { const nodeIndex = current.nodes.findIndex(node => nodeId(node) === id); if (nodeIndex >= 0) current.nodes[nodeIndex] = { ...(typeof current.nodes[nodeIndex] === "string" ? { id } : JSON.parse(JSON.stringify(current.nodes[nodeIndex]))), ...JSON.parse(JSON.stringify(override || {})) }; });
       ["id", "title", "summary", "changes", "callout", "boundaries", "changed", "disclosure", "expandedPackages", "layout"].forEach(key => { if (has(step, key)) current[key] = JSON.parse(JSON.stringify(step[key])); });
       findings.push(...lintState(current, knownIds, packageIds, path));
@@ -562,18 +577,20 @@
   }
 
   function lintFlow(flow, knownIds, pathPrefix) {
-    const findings = [], nodes = flow.nodes || [], nodeIds = new Set(nodes.map(nodeId));
-    [...nodeIds].forEach(id => { if (!knownIds.has(id)) findings.push(finding("unknown-catalog-ref", `node '${id}' is not a catalog or package id`, `${pathPrefix}.nodes`)); });
+    const findings = [];
+    if (!isObject(flow)) return findings;
+    const nodes = arr(flow.nodes), flowNodeIds = nodeIds(nodes);
+    [...flowNodeIds].sort().forEach(id => { if (!knownIds.has(id)) findings.push(finding("unknown-catalog-ref", `node '${id}' is not a catalog or package id`, `${pathPrefix}.nodes`)); });
     findings.push(...lintFrozenFieldOverrides(nodes, pathPrefix));
-    findings.push(...lintWires(flow.wires || [], knownIds, nodeIds, pathPrefix));
+    findings.push(...lintWires(flow.wires, knownIds, flowNodeIds, pathPrefix));
     let wires = [];
-    try { wires = normalizeWires(flow.wires || []); } catch (error) { /* lintWires already reports the parse rule */ }
-    const known = new Set(wires.map(wire => `${wire.from}>${wire.to}`)), seenCalls = new Set();
+    try { wires = normalizeWires(flow.wires); } catch (error) { /* lintWires already reports the parse rule */ }
+    const known = new Set(wires.filter(wire => typeof wire.from === "string" && typeof wire.to === "string").map(wire => `${wire.from}>${wire.to}`)), seenCalls = new Set();
     const checkEdge = (text, kind, edgePath) => {
       let edge;
       try { edge = parseWireShorthand(text); } catch (error) { findings.push(finding("flow-step-unknown-edge", `flow step edge '${text}' is not a valid wire shorthand`, edgePath)); return; }
       const key = `${edge.from}>${edge.to}`, reverse = `${edge.to}>${edge.from}`, syntheticLoop = kind === "loop" && edge.from === edge.to;
-      if (!nodeIds.has(edge.from) || !nodeIds.has(edge.to) || (!known.has(key) && !(kind === "return" && known.has(reverse)) && !syntheticLoop)) findings.push(finding("flow-step-unknown-edge", `flow step edge '${text}' is not present in flow.wires`, edgePath));
+      if (!flowNodeIds.has(edge.from) || !flowNodeIds.has(edge.to) || (!known.has(key) && !(kind === "return" && known.has(reverse)) && !syntheticLoop)) findings.push(finding("flow-step-unknown-edge", `flow step edge '${text}' is not present in flow.wires`, edgePath));
       if (kind === "return" && !seenCalls.has(reverse)) findings.push(finding("flow-return-no-forward", `return edge '${text}' has no earlier forward call`, edgePath));
       else if (kind !== "return" && known.has(key)) seenCalls.add(key);
     };
@@ -585,35 +602,36 @@
       else if (Array.isArray(step.parallel)) step.parallel.forEach((child, index) => checkStep(child, `${path}.parallel[${index}]`));
       else findings.push(finding("flow-step-empty", "flow step must contain edge, group, or parallel", path));
     };
-    (flow.steps || []).forEach((step, index) => checkStep(step, `${pathPrefix}.steps[${index}]`));
-    (flow.boundaries || []).forEach(boundary => (boundary.contains || []).forEach(member => { if (!knownIds.has(member)) findings.push(finding("unknown-catalog-ref", `boundary '${boundary.id}' contains unknown id '${member}'`, `${pathPrefix}.boundaries`)); }));
+    arr(flow.steps).forEach((step, index) => checkStep(step, `${pathPrefix}.steps[${index}]`));
+    arr(flow.boundaries).forEach(boundary => strs(obj(boundary).contains).forEach(member => { if (!knownIds.has(member)) findings.push(finding("unknown-catalog-ref", `boundary '${obj(boundary).id}' contains unknown id '${member}'`, `${pathPrefix}.boundaries`)); }));
     return findings;
   }
 
   function lintDeployment(view, pathPrefix, knownIds) {
-    const findings = [], deployment = view.deployment || {}, infrastructure = deployment.infrastructure || {}, parents = new Map();
+    const findings = [], deployment = obj(view.deployment), infrastructure = deployment.infrastructure, parents = new Map();
     if (!isObject(infrastructure) || !Object.keys(infrastructure).length) { findings.push(finding("deployment-infrastructure-empty", "deployment.infrastructure must be a non-empty map", `${pathPrefix}.deployment.infrastructure`)); return findings; }
-    Object.entries(infrastructure).forEach(([id, item]) => (item.children || []).forEach(child => {
-      if (!infrastructure[child]) findings.push(finding("deployment-unknown-infrastructure", `infrastructure child '${child}' is not declared`, `${pathPrefix}.deployment.infrastructure.${id}.children`));
+    Object.entries(infrastructure).forEach(([id, item]) => strs(obj(item).children).forEach(child => {
+      if (!has(infrastructure, child)) findings.push(finding("deployment-unknown-infrastructure", `infrastructure child '${child}' is not declared`, `${pathPrefix}.deployment.infrastructure.${id}.children`));
       else { if (!parents.has(child)) parents.set(child, []); parents.get(child).push(id); }
     }));
     parents.forEach((items, child) => { if (items.length > 1) findings.push(finding("deployment-infrastructure-multiple-parents", `infrastructure node '${child}' has multiple parents: [${items.join(", ")}]`, `${pathPrefix}.deployment.infrastructure.${child}`)); });
     const visiting = new Set(), visited = new Set();
     function visit(id, trail) {
       if (visiting.has(id)) { const start = trail.indexOf(id); findings.push(finding("deployment-infrastructure-cycle", `infrastructure nesting contains a cycle: ${trail.slice(start).join(" -> ")}`, `${pathPrefix}.deployment.infrastructure.${id}.children`)); return; }
-      if (visited.has(id) || !infrastructure[id]) return;
-      visiting.add(id); (infrastructure[id].children || []).forEach(child => visit(child, [...trail, child])); visiting.delete(id); visited.add(id);
+      if (visited.has(id) || !has(infrastructure, id)) return;
+      visiting.add(id); strs(obj(infrastructure[id]).children).forEach(child => visit(child, [...trail, child])); visiting.delete(id); visited.add(id);
     }
     Object.keys(infrastructure).forEach(id => visit(id, [id]));
-    const selected = new Set((view.nodes || []).map(nodeId)), leaves = new Set(Object.entries(infrastructure).filter(([, item]) => !(item.children || []).length).map(([id]) => id)), placed = new Map();
+    const selected = nodeIds(view.nodes), leaves = new Set(Object.entries(infrastructure).filter(([, item]) => !arr(obj(item).children).length).map(([id]) => id)), placed = new Map();
     const seenPlacements = new Set();
-    (deployment.placements || []).forEach((placement, index) => {
+    arr(deployment.placements).forEach((placement, index) => {
+      if (!isObject(placement) || typeof placement.component !== "string" || typeof placement.target !== "string") return;
       const path = `${pathPrefix}.deployment.placements[${index}]`, replicas = placement.replicas === undefined ? 1 : placement.replicas;
       const placementKey = `${placement.component}>${placement.target}`;
       if (seenPlacements.has(placementKey)) findings.push(finding("deployment-duplicate-placement", `placement for component '${placement.component}' on target '${placement.target}' is repeated; combine replicas into one placement`, path));
       seenPlacements.add(placementKey);
       if (!selected.has(placement.component)) findings.push(finding("deployment-unknown-component", `placement component '${placement.component}' is not selected by the view`, `${path}.component`));
-      if (!infrastructure[placement.target]) findings.push(finding("deployment-unknown-target", `placement target '${placement.target}' is not declared`, `${path}.target`));
+      if (!has(infrastructure, placement.target)) findings.push(finding("deployment-unknown-target", `placement target '${placement.target}' is not declared`, `${path}.target`));
       else if (!leaves.has(placement.target)) findings.push(finding("deployment-nonleaf-target", `placement target '${placement.target}' must be an infrastructure leaf`, `${path}.target`));
       if (!Number.isInteger(replicas) || replicas < 1) findings.push(finding("deployment-replica-invalid", "placement replicas must be a positive integer", `${path}.replicas`));
       else if (selected.has(placement.component)) placed.set(placement.component, (placed.get(placement.component) || 0) + replicas);
@@ -628,10 +646,11 @@
     if (mode === "system") findings.push(...lintState(view, knownIds, packageIds, pathPrefix));
     else if (mode === "transition") {
       const seenStateIds = new Set();
-      (view.states || []).forEach((state, index) => {
-        if (state?.id !== undefined && seenStateIds.has(state.id)) findings.push(finding("duplicate-id", `state id '${state.id}' appears more than once`, `${pathPrefix}.states[${index}].id`));
-        if (state?.id !== undefined) seenStateIds.add(state.id);
-        findings.push(...lintState(state || {}, knownIds, packageIds, `${pathPrefix}.states[${index}]`));
+      arr(view.states).forEach((state, index) => {
+        const stateId = isObject(state) && typeof state.id === "string" ? state.id : null;
+        if (stateId !== null && seenStateIds.has(stateId)) findings.push(finding("duplicate-id", `state id '${stateId}' appears more than once`, `${pathPrefix}.states[${index}].id`));
+        if (stateId !== null) seenStateIds.add(stateId);
+        findings.push(...lintState(state, knownIds, packageIds, `${pathPrefix}.states[${index}]`));
       });
     }
     else if (mode === "steps") findings.push(...lintSteps(view, knownIds, packageIds, pathPrefix));
@@ -643,53 +662,53 @@
   }
 
   function lintNavigationTargets(doc, viewIds) {
-    const findings = [], packageIds = new Set(Object.keys(doc.packages || {}));
+    const findings = [], packageIds = new Set(Object.keys(obj(doc.packages)));
     const checkCatalogEntry = (id, entry) => {
       if (!isObject(entry)) return;
       const path = `$.catalog.${id}`;
-      if (entry.navigateTo !== undefined && !viewIds.has(entry.navigateTo)) findings.push(finding("navigation-target-unknown", `catalog node '${id}' navigates to unknown view '${entry.navigateTo}'`, `${path}.navigateTo`));
-      if (entry.contains !== undefined && !packageIds.has(entry.contains) && !viewIds.has(entry.contains)) findings.push(finding("contains-target-unknown", `catalog node '${id}' contains unknown package or view '${entry.contains}'`, `${path}.contains`));
+      if (typeof entry.navigateTo === "string" && !viewIds.has(entry.navigateTo)) findings.push(finding("navigation-target-unknown", `catalog node '${id}' navigates to unknown view '${entry.navigateTo}'`, `${path}.navigateTo`));
+      if (typeof entry.contains === "string" && !packageIds.has(entry.contains) && !viewIds.has(entry.contains)) findings.push(finding("contains-target-unknown", `catalog node '${id}' contains unknown package or view '${entry.contains}'`, `${path}.contains`));
     };
-    const checkNodeEntries = (entries, path) => (entries || []).forEach((entry, index) => {
-      if (!isObject(entry) || entry.navigateTo === undefined || viewIds.has(entry.navigateTo)) return;
+    const checkNodeEntries = (entries, path) => arr(entries).forEach((entry, index) => {
+      if (!isObject(entry) || typeof entry.navigateTo !== "string" || viewIds.has(entry.navigateTo)) return;
       findings.push(finding("navigation-target-unknown", `node override navigates to unknown view '${entry.navigateTo}'`, `${path}[${index}].navigateTo`));
     });
     const checkStep = (step, path) => {
       if (!isObject(step)) return;
-      if (step.navigateTo !== undefined && !viewIds.has(step.navigateTo)) findings.push(finding("navigation-target-unknown", `step navigates to unknown view '${step.navigateTo}'`, `${path}.navigateTo`));
-      (step.parallel || []).forEach((child, index) => checkStep(child, `${path}.parallel[${index}]`));
+      if (typeof step.navigateTo === "string" && !viewIds.has(step.navigateTo)) findings.push(finding("navigation-target-unknown", `step navigates to unknown view '${step.navigateTo}'`, `${path}.navigateTo`));
+      arr(step.parallel).forEach((child, index) => checkStep(child, `${path}.parallel[${index}]`));
     };
-    const checkState = (state, path) => { if (!isObject(state)) return; if (state.navigateTo !== undefined && !viewIds.has(state.navigateTo)) findings.push(finding("navigation-target-unknown", `state navigates to unknown view '${state.navigateTo}'`, `${path}.navigateTo`)); checkNodeEntries(state.nodes, `${path}.nodes`); };
-    (doc.catalog ? Object.entries(doc.catalog) : []).forEach(([id, entry]) => checkCatalogEntry(id, entry));
+    const checkState = (state, path) => { if (!isObject(state)) return; if (typeof state.navigateTo === "string" && !viewIds.has(state.navigateTo)) findings.push(finding("navigation-target-unknown", `state navigates to unknown view '${state.navigateTo}'`, `${path}.navigateTo`)); checkNodeEntries(state.nodes, `${path}.nodes`); };
+    Object.entries(obj(doc.catalog)).forEach(([id, entry]) => checkCatalogEntry(id, entry));
     (Array.isArray(doc.views) ? doc.views : []).forEach((view, index) => {
       if (!isObject(view)) return;
       const path = `$.views[${index}]`;
       checkNodeEntries(view.nodes, `${path}.nodes`);
-      if (view.mode === "transition") (view.states || []).forEach((state, stateIndex) => checkState(state, `${path}.states[${stateIndex}]`));
-      else if (view.mode === "steps") { checkState(view.base, `${path}.base`); (view.sequence || []).forEach((step, stepIndex) => checkStep(step, `${path}.sequence[${stepIndex}]`)); }
-      else if (view.mode === "scenarios") { checkState(view.base, `${path}.base`); (view.variants || []).forEach((step, stepIndex) => checkStep(step, `${path}.variants[${stepIndex}]`)); }
-      else if (view.mode === "flow") (view.steps || []).forEach((step, stepIndex) => checkStep(step, `${path}.steps[${stepIndex}]`));
+      if (view.mode === "transition") arr(view.states).forEach((state, stateIndex) => checkState(state, `${path}.states[${stateIndex}]`));
+      else if (view.mode === "steps") { checkState(view.base, `${path}.base`); arr(view.sequence).forEach((step, stepIndex) => checkStep(step, `${path}.sequence[${stepIndex}]`)); }
+      else if (view.mode === "scenarios") { checkState(view.base, `${path}.base`); arr(view.variants).forEach((step, stepIndex) => checkStep(step, `${path}.variants[${stepIndex}]`)); }
+      else if (view.mode === "flow") arr(view.steps).forEach((step, stepIndex) => checkStep(step, `${path}.steps[${stepIndex}]`));
     });
     return findings;
   }
 
   function lintComparison(doc, viewIds) {
     const findings = [], comparison = doc.meta?.comparison;
-    if (comparison === undefined) return findings;
+    if (comparison === undefined || comparison === null) return findings;
     if (!Array.isArray(doc.views)) { findings.push(finding("comparison-requires-views", "meta.comparison requires a v2 views bundle", "$.meta.comparison")); return findings; }
     const criteria = Array.isArray(comparison.criteria) ? comparison.criteria : [], criterionIds = new Set();
     criteria.forEach((criterion, index) => {
       if (!isObject(criterion)) return;
-      if (criterionIds.has(criterion.id)) findings.push(finding("comparison-duplicate-criterion", `comparison criterion id '${criterion.id}' appears more than once`, `$.meta.comparison.criteria[${index}].id`));
+      if (typeof criterion.id === "string" && criterionIds.has(criterion.id)) findings.push(finding("comparison-duplicate-criterion", `comparison criterion id '${criterion.id}' appears more than once`, `$.meta.comparison.criteria[${index}].id`));
       if (typeof criterion.id === "string") criterionIds.add(criterion.id);
     });
-    if (comparison.recommended !== undefined && !viewIds.has(comparison.recommended)) findings.push(finding("comparison-recommended-unknown", `comparison recommended view '${comparison.recommended}' is not in views`, "$.meta.comparison.recommended"));
+    if (typeof comparison.recommended === "string" && !viewIds.has(comparison.recommended)) findings.push(finding("comparison-recommended-unknown", `comparison recommended view '${comparison.recommended}' is not in views`, "$.meta.comparison.recommended"));
     doc.views.forEach((view, index) => {
       const tradeoffs = view?.comparison?.tradeoffs;
       if (!isObject(tradeoffs)) return;
       Object.entries(tradeoffs).forEach(([criterion, value]) => {
         const path = `$.views[${index}].comparison.tradeoffs.${criterion}`;
-        if (!criterionIds.has(criterion)) findings.push(finding("comparison-criterion-unknown", `view tradeoff refers to unknown comparison criterion '${criterion}'`, path));
+        if (typeof criterion === "string" && !criterionIds.has(criterion)) findings.push(finding("comparison-criterion-unknown", `view tradeoff refers to unknown comparison criterion '${criterion}'`, path));
         if (isObject(value) && value.rating !== undefined && (!numberValid(value.rating) || value.rating < 0 || value.rating > 5)) findings.push(finding("comparison-rating-invalid", "comparison rating must be a number from 0 to 5", `${path}.rating`));
       });
     });
@@ -709,6 +728,7 @@
       if (typeof item.label !== "string" || !item.label.length) findings.push(schema("infrastructure entry requires a non-empty label", pathKey(itemPath, "label")));
       if (!enumValid(item.kind, ["region", "cluster", "host", "runtime", "network"])) findings.push(schema("infrastructure kind has an invalid value", pathKey(itemPath, "kind")));
       if (has(item, "children") && (!Array.isArray(item.children) || !item.children.length || !item.children.every(idValid))) findings.push(schema("infrastructure children must be a non-empty id array", pathKey(itemPath, "children")));
+      if (has(item, "detail") && typeof item.detail !== "string") findings.push(schema("infrastructure detail must be a string", pathKey(itemPath, "detail")));
       if (has(item, "size")) checkSize(item.size, pathKey(itemPath, "size"), findings);
       if (has(item, "ops") && typeof item.ops !== "boolean") findings.push(schema("infrastructure ops must be a boolean", pathKey(itemPath, "ops")));
     });
@@ -754,9 +774,9 @@
   }
 
   function lintPackageGraph(doc) {
-    const findings = [], packages = doc.packages || {}, parents = new Map();
-    const childrenOf = pkg => isObject(pkg) && Array.isArray(pkg.children) ? pkg.children : [];
-    const knownIds = new Set([...Object.keys(doc.catalog || {}), ...Object.keys(packages)]);
+    const findings = [], packages = obj(doc.packages), parents = new Map();
+    const childrenOf = pkg => isObject(pkg) ? strs(pkg.children) : [];
+    const knownIds = new Set([...Object.keys(obj(doc.catalog)), ...Object.keys(packages)]);
     Object.entries(packages).forEach(([packageId, pkg]) => childrenOf(pkg).forEach(child => {
       if (!knownIds.has(child)) return;
       if (!parents.has(child)) parents.set(child, []);
@@ -783,30 +803,31 @@
     const findings = [], hasSystem = has(doc, "system"), hasTransition = has(doc, "transition"), hasSteps = has(doc, "steps"), hasScenarios = has(doc, "scenarios"), hasFlow = has(doc, "flow"), hasViews = has(doc, "views");
     if (!hasSystem && !hasTransition && !hasSteps && !hasScenarios && !hasFlow && !hasViews) findings.push(finding("mode-required", "document has neither system:, transition:, steps:, scenarios:, flow:, nor views:", "$"));
     findings.push(...lintDuplicateIds(doc), ...lintPackageGraph(doc));
-    const knownIds = collectKnownIds(doc), packageIds = new Set(Object.keys(doc.packages || {}));
-    Object.entries(doc.packages || {}).forEach(([packageId, pkg]) => (isObject(pkg) && Array.isArray(pkg.children) ? pkg.children : []).forEach(child => { if (!knownIds.has(child)) findings.push(finding("unknown-catalog-ref", `package '${packageId}' child '${child}' is not a catalog or package id`, `$.packages.${packageId}.children`)); }));
+    const knownIds = collectKnownIds(doc), packageIds = new Set(Object.keys(obj(doc.packages)));
+    Object.entries(obj(doc.packages)).forEach(([packageId, pkg]) => (isObject(pkg) ? strs(pkg.children) : []).forEach(child => { if (!knownIds.has(child)) findings.push(finding("unknown-catalog-ref", `package '${packageId}' child '${child}' is not a catalog or package id`, `$.packages.${packageId}.children`)); }));
     if (hasViews) {
       const seen = new Set();
       if (!Array.isArray(doc.views) || !doc.views.length) findings.push(finding("views-required", "views must be a non-empty array", "$.views"));
-      else doc.views.forEach((view, index) => { if (seen.has(view?.id)) findings.push(finding("duplicate-id", `view id '${view?.id}' appears more than once`, `$.views[${index}].id`)); seen.add(view?.id); findings.push(...lintView(view, knownIds, packageIds, `$.views[${index}]`)); });
-      findings.push(...lintNavigationTargets(doc, new Set([...seen].filter(id => typeof id === "string"))));
-      findings.push(...lintComparison(doc, new Set([...seen].filter(id => typeof id === "string"))));
+      else doc.views.forEach((view, index) => { const viewId = isObject(view) && typeof view.id === "string" ? view.id : null; if (viewId !== null) { if (seen.has(viewId)) findings.push(finding("duplicate-id", `view id '${viewId}' appears more than once`, `$.views[${index}].id`)); seen.add(viewId); } findings.push(...lintView(view, knownIds, packageIds, `$.views[${index}]`)); });
+      findings.push(...lintNavigationTargets(doc, seen));
+      findings.push(...lintComparison(doc, seen));
       return findings;
     }
-    if (hasSystem) findings.push(...lintState(doc.system || {}, knownIds, packageIds, "$.system"));
+    if (hasSystem) findings.push(...lintState(doc.system, knownIds, packageIds, "$.system"));
     if (hasTransition) {
-      const states = (doc.transition || {}).states || [];
+      const states = arr(obj(doc.transition).states);
       if (states.length < 2) findings.push(finding("transition-too-short", "transition.states has fewer than 2 entries -- use system: instead", "$.transition.states"));
       const seen = new Set();
       states.forEach((state, index) => {
-        if (state?.id !== undefined && seen.has(state.id)) findings.push(finding("duplicate-id", `state id '${state && state.id}' appears more than once`, `$.transition.states[${index}]`));
-        if (state?.id !== undefined) seen.add(state.id);
-        findings.push(...lintState(state || {}, knownIds, packageIds, `$.transition.states[${index}]`));
+        const stateId = isObject(state) && typeof state.id === "string" ? state.id : null;
+        if (stateId !== null && seen.has(stateId)) findings.push(finding("duplicate-id", `state id '${stateId}' appears more than once`, `$.transition.states[${index}]`));
+        if (stateId !== null) seen.add(stateId);
+        findings.push(...lintState(state, knownIds, packageIds, `$.transition.states[${index}]`));
       });
     }
-    if (hasSteps) findings.push(...lintSteps(doc.steps || {}, knownIds, packageIds, "$.steps"));
-    if (hasScenarios) findings.push(...lintScenarios(doc.scenarios || {}, knownIds, packageIds, "$.scenarios"));
-    if (hasFlow) findings.push(...lintFlow(doc.flow || {}, knownIds, "$.flow"));
+    if (hasSteps) findings.push(...lintSteps(doc.steps, knownIds, packageIds, "$.steps"));
+    if (hasScenarios) findings.push(...lintScenarios(doc.scenarios, knownIds, packageIds, "$.scenarios"));
+    if (hasFlow) findings.push(...lintFlow(doc.flow, knownIds, "$.flow"));
     return findings;
   }
 
