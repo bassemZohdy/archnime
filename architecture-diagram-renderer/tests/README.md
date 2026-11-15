@@ -107,6 +107,21 @@ toolbar uses. A missing browser skips them locally and fails them under
   or unlisted vendored file fails the build clearly, and a library that goes missing later shows
   an alert instead of a blank page.
 
+- `documentation_visual.test.mjs` — visual gates for dense, nested and trust-boundary layouts in
+  light and dark. No screenshots are committed (pixels differ across machines and fonts); the
+  exported SVG is rendered as an `<img>` and inline in the page and the two must agree to within
+  8% of the drawn pixels (healthy exports differ in at most 5.5%, a missing embedded font in
+  about 12%); every wire must still end on a node or package (a shifted arrow layer misses by
+  20 px or more); nothing may touch the image edge (a clipped scene does); and the app's PNG
+  export must carry the same theme background as the SVG. A final test injects each defect and
+  requires it to be caught.
+
+- `pdf_conversion.test.mjs` — `scripts/document_format.mjs`: a documentation SVG converted to PDF
+  keeps one page of the diagram's size and every visible label as text (checked on a
+  trust-boundary, a nested and a dense layout); a PDF that only holds a picture of the diagram is
+  rejected and a 2x PNG fallback is written with the reason; markdown and html get the SVG,
+  word and google-docs get a PNG (or the SVG when told they accept it); bad requests fail first.
+
 ## `script_integrity_check.mjs` — pinned CDN scripts
 
 Every external script the pages load (D3, Dagre, ELK, gif.js and js-yaml) carries a

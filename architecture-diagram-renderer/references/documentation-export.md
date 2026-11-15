@@ -92,6 +92,33 @@ link such as `…architecture.html?view=checkout&step=2` that opens the same vie
 Titles are escaped, file names percent-encoded, and a viewer URL that is not `http(s)` or a
 relative path is refused. Without `--viewer-url` the page holds images and static links only.
 
+## Choosing a format for a document
+
+```bash
+node architecture-diagram-renderer/scripts/document_format.mjs --svg diagram.svg --target pdf --out out --name diagram
+```
+
+| `--target` | Result |
+| --- | --- |
+| `markdown`, `html` | the SVG itself |
+| `pdf` | a one-page vector PDF, kept only if it passes verification; otherwise a 2x PNG fallback |
+| `word`, `google-docs` | a 2x PNG made from the SVG (these sanitise or reject SVG), or the SVG with `--accepts-svg` |
+
+A PDF is accepted only if its page is the diagram's size (CSS px x 0.75, within 1.5 pt) and
+every visible label is still text in it, not pixels or outlines. If not, a PNG of the same SVG is
+written instead and the command says so and why (`png (fallback)` and the reason), so a document
+never silently ends up with a picture of text or a cropped page. The check uses a small reader
+for Chromium's PDF output (`scripts/pdf_text.mjs`); it needs no PDF library.
+
+## Automated visual gates
+
+`npm test` renders the exported SVG both as an image and inline for the dense, nested and
+trust-boundary examples in light and dark, compares the two, checks that every wire still
+ends on its node, that nothing is clipped, and that the PNG export has the same theme
+background (`documentation_visual.test.mjs`). They catch a missing embedded font, a lost
+style, a shifted arrow layer and a clipped scene without committed screenshots. They do not
+replace the manual checks below: GitHub, Office and PDF viewers render SVG their own way.
+
 ## Release checks
 
 - The exported SVG must parse as XML, load as an image, include local font data

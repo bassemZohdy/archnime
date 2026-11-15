@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- **TASK-004** (test): Add visual and conversion regression gates for documentation exports. Ref: architecture-diagram-renderer/references/validation.md. Validated: `npm test`. Docs: updated architecture-diagram-renderer/references/documentation-export.md, architecture-diagram-renderer/tests/README.md. Includes: TASK-004.1, TASK-004.2.
 - **TASK-001** (test): Verify documentation-safe SVG exports retain architecture semantics and render consistently. Ref: architecture-diagram-renderer/references/documentation-export.md. Validated: `npm test`. Docs: updated architecture-diagram-renderer/tests/README.md. Includes: TASK-001.1, TASK-001.2, TASK-001.3.
 - **TASK-015** (feat): Add integrity and crossorigin attributes to the pinned CDN script tags. Ref: architecture-diagram-renderer/references/distribution.md. Validated: `node architecture-diagram-renderer/tests/script_integrity_check.mjs`. Docs: updated architecture-diagram-renderer/references/distribution.md, architecture-diagram-renderer/tests/README.md.
 - **TASK-013** (test): Document every lint rule and guard the list with a contract test. Ref: architecture-diagram-dsl/references/validation-and-review.md. Validated: `python -m unittest discover -s architecture-diagram-dsl/tests -p test_rule_docs.py`. Docs: updated architecture-diagram-dsl/references/validation-and-review.md.
