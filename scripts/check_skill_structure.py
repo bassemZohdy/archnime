@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Minimal structural checks for the four public diagram skills."""
+"""Minimal structural checks for the public diagram skills: four domain skills and their aggregator."""
 from pathlib import Path
 import re
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 SKILLS = (
+    "architecture-diagram",
     "architecture-diagram-interview",
     "architecture-diagram-dsl",
     "architecture-diagram-renderer",
