@@ -1,0 +1,59 @@
+# Active Backlog
+
+## 🛤️ Lanes
+
+- main: documentation reliability, interactive presentation portability, and architecture diagram validation
+
+## 🌳 Task Tree
+
+- [ ] **TASK-001** · P0 · high · Verify documentation-safe SVG exports retain architecture semantics and render consistently
+  - Done when: static SVG is zoom-independent, complete, font-embedded, and rejects malformed output; `npm test`
+  - Links: Ref: architecture-diagram-renderer/references/documentation-export.md
+  - [ ] **TASK-001.1** · mid · Add independent SVG-image regression for stage geometry and missing-font failure
+    - Done when: pan/zoom cannot crop SVG and missing font fails explicitly; `node --test architecture-diagram-renderer/tests/documentation_svg.test.mjs`
+  - [ ] **TASK-001.2** · mid · Validate documentation SVG rendering at narrow and full README widths
+    - Done when: labels, arrows, node identity and trust boundaries remain readable at supported sizes; `node --test architecture-diagram-renderer/tests/documentation_embedding.test.mjs`
+  - [ ] **TASK-001.3** · mid · Verify the export preserves the selected flow step, stage and view without losing visible nodes
+    - Done when: every selected stage/view matches the presenter state and excluded IDs are never invented; `node --test architecture-diagram-renderer/tests/documentation_states.test.mjs`
+
+- [ ] **FEAT-002** · P0 · mid · Batch-export documented views and stages with reproducible provenance
+  - Done when: every requested architecture state has a stable snapshot and valid manifest; `npm test`
+  - Links: Ref: architecture-diagram-renderer/references/documentation-export.md
+  - [ ] **FEAT-002.1** · mid · Add named snapshot export for flow steps, migration stages and multi-view bundles
+    - Done when: exported artifacts cover each selected state exactly once; `node --test architecture-diagram-renderer/tests/batch_snapshots.test.mjs`
+  - [ ] **FEAT-002.2** · mid · Generate a SHA-256 manifest identifying source model, view, stage, output and renderer
+    - Done when: manifest hashes match bytes and reject missing or tampered snapshots; `node --test architecture-diagram-renderer/tests/export_manifest.test.mjs`
+  - [ ] **FEAT-002.3** · low · Produce Markdown-friendly links to snapshots and the interactive presenter
+    - Done when: generated links point to the correct state and preserve a static fallback; `node --test architecture-diagram-renderer/tests/documentation_links.test.mjs`
+
+- [ ] **FEAT-003** · P1 · high · Package an offline-capable interactive presentation without CDN dependencies
+  - Done when: demos retain playback, zoom, search and routing with network access disabled; `npm test`
+  - Links: Ref: architecture-diagram-renderer/references/distribution.md
+  - [ ] **FEAT-003.1** · mid · Vendor and pin the D3, Dagre, ELK and optional GIF runtime assets
+    - Done when: checksums and licenses are verified for every bundled dependency; `node --test architecture-diagram-renderer/tests/offline_assets.test.mjs`
+  - [ ] **FEAT-003.2** · high · Build a portable HTML presenter from only local trusted resources
+    - Done when: blocking external requests does not break layouts or interactions and missing assets fail clearly; `node --test architecture-diagram-renderer/tests/offline_presenter.test.mjs`
+
+- [ ] **TASK-004** · P1 · mid · Add visual and conversion regression gates for documentation exports
+  - Done when: browser-rendered image and PDF fixtures are checked at document-friendly widths; `npm test`
+  - Links: Ref: architecture-diagram-renderer/references/validation.md
+  - [ ] **TASK-004.1** · mid · Compare SVG-as-image and PNG output across dense, nested, light and dark layouts
+    - Done when: baseline screenshots detect clipping, fallback fonts and shifted arrows; `node --test architecture-diagram-renderer/tests/documentation_visual.test.mjs`
+  - [ ] **TASK-004.2** · mid · Exercise PDF conversion and document-safe fallback selection
+    - Done when: conversion preserves text and diagram bounds or selects an explicit PNG fallback; `node --test architecture-diagram-renderer/tests/pdf_conversion.test.mjs`
+
+- [ ] **FIX-005** · P1 · high · Prevent silent changes to non-Latin architecture labels during SVG export
+  - Done when: Arabic and other supported-script labels retain shape and placement or trigger a clear rejection; `npm test`
+  - Links: Ref: architecture-diagram-renderer/references/documentation-export.md
+  - [ ] **FIX-005.1** · mid · Add Arabic, bidirectional and missing-glyph export regressions
+    - Done when: exported image checks detect fallback and clipping of RTL text; `node --test architecture-diagram-renderer/tests/multilingual_font.test.mjs`
+  - [ ] **FIX-005.2** · high · Add a licensed font and metrics strategy for requested non-Latin scripts
+    - Done when: supported glyphs paint offline and missing glyph ranges are rejected rather than silently substituted; `node --test architecture-diagram-renderer/tests/font_portability.test.mjs`
+
+- [ ] **TASK-006** · P2 · mid · Establish an animated SVG compatibility policy for documentation targets
+  - Done when: the recommended animation format has tested static fallback and reduced-motion behavior; `npm test`
+  - Links: Ref: architecture-diagram-renderer/references/documentation-export.md
+  - [ ] **TASK-006.1** · mid · Check CSS-keyframe SVG playback in image embedding and reduced-motion modes
+    - Done when: supported viewers show all intended stages or an accessible first-frame fallback; `node --test architecture-diagram-renderer/tests/animated_svg_compat.test.mjs`
+  - [ ] **TASK-006.2** · low · Compare SMIL only for verified unsupported CSS-animation targets
+    - Done when: measured compatibility differences justify a choice without dual-renderer complexity; `node --test architecture-diagram-renderer/tests/animation_format.test.mjs`

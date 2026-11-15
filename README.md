@@ -37,6 +37,12 @@ Use **interactive HTML** for live demonstrations and drill-down. In the HTML exp
 
 See [documentation-export.md](architecture-diagram-renderer/references/documentation-export.md) and [the renderer guide](docs/architecture-diagram-renderer.md).
 
+## Work tracking
+
+This repository follows the [todo-skills task-tree convention](https://github.com/bassemZohdy/todo-skills) for planned improvements: see [TODO.md](TODO.md). Each task has an executable acceptance check; completed work is archived in [CHANGELOG.md](CHANGELOG.md). The former roadmap is consolidated into this single backlog.
+
+Tests: `npm test`
+
 ## Tests
 
 ```bash
