@@ -75,8 +75,9 @@
   - Done when: each new rule has a negative fixture and both validators agree; `python -m unittest discover -s architecture-diagram-dsl/tests -p test_validate_transition_diagram.py`
   - Links: Ref: architecture-diagram-dsl/references/validation-and-review.md · Lane: hardening
   - State: branch todo/FEAT-014-add-lint-rules-duplicate from main; next: build children
-  - [ ] **FEAT-014.1** · mid · Report a node listed twice in one state as duplicate-state-node
+  - [/] **FEAT-014.1** · mid · Report a node listed twice in one state as duplicate-state-node
     - Done when: both validators reject a state that lists a node twice and the rule is documented; `python -m unittest discover -s architecture-diagram-dsl/tests -p test_validate_transition_diagram.py`
+    - State: attempts 0/3; baseline 46 passing; branch todo/FEAT-014.1-report-node-listed-twice from todo/FEAT-014-add-lint-rules-duplicate; next: build
   - [ ] **FEAT-014.2** · mid · Report two boundaries sharing an id in one state as duplicate-boundary-id
     - Done when: both validators reject repeated boundary ids in one state and the rule is documented; `python -m unittest discover -s architecture-diagram-dsl/tests -p test_validate_transition_diagram.py`
   - [ ] **FEAT-014.3** · mid · Report two identical wires in one state as duplicate-wire
