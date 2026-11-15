@@ -52,6 +52,16 @@ const cases = [
   ["unknown-wire", { ...base, system: { ...base.system, wires: [{ from: "node", to: "missing" }] } }],
   ["duplicate-view-state", { ...base, catalog: { ...base.catalog, app: { label: "App", type: "service" } }, views: [{ id: "migration", mode: "transition", states: [{ id: "same", title: "One", nodes: ["app"], wires: [] }, { id: "same", title: "Two", nodes: ["app"], wires: [] }] }] }],
   ["multiple-leaf-parents", { ...base, catalog: { ...base.catalog, app: { label: "App", type: "service" } }, packages: { one: { children: ["app"] }, two: { children: ["app"] } }, system: { title: "packages", nodes: ["app"], wires: [] } }],
+  // FIX-008.2: malformed shapes must yield findings, never an exception or an internal-error fallback.
+  ["malformed-boundary-null", { ...base, system: { ...base.system, boundaries: [null] } }],
+  ["malformed-nodes-string", { ...base, system: { ...base.system, nodes: "node" } }],
+  ["malformed-wires-null-entry", { ...base, system: { ...base.system, wires: [null] } }],
+  ["malformed-catalog-list", { ...base, catalog: ["node"] }],
+  ["malformed-package-child-list", { ...base, packages: { group: { label: "Group", children: [[]] } } }],
+  ["malformed-comparison-null", { ...base, meta: { title: "parity", comparison: null } }],
+  ["malformed-infrastructure-null", { ...base, views: [{ id: "production", mode: "deployment", nodes: ["node"], wires: [], deployment: { infrastructure: { host: null }, placements: [{ component: "node", target: "host" }] } }] }],
+  ["malformed-flow-steps-string", { dsl: "transition-diagram/1.0", meta: base.meta, catalog: base.catalog, flow: { title: "flow", nodes: ["node"], wires: [], steps: "node" } }],
+  ["malformed-steps-sequence-string", { dsl: "transition-diagram/1.0", meta: base.meta, catalog: base.catalog, steps: { base: { id: "start", title: "Start", nodes: ["node"], wires: [] }, sequence: "next" } }],
   ["duplicate-deployment-placement", { ...base, catalog: { ...base.catalog, app: { label: "App", type: "service" } }, views: [{ id: "production", mode: "deployment", nodes: ["app"], wires: [], deployment: { infrastructure: { host: {} }, placements: [{ component: "app", target: "host" }, { component: "app", target: "host" }] } }] }],
 ];
 const scratch = mkdtempSync(join(tmpdir(), "diagram-validator-parity-"));
@@ -65,8 +75,11 @@ try {
       if (error.stdout) { try { pythonFindings = JSON.parse(error.stdout)[0]?.findings || []; } catch (parseError) { failures.push(`${name}: Python validator returned invalid JSON: ${parseError.message}`); continue; } }
       else { failures.push(`${name}: Python validator could not produce structured output: ${error.message}`); continue; }
     }
-    const jsFindings = validator.validateDocument(document);
+    let jsFindings;
+    try { jsFindings = validator.validateDocument(document); }
+    catch (error) { failures.push(`${name}: browser validator threw ${error.message}`); continue; }
     const pythonRules = [...new Set(pythonFindings.map(item => item.rule))].sort();
+    if (pythonRules.includes("lint-internal-error")) failures.push(`${name}: Python lint fell back to lint-internal-error`);
     const jsRules = [...new Set(jsFindings.map(item => item.rule))].sort();
     if (Boolean(pythonRules.length) !== Boolean(jsRules.length) || JSON.stringify(pythonRules) !== JSON.stringify(jsRules)) failures.push(`${name}: Python/JS rule sets differ (${pythonRules.join(",")} vs ${jsRules.join(",")})`);
   }
