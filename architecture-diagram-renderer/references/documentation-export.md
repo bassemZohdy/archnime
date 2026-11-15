@@ -128,6 +128,26 @@ Before 1.x of this policy the delay of each stage was negative, which played the
 Anything that removes `<style>` altogether (some sanitizers) leaves every stage stacked, so check
 the destination or use the static documentation SVG per stage instead.
 
+### CSS or SMIL
+
+Decision: the Animated SVG stays **CSS keyframes only**. `animation_format.test.mjs` measures an
+equivalent four-stage animation written both ways in every engine installed on the machine that
+runs the tests (Chromium always; Firefox and WebKit when a build is found). On the last run
+(Chromium 147, Firefox 153, WebKit 26.4):
+
+| Engine | CSS in order | CSS stops on reduced motion | SMIL in order | SMIL stops on reduced motion |
+| --- | --- | --- | --- | --- |
+| Chromium | yes | yes | yes | no |
+| Firefox | yes | yes | yes | no |
+| WebKit | yes | yes | yes | no |
+
+SMIL plays the same sequence, but `prefers-reduced-motion` cannot stop it, so a SMIL file would be
+an accessibility regression and a second renderer to keep in step, for no verified gain. Add SMIL
+only for a destination that is *measured* to ignore CSS animation but run SMIL, and then as a
+fallback inside the same file, not a second export. Not measured here, and so not claimed:
+Office, Google Docs, GitHub's image proxy and other sanitising destinations; check the actual
+destination (procedure step 5) before relying on the animation.
+
 ## Non-Latin labels
 
 The embedded Inter subset paints Latin text only (printable Latin, Latin-1 and common
