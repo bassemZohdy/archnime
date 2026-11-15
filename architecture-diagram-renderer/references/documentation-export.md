@@ -92,6 +92,15 @@ link such as `…architecture.html?view=checkout&step=2` that opens the same vie
 Titles are escaped, file names percent-encoded, and a viewer URL that is not `http(s)` or a
 relative path is refused. Without `--viewer-url` the page holds images and static links only.
 
+## Automated visual gates
+
+`npm test` renders the exported SVG both as an image and inline for the dense, nested and
+trust-boundary examples in light and dark, compares the two, checks that every wire still
+ends on its node, that nothing is clipped, and that the PNG export has the same theme
+background (`documentation_visual.test.mjs`). They catch a missing embedded font, a lost
+style, a shifted arrow layer and a clipped scene without committed screenshots. They do not
+replace the manual checks below: GitHub, Office and PDF viewers render SVG their own way.
+
 ## Release checks
 
 - The exported SVG must parse as XML, load as an image, include local font data
