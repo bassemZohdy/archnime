@@ -12,6 +12,24 @@
 <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js" integrity="sha384-4RMW82CWFobXY+HRHXe5go/V5acBhiIVGCT+2k7TEoxi7AiWKw8WoWb9qMU+FAFu" crossorigin="anonymous"></script>
 <!-- Layout + self-check engine, shared with the DSL translator. Copy beside the generated HTML. -->
 <script src="./diagram-engine.js"></script>
+<script>
+  // A library that failed to load (blocked CDN, missing vendored file) would otherwise leave a blank
+  // page with only a console error: say what is missing and how to fix it.
+  (function reportMissingLibraries() {
+    var missing = [];
+    if (typeof d3 === "undefined") missing.push("d3");
+    if (typeof DiagramEngine === "undefined") missing.push("diagram-engine.js");
+    if (!missing.length) return;
+    var show = function () {
+      var box = document.createElement("div");
+      box.setAttribute("role", "alert");
+      box.style.cssText = "margin:16px;padding:16px;border:1px solid #d2337b;border-radius:8px;color:#d2337b;background:#fff;font:14px system-ui,sans-serif";
+      box.textContent = "This diagram cannot start: " + missing.join(", ") + " failed to load. Check the network connection, or rebuild the page with build_bundle.py --offline to use the vendored libraries.";
+      document.body.insertBefore(box, document.body.firstChild);
+    };
+    if (document.body) show(); else document.addEventListener("DOMContentLoaded", show);
+  })();
+</script>
 <!-- FONT-FACE:BEGIN -->
 <style id="diagram-fonts">
   /* Inter Variable 5.3.0 latin subset, SIL OFL 1.1 (assets/fonts/LICENSE-Inter-OFL.txt). Embedded so painted text matches the measured advances on every host. */
@@ -855,6 +873,9 @@ ${style}</style>${sharedDefs}${groups.join("")}<g class="animated-legend" aria-l
   // jsdelivr) and construct the worker from a same-origin blob URL instead.
   async function resolveGifWorkerUrl() {
     if (gifWorkerBlobUrl) return gifWorkerBlobUrl;
+    // An offline build embeds the worker source in the page: no network, and a blob URL is same-origin.
+    const embedded = document.getElementById("gif-worker-source");
+    if (embedded) { gifWorkerBlobUrl = URL.createObjectURL(new Blob([embedded.textContent], { type: "text/javascript" })); return gifWorkerBlobUrl; }
     const response = await fetch(GIF_WORKER_CDN_URL, { integrity: GIF_WORKER_INTEGRITY, mode: "cors" });
     if (!response.ok) throw new Error(`could not fetch gif.worker.js (${response.status})`);
     gifWorkerBlobUrl = URL.createObjectURL(await response.blob());

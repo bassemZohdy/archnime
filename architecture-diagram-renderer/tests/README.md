@@ -97,6 +97,16 @@ toolbar uses. A missing browser skips them locally and fails them under
   supporting wire, exporting leaves the presenter's wire count, button and status untouched,
   and a model without disclosure exports the same at any time.
 
+- `offline_assets.test.mjs` — `assets/vendor/` covers exactly the pinned CDN files, each
+  byte-identical to the pinned SHA-384 and version, with an allowed SPDX licence and its
+  recognisable licence text, and nothing unlisted beside them.
+
+- `offline_presenter.test.mjs` — `build_bundle.py --offline` (also `--inline`) produces a page
+  with no network reference; with every non-file request blocked, Dagre and ELK layout, playback,
+  zoom, search, routing and GIF export work and no request leaves the page; a missing, altered
+  or unlisted vendored file fails the build clearly, and a library that goes missing later shows
+  an alert instead of a blank page.
+
 ## `script_integrity_check.mjs` — pinned CDN scripts
 
 Every external script the pages load (D3, Dagre, ELK, gif.js and js-yaml) carries a

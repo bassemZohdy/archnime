@@ -6,14 +6,20 @@ default this builder keeps those links and copies the sidecars beside the
 output for an editable multi-file bundle. Pass ``--inline`` for single-file
 delivery with no local sidecars. The canonical template still loads D3, dagre,
 ELK, GIF, and the GIF worker from configured runtime URLs, so inline output is
-not intrinsically offline.
+not intrinsically offline. Pass ``--offline`` to use the vendored copies in
+``<template dir>/vendor`` instead (each checked against its pinned hash), with the GIF
+worker embedded in the page: nothing is then loaded from the network. ``--offline``
+combines with ``--inline`` for one self-contained file.
 """
 
 from __future__ import annotations
 
 import argparse
+import base64
+import hashlib
 import json
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -104,7 +110,69 @@ def _inline_sidecars(prefix: str, template_dir: Path) -> str:
     return prefix
 
 
-def build_bundle(template_path: Path, model_path: Path, output_path: Path, *, inline: bool = False, link: bool | None = None) -> None:
+CDN_SCRIPT_RE = re.compile(r'<script src="(https://[^"]+)"[^>]*></script>')
+GIF_WORKER_URL_RE = re.compile(r'const GIF_WORKER_CDN_URL = "https://[^"]+";')
+
+
+class OfflineBuildError(ValueError):
+    """The offline build cannot find or trust the vendored libraries it needs."""
+
+
+def _sha384(data: bytes) -> str:
+    return "sha384-" + base64.b64encode(hashlib.sha384(data).digest()).decode("ascii")
+
+
+def _script_safe(source: str) -> str:
+    """JavaScript that is placed inside a <script> element must not contain its terminator."""
+    return source.replace("</script", "<\\/script").replace("<!--", "<\\!--")
+
+
+def _offline_prefix(prefix: str, template_dir: Path, inline: bool) -> tuple[str, list[tuple[Path, str]]]:
+    """Point every CDN <script> at its vendored copy and embed the GIF worker.
+
+    Each vendored file is checked against the hash pinned in vendor/manifest.json first, so an
+    offline bundle never carries a library that differs from the one the CDN serves.
+    """
+    vendor = template_dir / "vendor"
+    manifest_path = vendor / "manifest.json"
+    if not manifest_path.is_file():
+        raise OfflineBuildError(f"offline build failed: {manifest_path} is missing (run architecture-diagram-renderer/scripts/vendor_assets.mjs)")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    by_source = {file["source"]: file for library in manifest["libraries"] for file in library["files"]}
+
+    def checked(entry: dict) -> tuple[Path, bytes]:
+        path = vendor / entry["file"]
+        if not path.is_file():
+            raise OfflineBuildError(f"offline build failed: vendored file {path} is missing")
+        data = path.read_bytes()
+        if _sha384(data) != entry["sha384"]:
+            raise OfflineBuildError(f"offline build failed: vendored file {path} does not match its pinned hash")
+        return path, data
+
+    used: list[tuple[Path, str]] = []
+
+    def replace(match: re.Match) -> str:
+        url = match.group(1)
+        entry = by_source.get(url)
+        if entry is None:
+            raise OfflineBuildError(f"offline build failed: no vendored copy of {url} in {manifest_path}")
+        path, data = checked(entry)
+        if path not in [item[0] for item in used]:
+            used.append((path, entry["file"]))
+        if inline:
+            return f"<script>\n/* vendor/{entry['file']} (inlined) */\n{_script_safe(data.decode('utf-8'))}\n</script>"
+        return f'<script src="./vendor/{entry["file"]}"></script>'
+
+    prefix = CDN_SCRIPT_RE.sub(replace, prefix)
+    worker = by_source.get("https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js")
+    if worker is None:
+        raise OfflineBuildError(f"offline build failed: {manifest_path} has no gif.worker.js entry")
+    _path, worker_bytes = checked(worker)
+    prefix += f'\n<script type="text/plain" id="gif-worker-source">{_script_safe(worker_bytes.decode("utf-8"))}</script>\n'
+    return prefix, ([] if inline else [item for item in used if not item[1].endswith("gif.worker.js")])
+
+
+def build_bundle(template_path: Path, model_path: Path, output_path: Path, *, inline: bool = False, link: bool | None = None, offline: bool = False) -> None:
     # ``link`` is retained as a small API compatibility shim for callers of the
     # pre-F3 builder. New callers should use the positive ``inline`` flag.
     if link is not None:
@@ -140,6 +208,11 @@ def build_bundle(template_path: Path, model_path: Path, output_path: Path, *, in
 
     if inline:
         prefix = _inline_sidecars(prefix, template_path.parent)
+    vendor_files: list[tuple[Path, str]] = []
+    if offline:
+        prefix, vendor_files = _offline_prefix(prefix, template_path.parent, inline)
+        # The embedded worker replaces the CDN fetch, so the constant must not name a CDN.
+        bundle = GIF_WORKER_URL_RE.sub("const GIF_WORKER_CDN_URL = null; // offline build: the worker source is embedded in the page", bundle)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     staging = Path(tempfile.mkdtemp(prefix=f".{output_path.stem}-bundle-", dir=output_path.parent))
@@ -157,6 +230,11 @@ def build_bundle(template_path: Path, model_path: Path, output_path: Path, *, in
                     staged = staging / name
                     shutil.copyfile(source, staged)
                     staged_sidecars.append((staged, target))
+        for source, name in vendor_files:
+            staged = staging / "vendor" / name
+            staged.parent.mkdir(exist_ok=True)
+            shutil.copyfile(source, staged)
+            staged_sidecars.append((staged, output_path.parent / "vendor" / name))
         targets = [output_path, *(target for _staged, target in staged_sidecars)]
         for target in targets:
             if target.exists():
@@ -166,6 +244,7 @@ def build_bundle(template_path: Path, model_path: Path, output_path: Path, *, in
         os.replace(staged_html, output_path)
         published.append(output_path)
         for staged, target in staged_sidecars:
+            target.parent.mkdir(parents=True, exist_ok=True)
             os.replace(staged, target)
             published.append(target)
     except Exception:
@@ -194,9 +273,10 @@ def main() -> None:
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--inline", action="store_true", help="inline the engine and library into one self-contained HTML file")
     group.add_argument("--link", action="store_true", help="deprecated compatibility alias; linked sidecars are the default")
+    parser.add_argument("--offline", action="store_true", help="use the vendored libraries in <template dir>/vendor instead of CDN scripts, so the bundle needs no network (combine with --inline for one file)")
     args = parser.parse_args()
     try:
-        build_bundle(args.template, args.model, args.output, inline=args.inline)
+        build_bundle(args.template, args.model, args.output, inline=args.inline, offline=args.offline)
     except (OSError, ValueError, json.JSONDecodeError) as error:
         print(f"build failed: {error}", file=sys.stderr)
         raise SystemExit(2)

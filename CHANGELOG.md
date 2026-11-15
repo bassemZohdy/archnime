@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- **FEAT-003** (feat): Package an offline-capable interactive presentation without CDN dependencies. Ref: architecture-diagram-renderer/references/distribution.md. Validated: `npm test`. Docs: updated architecture-diagram-renderer/references/distribution.md, architecture-diagram-renderer/tests/README.md, architecture-diagram-renderer/assets/vendor/README.md. Includes: FEAT-003.1, FEAT-003.2.
 - **FEAT-002** (feat): Batch-export documented views and stages with reproducible provenance. Ref: architecture-diagram-renderer/references/documentation-export.md. Validated: `npm test`. Docs: updated architecture-diagram-renderer/references/documentation-export.md, architecture-diagram-renderer/tests/README.md. Includes: FEAT-002.1, FEAT-002.2, FEAT-002.3.
 - **FEAT-014** (feat): Add lint rules for duplicate node, wire and boundary ids and for flow steps whose edge type matches no flow wire. Ref: architecture-diagram-dsl/references/validation-and-review.md. Validated: `python -m unittest discover -s architecture-diagram-dsl/tests -p test_validate_transition_diagram.py`. Docs: updated architecture-diagram-dsl/references/validation-and-review.md. Includes: FEAT-014.1, FEAT-014.2, FEAT-014.3, FEAT-014.4.
 
