@@ -10,6 +10,7 @@
 - [ ] **FEAT-002** · P0 · mid · Batch-export documented views and stages with reproducible provenance
   - Done when: every requested architecture state has a stable snapshot and valid manifest; `npm test`
   - Links: Ref: architecture-diagram-renderer/references/documentation-export.md
+  - State: branch todo/FEAT-002-batch-export-documented-views from main; next: build children
   - [ ] **FEAT-002.1** · mid · Add named snapshot export for flow steps, migration stages and multi-view bundles
     - Done when: exported artifacts cover each selected state exactly once; `node --test architecture-diagram-renderer/tests/batch_snapshots.test.mjs`
   - [ ] **FEAT-002.2** · mid · Generate a SHA-256 manifest identifying source model, view, stage, output and renderer
@@ -52,6 +53,10 @@
 - [ ] **FEAT-019** · P1 · high · Reach static-SVG parity: headless CLI export, one SVG for light and dark, byte-stable output, refused flows, node variants and AI kinds, and a native sequence view
   - Done when: a headless command writes identical SVG bytes twice, carries both themes and draws a refused flow; `node architecture-diagram-renderer/tests/static_svg_cli_check.mjs`
   - State: next: decompose
+
+- [ ] **FIX-020** · P1 · mid · Export every flow layer of a progressive-disclosure stage instead of whichever layer is showing
+  - Done when: the documentation SVG of the dense mesh is identical whenever it is taken and holds all supporting wires, and the presenter keeps its own disclosure step; `node --test architecture-diagram-renderer/tests/documentation_disclosure.test.mjs`
+  - Links: Ref: architecture-diagram-renderer/references/documentation-export.md
 
 - [ ] **TASK-006** · P2 · mid · Establish an animated SVG compatibility policy for documentation targets
   - Done when: the recommended animation format has tested static fallback and reduced-motion behavior; `npm test`
