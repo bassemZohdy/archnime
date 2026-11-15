@@ -118,6 +118,10 @@ toolbar uses. A missing browser skips them locally and fails them under
   font lacks are refused; `gen_font_assets.mjs --check` passes; and offline, the exported SVG paints
   with the widths the layout measured (a different font would be detected).
 
+- `animated_svg_compat.test.mjs` — the CSS-keyframe Animated SVG shows stage k alone during slot k
+  (in order), only stage 1 under reduced motion, only stage 1 when animation declarations are stripped,
+  and draws content when embedded with `<img>`.
+
 - `documentation_visual.test.mjs` — visual gates for dense, nested and trust-boundary layouts in
   light and dark. No screenshots are committed (pixels differ across machines and fonts); the
   exported SVG is rendered as an `<img>` and inline in the page and the two must agree to within
