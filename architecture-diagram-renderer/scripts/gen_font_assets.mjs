@@ -20,9 +20,11 @@
  * tolerance (hosts may differ in the last unit; layout never reads the host).
  */
 import { execSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { fontCharacters } from "./font_cmap.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const FONT = join(ROOT, "assets", "fonts", "inter-latin-wght-normal.woff2");
@@ -37,7 +39,12 @@ const codepoints = [];
 for (let c = 32; c <= 126; c += 1) codepoints.push(c);
 for (let c = 160; c <= 255; c += 1) codepoints.push(c);
 [0x131, 0x152, 0x153, 0x2bb, 0x2bc, 0x2c6, 0x2da, 0x2dc, 0x2013, 0x2014, 0x2018, 0x2019, 0x201a, 0x201c, 0x201d, 0x201e, 0x2020, 0x2021, 0x2022, 0x2026, 0x2030, 0x2039, 0x203a, 0x20ac, 0x2122, 0x2191, 0x2193, 0x2212, 0x2215].forEach(c => codepoints.push(c));
-const chars = String.fromCodePoint(...codepoints);
+// A canvas silently measures a character the font lacks with some other font, so the table keeps only what
+// the font's own cmap contains. Anything dropped is refused by the documentation export instead.
+const fontCmap = fontCharacters(readFileSync(FONT));
+const dropped = codepoints.filter(code => !fontCmap.has(code));
+if (dropped.length) console.warn(`not in ${basename(FONT)}, left out of the metrics: ${dropped.map(code => "U+" + code.toString(16).toUpperCase().padStart(4, "0")).join(" ")}`);
+const chars = String.fromCodePoint(...codepoints.filter(code => fontCmap.has(code)));
 
 async function loadChromium() {
   for (const root of [execSync("npm root -g").toString().trim(), execSync("npm root", { cwd: ROOT }).toString().trim()]) {
@@ -91,6 +98,13 @@ if (check) {
   const embedded = templateText.match(/url\(data:font\/woff2;base64,([A-Za-z0-9+/=]+)\)/)?.[1];
   const problems = [];
   if (embedded !== fontBase64) problems.push("template.html does not embed assets/fonts/inter-latin-wght-normal.woff2");
+  const registry = engineText.match(/const FONT_SCRIPTS = (\[.*\]);/)?.[1];
+  if (!registry) problems.push("diagram-engine.js has no FONT_SCRIPTS registry");
+  else for (const entry of Function(`"use strict"; return (${registry});`)()) {
+    const file = join(ROOT, "assets", entry.file);
+    if (createHash("sha256").update(readFileSync(file)).digest("hex") !== entry.sha256) problems.push(`FONT_SCRIPTS: ${entry.file} does not match its recorded sha256`);
+    if (!/SIL OPEN FONT LICENSE/.test(readFileSync(join(ROOT, "assets", entry.licenseFile), "utf8"))) problems.push(`FONT_SCRIPTS: ${entry.licenseFile} is not the ${entry.license} text`);
+  }
   const stored = engineText.match(/const INTER_METRICS = (\{.*\});/)?.[1];
   if (!stored) problems.push("diagram-engine.js has no INTER_METRICS table");
   else {
