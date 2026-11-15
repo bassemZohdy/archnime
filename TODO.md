@@ -27,11 +27,6 @@
   - [ ] **FEAT-002.3** · low · Produce Markdown-friendly links to snapshots and the interactive presenter
     - Done when: generated links point to the correct state and preserve a static fallback; `node --test architecture-diagram-renderer/tests/documentation_links.test.mjs`
 
-- [/] **FIX-007** · P0 · low · Measure documentation SVG bounds with the presenter viewport transform removed so pan/zoom cannot shift the rounded viewBox
-  - Done when: serializeDocumentationSvg output is identical before and after a zoomed viewport transform for checkout-flow; `node architecture-diagram-renderer/tests/render_check.mjs checkout-flow`
-  - Links: Ref: architecture-diagram-renderer/references/documentation-export.md · Lane: hardening
-  - State: attempts 1/3; baseline red: checkout-flow; branch todo/FIX-007-measure-documentation-svg-bounds from main; next: drain
-
 - [ ] **FEAT-003** · P1 · high · Package an offline-capable interactive presentation without CDN dependencies
   - Done when: demos retain playback, zoom, search and routing with network access disabled; `npm test`
   - Links: Ref: architecture-diagram-renderer/references/distribution.md
