@@ -81,9 +81,8 @@
     - Done when: both validators reject repeated boundary ids in one state and the rule is documented; `python -m unittest discover -s architecture-diagram-dsl/tests -p test_validate_transition_diagram.py`
   - [x] **FEAT-014.3** · mid · Report two identical wires in one state as duplicate-wire
     - Done when: both validators reject wires with the same from, to, type and label and the rule is documented; `python -m unittest discover -s architecture-diagram-dsl/tests -p test_validate_transition_diagram.py`
-  - [/] **FEAT-014.4** · mid · Report a flow step whose edge type differs from the flow wire as flow-step-wire-type-mismatch
+  - [x] **FEAT-014.4** · mid · Report a flow step whose edge type differs from the flow wire as flow-step-wire-type-mismatch
     - Done when: both validators reject a step typed differently from the wire between the same nodes and the rule is documented; `python -m unittest discover -s architecture-diagram-dsl/tests -p test_validate_transition_diagram.py`
-    - State: attempts 0/3; baseline 46 passing; branch todo/FEAT-014.4-report-flow-step-whose from todo/FEAT-014-add-lint-rules-duplicate; next: build
 
 - [ ] **TASK-015** · P2 · mid · Add integrity and crossorigin attributes to the pinned CDN script tags
   - Done when: every external script tag in template.html and translate.html carries a sha384 hash that matches the pinned file; `node architecture-diagram-renderer/tests/script_integrity_check.mjs`

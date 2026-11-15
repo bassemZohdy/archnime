@@ -532,8 +532,16 @@ def _lint_flow_step(step: dict, flow_wires: list[dict], flow_node_ids: set, seen
             return
         reverse = (key[1], key[0])
         synthetic_loop = kind == "loop" and key[0] == key[1]
-        if key not in known and not (kind == "return" and reverse in known) and not synthetic_loop:
+        pair_known = key in known or (kind == "return" and reverse in known)
+        if not pair_known and not synthetic_loop:
             findings.append(Finding("flow-step-unknown-edge", f"flow step edge {text!r} is not present in flow.wires", edge_path))
+        elif pair_known and not synthetic_loop:
+            # The translator binds a step to a wire by endpoints *and* type; a typed wire
+            # followed by an untyped step (or the reverse) leaves the step unbound.
+            step_type = edge.get("type", "data")
+            typed = {(w.get("from"), w.get("to"), w.get("type", "data")) for w in flow_wires if isinstance(w.get("from"), str) and isinstance(w.get("to"), str)}
+            if (key[0], key[1], step_type) not in typed and not (kind == "return" and (reverse[0], reverse[1], step_type) in typed):
+                findings.append(Finding("flow-step-wire-type-mismatch", f"flow step edge {text!r} has type {step_type!r} but the wire between those nodes has a different type; write the step with the wire's type prefix", edge_path))
         if kind == "return" and reverse not in seen_calls:
             findings.append(Finding("flow-return-no-forward", f"return edge {text!r} has no earlier forward call", edge_path))
         elif kind != "return" and key in known:
