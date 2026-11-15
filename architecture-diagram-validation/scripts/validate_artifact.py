@@ -54,6 +54,12 @@ def _yaml_report(path: Path) -> dict[str, Any]:
         report["status"] = "SKIP"
         report["limitations"].append(f"canonical YAML validator unavailable: {error}")
         return report
+    except SystemExit:
+        # The DSL validator exits the process, after naming the install command, when
+        # pyyaml or jsonschema is missing. That is an environment limitation, not a crash.
+        report["status"] = "SKIP"
+        report["limitations"].append("canonical YAML validator unavailable: a Python dependency is missing (pip install -r requirements-dev.txt)")
+        return report
     except Exception as error:
         report["status"] = "FAIL"
         report["checks"].append({"name": "canonical-yaml-validation", "status": "FAIL", "message": str(error)})
@@ -150,6 +156,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{report['status']}: {report['input']} ({report['kind']})")
         for check in report["checks"]:
             print(f"  {check['status']}: {check['name']}")
+            if check.get("message"):
+                print(f"    {check['message']}")
+            for finding in check.get("findings", []):
+                print(f"    [{finding.get('severity', 'error')}] {finding['rule']}: {finding['message']} ({finding.get('path', '')})")
         for limitation in report["limitations"]:
             print(f"  LIMITATION: {limitation}")
     return {"PASS": 0, "FAIL": 1, "SKIP": 2, "UNSUPPORTED": 3}[report["status"]]
