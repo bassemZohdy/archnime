@@ -82,6 +82,11 @@ toolbar uses. A missing browser skips them locally and fails them under
   stage, variant, flow step and bundle view, each exactly once with no stray files; `--views`
   and `--states` select; two runs are byte-identical; a bad request fails before writing.
 
+- `export_manifest.test.mjs` — every export writes a `manifest.json` naming the source model,
+  renderer files and each snapshot's view, state, size and SHA-256; it is reproducible (no
+  timestamps or paths); `verify_snapshots.mjs` rejects an edited, deleted or added snapshot, a
+  changed model and a hostile manifest (path traversal, duplicates), with exit codes 0, 1 and 2.
+
 ## `script_integrity_check.mjs` — pinned CDN scripts
 
 Every external script the pages load (D3, Dagre, ELK, gif.js and js-yaml) carries a
