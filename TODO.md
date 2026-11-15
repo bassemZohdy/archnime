@@ -10,6 +10,7 @@
 - [ ] **FIX-005** · P1 · high · Prevent silent changes to non-Latin architecture labels during SVG export
   - Done when: Arabic and other supported-script labels retain shape and placement or trigger a clear rejection; `npm test`
   - Links: Ref: architecture-diagram-renderer/references/documentation-export.md
+  - State: branch todo/FIX-005-prevent-silent-changes-non from main; next: build children
   - [ ] **FIX-005.1** · mid · Add Arabic, bidirectional and missing-glyph export regressions
     - Done when: exported image checks detect fallback and clipping of RTL text; `node --test architecture-diagram-renderer/tests/multilingual_font.test.mjs`
   - [ ] **FIX-005.2** · high · Add a licensed font and metrics strategy for requested non-Latin scripts
