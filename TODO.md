@@ -74,3 +74,4 @@
 - [ ] **TASK-015** · P2 · mid · Add integrity and crossorigin attributes to the pinned CDN script tags
   - Done when: every external script tag in template.html and translate.html carries a sha384 hash that matches the pinned file; `node architecture-diagram-renderer/tests/script_integrity_check.mjs`
   - Links: Ref: architecture-diagram-renderer/references/distribution.md · Lane: hardening
+  - State: branch todo/TASK-015-add-integrity-crossorigin-attributes from main; next: start TASK-015
