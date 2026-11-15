@@ -1,0 +1,48 @@
+{
+  "meta": {
+    "title": "Secured API request path",
+    "subtitle": "A synchronous request crosses identity, policy, and regulated data boundaries",
+    "layout": "auto",
+    "direction": "LR",
+    "levels": ["Context", "Container", "Component"],
+    "flowPresentation": { "secondaryTypes": ["control", "neutral"], "mode": "deemphasize", "secondaryRoute": "direct" },
+    "gif": { "fps": 8, "maxDurationMs": 9000 }
+  },
+  "canvas": { "w": 1800, "h": 900, "minWidth": 980 },
+  "catalog": {
+    "client": { "label": "Web and mobile clients", "detail": "request origin", "type": "actor", "shape": "actor", "kind": "existing", "w": 170, "h": 58, "level": "Context" },
+    "idp": { "label": "Identity provider", "detail": "OIDC", "type": "security", "shape": "security", "kind": "security", "w": 160, "h": 68, "level": "Container" },
+    "gateway": { "label": "API gateway", "detail": "routing and auth", "type": "gateway", "shape": "gateway", "kind": "existing", "w": 170, "h": 68, "level": "Container" },
+    "policy": { "label": "Policy service", "detail": "authorization decision", "type": "service", "shape": "service", "kind": "existing", "w": 170, "h": 64, "level": "Component" },
+    "orders": { "label": "Orders service", "detail": "order lifecycle", "type": "service", "shape": "service", "kind": "existing", "w": 170, "h": 64, "level": "Component" },
+    "ordersDb": { "label": "Orders database", "detail": "regulated records", "type": "database", "shape": "db", "kind": "existing", "w": 150, "h": 78, "level": "Component" },
+    "audit": { "label": "Audit stream", "detail": "append-only events", "type": "topic", "shape": "queue", "kind": "existing", "w": 160, "h": 54, "level": "Component" }
+  },
+  "packages": {
+    "edgeLayer": { "label": "Edge policy layer", "detail": "Gateway and authorization", "level": "Container", "children": ["gateway", "policy"] },
+    "requestRuntime": { "label": "Request runtime", "detail": "Commerce platform", "level": "Container", "children": ["edgeLayer", "orders", "ordersDb", "audit"] }
+  },
+  "stages": [
+    {
+      "id": "secured-request",
+      "title": "Secured request",
+      "summary": "A client request is authenticated at the edge, authorized by policy, served by Orders, and recorded for audit.",
+      "callout": "The security boundary follows identity and authorization responsibilities; the regulated boundary follows the data store.",
+      "boundaries": [
+        { "id": "trustEdge", "label": "Edge trust zone", "tone": "security", "contains": ["idp", "gateway", "policy"] },
+        { "id": "regulated", "label": "Regulated order data", "tone": "security", "contains": ["orders", "ordersDb"] }
+      ],
+      "nodes": [{ "id": "client" }, { "id": "idp" }, { "id": "gateway" }, { "id": "policy" }, { "id": "orders" }, { "id": "ordersDb" }, { "id": "audit" }],
+      "expandedPackages": ["requestRuntime"],
+      "wires": [
+        { "from": "client", "to": "gateway", "type": "data", "label": "HTTPS request", "flow": true },
+        { "from": "gateway", "to": "idp", "type": "security", "label": "OIDC token check", "flow": false },
+        { "from": "gateway", "to": "policy", "type": "security", "label": "claims evaluation", "flow": false },
+        { "from": "gateway", "to": "orders", "type": "data", "label": "authorized request", "flow": true },
+        { "from": "orders", "to": "ordersDb", "type": "data", "label": "SQL", "flow": false },
+        { "from": "orders", "to": "audit", "type": "data", "label": "append audit event", "flow": true }
+      ],
+      "changed": []
+    }
+  ]
+}

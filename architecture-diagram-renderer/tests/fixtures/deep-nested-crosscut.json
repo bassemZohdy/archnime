@@ -1,0 +1,274 @@
+{
+ "meta": {
+  "title": "Collapsible hierarchy stress test",
+  "subtitle": "A dense request path tests nested packages, cross-cutting boundaries, and long collapse captions",
+  "layout": "dagre",
+  "direction": "LR",
+  "levels": [
+   "Context",
+   "Container",
+   "Component"
+  ],
+  "flowPresentation": {
+   "secondaryTypes": [
+    "control",
+    "neutral"
+   ],
+   "mode": "deemphasize",
+   "secondaryRoute": "direct"
+  },
+  "layoutValidation": {
+   "maxTrials": 16,
+   "maxExpansionScenarios": 24
+  },
+  "gif": {
+   "fps": 8,
+   "maxDurationMs": 9000
+  }
+ },
+ "canvas": {
+  "w": 2200,
+  "h": 1100,
+  "minWidth": 1180
+ },
+ "catalog": {
+  "client": {
+   "label": "Customer clients",
+   "detail": "browser and mobile callers",
+   "type": "actor",
+   "shape": "actor",
+   "kind": "existing",
+   "w": 170,
+   "h": 58,
+   "level": "Context"
+  },
+  "ingress": {
+   "label": "Request ingress gateway",
+   "detail": "routing and rate limits",
+   "type": "gateway",
+   "shape": "gateway",
+   "kind": "existing",
+   "w": 185,
+   "h": 68,
+   "level": "Container"
+  },
+  "policy": {
+   "label": "Authorization policy engine",
+   "detail": "workload and claims policy",
+   "type": "security",
+   "shape": "security",
+   "kind": "new",
+   "w": 190,
+   "h": 70,
+   "level": "Component"
+  },
+  "orders": {
+   "label": "Order orchestration service",
+   "detail": "transaction lifecycle",
+   "type": "service",
+   "shape": "service",
+   "kind": "existing",
+   "w": 195,
+   "h": 68,
+   "level": "Container"
+  },
+  "records": {
+   "label": "Customer records store",
+   "detail": "regulated source of truth",
+   "type": "database",
+   "shape": "db",
+   "kind": "existing",
+   "w": 185,
+   "h": 80,
+   "level": "Component"
+  },
+  "projections": {
+   "label": "Order projection topic",
+   "detail": "durable event stream",
+   "type": "topic",
+   "shape": "queue",
+   "kind": "new",
+   "w": 180,
+   "h": 56,
+   "level": "Component"
+  },
+  "audit": {
+   "label": "Compliance audit stream",
+   "detail": "immutable access events",
+   "type": "topic",
+   "shape": "queue",
+   "kind": "existing",
+   "w": 185,
+   "h": 56,
+   "level": "Component"
+  },
+  "notifications": {
+   "label": "Customer notification service",
+   "detail": "receipts and alerts",
+   "type": "service",
+   "shape": "service",
+   "kind": "existing",
+   "w": 205,
+   "h": 66,
+   "level": "Container"
+  }
+ },
+ "packages": {
+  "edgePolicy": {
+   "label": "Customer-facing request orchestration and policy enforcement controls",
+   "detail": "ingress and authorization",
+   "level": "Container",
+   "children": [
+    "ingress",
+    "policy"
+   ]
+  },
+  "durableData": {
+   "label": "Durable customer records and event projection services",
+   "detail": "records and asynchronous projections",
+   "level": "Container",
+   "children": [
+    "orders",
+    "records",
+    "projections"
+   ]
+  },
+  "transactionPlatform": {
+   "label": "Transaction processing platform with nested operational controls",
+   "detail": "expanded hierarchy stress boundary",
+   "level": "Container",
+   "children": [
+    "edgePolicy",
+    "durableData"
+   ]
+  }
+ },
+ "stages": [
+  {
+   "id": "collapse-stress",
+   "title": "Collapsible hierarchy stress test",
+   "summary": "A long-label nested package hierarchy exercises collapse targets, boundary spacing, and the bounded expansion solver.",
+   "callout": "The exact regulated scope wraps the durable-data package while the operational scope intentionally cross-cuts shared members.",
+   "boundaries": [
+    {
+     "id": "edgeScope",
+     "label": "Customer edge trust zone",
+     "tone": "security",
+     "contains": [
+      "client",
+      "ingress",
+      "policy"
+     ]
+    },
+    {
+     "id": "regulatedScope",
+     "label": "Regulated customer data processing and retention boundary",
+     "tone": "security",
+     "contains": [
+      "orders",
+      "records",
+      "projections"
+     ]
+    },
+    {
+     "id": "operationsScope",
+     "label": "Operational control and notification scope",
+     "tone": "default",
+     "contains": [
+      "policy",
+      "projections",
+      "audit",
+      "notifications"
+     ]
+    }
+   ],
+   "nodes": [
+    {
+     "id": "client"
+    },
+    {
+     "id": "ingress"
+    },
+    {
+     "id": "policy"
+    },
+    {
+     "id": "orders"
+    },
+    {
+     "id": "records"
+    },
+    {
+     "id": "projections"
+    },
+    {
+     "id": "audit"
+    },
+    {
+     "id": "notifications"
+    }
+   ],
+   "expandedPackages": [
+    "transactionPlatform"
+   ],
+   "wires": [
+    {
+     "from": "client",
+     "to": "ingress",
+     "type": "data",
+     "label": "HTTPS request",
+     "flow": true
+    },
+    {
+     "from": "ingress",
+     "to": "policy",
+     "type": "security",
+     "label": "authorization decision",
+     "flow": false
+    },
+    {
+     "from": "ingress",
+     "to": "orders",
+     "type": "data",
+     "label": "accepted transaction",
+     "flow": true
+    },
+    {
+     "from": "orders",
+     "to": "records",
+     "type": "data",
+     "label": "persist order",
+     "flow": false
+    },
+    {
+     "from": "orders",
+     "to": "projections",
+     "type": "data",
+     "label": "publish order event",
+     "flow": true
+    },
+    {
+     "from": "projections",
+     "to": "notifications",
+     "type": "data",
+     "label": "deliver receipt event",
+     "flow": true
+    },
+    {
+     "from": "projections",
+     "to": "audit",
+     "type": "data",
+     "label": "record change event",
+     "flow": false
+    },
+    {
+     "from": "audit",
+     "to": "policy",
+     "type": "control",
+     "label": "policy evidence",
+     "flow": false
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,100 @@
+{
+  "meta": {
+    "title": "Forced boundary label collision",
+    "subtitle": "Regression fixture: two boundaries whose bounding boxes coincide must still get readable, non-overlapping titles -- or the check must catch it",
+    "layout": "manual",
+    "level": "Container",
+    "levels": [
+      "Container"
+    ]
+  },
+  "canvas": {
+    "w": 900,
+    "h": 500,
+    "minWidth": 700
+  },
+  "catalog": {
+    "n1": {
+      "label": "N1",
+      "type": "service",
+      "shape": "service",
+      "kind": "existing",
+      "w": 120,
+      "h": 50,
+      "x": 300,
+      "y": 250
+    },
+    "n2": {
+      "label": "N2",
+      "type": "service",
+      "shape": "service",
+      "kind": "existing",
+      "w": 120,
+      "h": 50,
+      "x": 550,
+      "y": 250
+    },
+    "n3": {
+      "label": "N3",
+      "type": "service",
+      "shape": "service",
+      "kind": "existing",
+      "w": 120,
+      "h": 50,
+      "x": 550,
+      "y": 380
+    }
+  },
+  "stages": [
+    {
+      "id": "only",
+      "title": "Forced collision",
+      "summary": "Zone A = n1,n2. Zone B = n1,n3. n2 and n3 are placed far enough apart that the two boundary rectangles differ (this fixture intentionally avoids the node-overlap that a truly coincident n2/n3 would also trigger), while still sharing n1 as their top-left-most member -- exercising boundary-label-collision without confounding it with an unrelated node-overlap finding.",
+      "boundaries": [
+        {
+          "id": "zoneA",
+          "label": "Zone A",
+          "tone": "security",
+          "contains": [
+            "n1",
+            "n2"
+          ]
+        },
+        {
+          "id": "zoneB",
+          "label": "Zone B",
+          "contains": [
+            "n1",
+            "n3"
+          ]
+        }
+      ],
+      "nodes": [
+        {
+          "id": "n1"
+        },
+        {
+          "id": "n2"
+        },
+        {
+          "id": "n3"
+        }
+      ],
+      "wires": [
+        {
+          "from": "n1",
+          "to": "n2",
+          "type": "data",
+          "label": "a"
+        },
+        {
+          "from": "n1",
+          "to": "n3",
+          "type": "data",
+          "label": "b"
+        }
+      ],
+      "changed": []
+    }
+  ]
+}

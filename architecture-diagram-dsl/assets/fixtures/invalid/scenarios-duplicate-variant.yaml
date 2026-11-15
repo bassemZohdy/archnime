@@ -1,0 +1,16 @@
+dsl: transition-diagram/1.0
+meta:
+  title: Duplicate scenario variant
+  composition: scenarios
+catalog:
+  client: { label: Client, type: actor }
+scenarios:
+  base:
+    title: Steady state
+    nodes: [client]
+    wires: []
+  variants:
+    - id: degraded
+      title: Degraded path
+    - id: degraded
+      title: Another degraded path

@@ -1,0 +1,196 @@
+{
+  "meta": {
+    "title": "Checkout architecture options",
+    "subtitle": "Compare two request paths against latency, cost, and operability",
+    "direction": "LR",
+    "comparison": {
+      "criteria": [
+        {
+          "id": "latency",
+          "label": "Latency",
+          "weight": 2
+        },
+        {
+          "id": "cost",
+          "label": "Cost",
+          "weight": 1
+        },
+        {
+          "id": "operability",
+          "label": "Operability",
+          "weight": 2
+        }
+      ],
+      "recommended": "option-b"
+    }
+  },
+  "canvas": {
+    "w": 1600,
+    "h": 900,
+    "minWidth": 960
+  },
+  "shared": {
+    "catalog": {
+      "client": {
+        "label": "Checkout client",
+        "type": "actor",
+        "shape": "actor"
+      },
+      "gateway": {
+        "label": "API gateway",
+        "type": "gateway",
+        "shape": "gateway"
+      },
+      "monolith": {
+        "label": "Commerce monolith",
+        "type": "service",
+        "shape": "service",
+        "kind": "existing"
+      },
+      "orders": {
+        "label": "Orders service",
+        "type": "service",
+        "shape": "service",
+        "kind": "new"
+      },
+      "ordersdb": {
+        "label": "Orders database",
+        "type": "database",
+        "shape": "db"
+      }
+    },
+    "packages": {
+      "commerce": {
+        "label": "Commerce platform",
+        "children": [
+          "gateway",
+          "monolith",
+          "orders",
+          "ordersdb"
+        ]
+      }
+    }
+  },
+  "views": [
+    {
+      "stages": [
+        {
+          "id": "option-a",
+          "title": "Option A · strangler",
+          "nodes": [
+            "client",
+            "gateway",
+            "monolith",
+            "orders",
+            "ordersdb"
+          ],
+          "wires": [
+            {
+              "from": "client",
+              "to": "gateway",
+              "type": "data",
+              "flow": true,
+              "label": "HTTPS"
+            },
+            {
+              "from": "gateway",
+              "to": "orders",
+              "type": "data",
+              "flow": true,
+              "label": "/orders"
+            },
+            {
+              "from": "orders",
+              "to": "ordersdb",
+              "type": "data",
+              "flow": false,
+              "label": "SQL"
+            },
+            {
+              "from": "gateway",
+              "to": "monolith",
+              "type": "data",
+              "flow": false,
+              "label": "/other"
+            }
+          ]
+        }
+      ],
+      "viewId": "option-a",
+      "viewTitle": "Option A · strangler",
+      "viewMode": "system",
+      "comparison": {
+        "tradeoffs": {
+          "latency": {
+            "rating": 4,
+            "note": "Low extra hop for orders traffic."
+          },
+          "cost": {
+            "rating": 3,
+            "note": "Two services to operate during migration."
+          },
+          "operability": {
+            "rating": 3,
+            "note": "Shared database keeps rollback simple."
+          }
+        }
+      }
+    },
+    {
+      "stages": [
+        {
+          "id": "option-b",
+          "title": "Option B · direct ownership",
+          "nodes": [
+            "client",
+            "gateway",
+            "orders",
+            "ordersdb"
+          ],
+          "wires": [
+            {
+              "from": "client",
+              "to": "gateway",
+              "type": "data",
+              "flow": true,
+              "label": "HTTPS"
+            },
+            {
+              "from": "gateway",
+              "to": "orders",
+              "type": "data",
+              "flow": true,
+              "label": "/orders"
+            },
+            {
+              "from": "orders",
+              "to": "ordersdb",
+              "type": "data",
+              "flow": false,
+              "label": "SQL"
+            }
+          ]
+        }
+      ],
+      "viewId": "option-b",
+      "viewTitle": "Option B · direct ownership",
+      "viewMode": "system",
+      "comparison": {
+        "tradeoffs": {
+          "latency": {
+            "rating": 4,
+            "note": "Direct request path after cutover."
+          },
+          "cost": {
+            "rating": 4,
+            "note": "Fewer runtime components after retirement."
+          },
+          "operability": {
+            "rating": 4,
+            "note": "Clear ownership and smaller failure surface."
+          }
+        }
+      }
+    }
+  ]
+}

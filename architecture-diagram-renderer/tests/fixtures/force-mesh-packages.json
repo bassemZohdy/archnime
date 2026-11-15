@@ -1,0 +1,54 @@
+{
+  "meta": {
+    "title": "Real-time collaboration mesh",
+    "subtitle": "Presence, room state, events, and notifications around a shared workspace",
+    "layout": "force",
+    "direction": "LR",
+    "levels": ["Context", "Container", "Component"],
+    "flowPresentation": { "secondaryTypes": ["security", "control", "neutral"], "mode": "deemphasize", "secondaryRoute": "direct" },
+    "gif": { "fps": 8, "maxDurationMs": 9000 }
+  },
+  "canvas": { "w": 2100, "h": 1100, "minWidth": 1120 },
+  "catalog": {
+    "editor": { "label": "Editors", "detail": "concurrent users", "type": "actor", "shape": "actor", "kind": "existing", "w": 150, "h": 58, "level": "Context" },
+    "idp": { "label": "Identity provider", "detail": "session identity", "type": "security", "shape": "security", "kind": "security", "w": 155, "h": 68, "level": "Container" },
+    "socketGateway": { "label": "WebSocket gateway", "detail": "connection fan-in", "type": "gateway", "shape": "gateway", "kind": "existing", "w": 180, "h": 70, "level": "Container" },
+    "collaboration": { "label": "Collaboration service", "detail": "room coordination", "type": "service", "shape": "service", "kind": "existing", "w": 190, "h": 68, "level": "Container" },
+    "presence": { "label": "Presence cache", "detail": "cursors and sessions", "type": "cache", "shape": "db", "kind": "existing", "w": 170, "h": 78, "level": "Component" },
+    "roomDb": { "label": "Room state store", "detail": "durable snapshots", "type": "database", "shape": "db", "kind": "existing", "w": 170, "h": 82, "level": "Component" },
+    "roomEvents": { "label": "Room events", "detail": "fan-out topic", "type": "topic", "shape": "queue", "kind": "existing", "w": 165, "h": 56, "level": "Component" },
+    "notifications": { "label": "Notification service", "detail": "mentions and digests", "type": "service", "shape": "service", "kind": "existing", "w": 175, "h": 64, "level": "Container" },
+    "search": { "label": "Search indexer", "detail": "workspace search", "type": "service", "shape": "service", "kind": "existing", "w": 165, "h": 64, "level": "Container" }
+  },
+  "packages": {
+    "realtimeCore": { "label": "Real-time core", "detail": "connection and room state", "level": "Container", "children": ["socketGateway", "collaboration", "presence", "roomDb", "roomEvents"] },
+    "downstream": { "label": "Downstream consumers", "detail": "supporting projections", "level": "Container", "children": ["notifications", "search"] }
+  },
+  "stages": [
+    {
+      "id": "collaboration-mesh",
+      "title": "Collaboration mesh",
+      "summary": "Editors connect through a WebSocket gateway while the collaboration service coordinates presence, durable state, and downstream projections.",
+      "callout": "This is intentionally a peer-heavy topology, so the renderer uses a force layout with collision-aware spacing.",
+      "boundaries": [
+        { "id": "sessionTrust", "label": "Session trust", "tone": "security", "contains": ["idp", "socketGateway"] },
+        { "id": "workspaceData", "label": "Workspace data", "contains": ["collaboration", "presence", "roomDb", "roomEvents"] }
+      ],
+      "nodes": [{ "id": "editor" }, { "id": "idp" }, { "id": "socketGateway" }, { "id": "collaboration" }, { "id": "presence" }, { "id": "roomDb" }, { "id": "roomEvents" }, { "id": "notifications" }, { "id": "search" }],
+      "expandedPackages": ["realtimeCore", "downstream"],
+      "wires": [
+        { "from": "editor", "to": "socketGateway", "type": "data", "label": "websocket session", "flow": true },
+        { "from": "socketGateway", "to": "idp", "type": "security", "label": "session validation", "flow": false },
+        { "from": "socketGateway", "to": "collaboration", "type": "data", "label": "room operation", "flow": true },
+        { "from": "collaboration", "to": "socketGateway", "type": "data", "label": "broadcast update", "flow": true },
+        { "from": "collaboration", "to": "presence", "type": "data", "label": "presence read/write", "flow": false },
+        { "from": "collaboration", "to": "roomDb", "type": "data", "label": "snapshot and replay", "flow": false },
+        { "from": "collaboration", "to": "roomEvents", "type": "data", "label": "operation event", "flow": true },
+        { "from": "roomEvents", "to": "notifications", "type": "data", "label": "mention event", "flow": true },
+        { "from": "roomEvents", "to": "search", "type": "data", "label": "index update", "flow": true },
+        { "from": "socketGateway", "to": "collaboration", "type": "control", "label": "connection health", "flow": false }
+      ],
+      "changed": []
+    }
+  ]
+}

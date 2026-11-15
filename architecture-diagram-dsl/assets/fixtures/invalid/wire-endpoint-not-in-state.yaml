@@ -1,0 +1,15 @@
+dsl: transition-diagram/1.0
+meta:
+  title: Missing state endpoint
+catalog:
+  a:
+    label: A
+    type: service
+  b:
+    label: B
+    type: service
+system:
+  title: Missing state endpoint
+  nodes: [a]
+  wires:
+    - "a -> b"

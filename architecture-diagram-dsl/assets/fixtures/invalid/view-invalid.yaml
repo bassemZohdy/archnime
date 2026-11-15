@@ -1,0 +1,9 @@
+dsl: transition-diagram/2.0
+meta:
+  title: Invalid view
+catalog:
+  web: { label: Web, type: actor }
+  api: { label: API, type: service }
+  db: { label: Database, type: database }
+views:
+  - not-an-object

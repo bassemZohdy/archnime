@@ -1,0 +1,13 @@
+dsl: transition-diagram/1.0
+meta:
+  title: Frozen field override
+catalog:
+  a: { label: A, type: service }
+  b: { label: B, type: service }
+system:
+  title: One state
+  nodes:
+    - a
+    - { id: b, type: database }
+  wires:
+    - "a -> b: call"

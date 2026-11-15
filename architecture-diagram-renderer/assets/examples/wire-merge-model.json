@@ -1,0 +1,117 @@
+{
+  "meta": {
+    "title": "Package-to-package wire merge",
+    "subtitle": "Regression fixture: multiple member-to-member wires of the same type must collapse into one line when their packages collapse",
+    "layout": "auto",
+    "direction": "LR",
+    "levels": [
+      "Container",
+      "Component"
+    ]
+  },
+  "canvas": {
+    "w": 1300,
+    "h": 700,
+    "minWidth": 900
+  },
+  "catalog": {
+    "orders": {
+      "label": "Orders service",
+      "type": "service",
+      "shape": "service",
+      "kind": "existing",
+      "w": 160,
+      "h": 60
+    },
+    "inventory": {
+      "label": "Inventory service",
+      "type": "service",
+      "shape": "service",
+      "kind": "existing",
+      "w": 160,
+      "h": 60
+    },
+    "ordersdb": {
+      "label": "Orders DB",
+      "type": "database",
+      "shape": "db",
+      "kind": "existing",
+      "w": 140,
+      "h": 70
+    },
+    "invdb": {
+      "label": "Inventory DB",
+      "type": "database",
+      "shape": "db",
+      "kind": "existing",
+      "w": 140,
+      "h": 70
+    }
+  },
+  "packages": {
+    "orderSvc": {
+      "label": "Order services",
+      "level": "Container",
+      "children": [
+        "orders",
+        "inventory"
+      ]
+    },
+    "dataStore": {
+      "label": "Data store",
+      "level": "Container",
+      "children": [
+        "ordersdb",
+        "invdb"
+      ]
+    }
+  },
+  "stages": [
+    {
+      "id": "only",
+      "title": "Package-to-package merge test",
+      "summary": "orders->ordersdb and inventory->invdb are both type data with the same label; orders->invdb is data with a different label; orders->ordersdb also has a security wire. Collapsing both packages must produce exactly one merged data line (label \"SQL + cross lookup\") and one separate security line (\"token check\"), never duplicate data lines.",
+      "nodes": [
+        {
+          "id": "orders"
+        },
+        {
+          "id": "inventory"
+        },
+        {
+          "id": "ordersdb"
+        },
+        {
+          "id": "invdb"
+        }
+      ],
+      "wires": [
+        {
+          "from": "orders",
+          "to": "ordersdb",
+          "type": "data",
+          "label": "SQL"
+        },
+        {
+          "from": "inventory",
+          "to": "invdb",
+          "type": "data",
+          "label": "SQL"
+        },
+        {
+          "from": "orders",
+          "to": "invdb",
+          "type": "data",
+          "label": "cross lookup"
+        },
+        {
+          "from": "orders",
+          "to": "ordersdb",
+          "type": "security",
+          "label": "token check"
+        }
+      ],
+      "changed": []
+    }
+  ]
+}

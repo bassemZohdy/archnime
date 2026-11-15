@@ -1,0 +1,12 @@
+dsl: transition-diagram/1.0
+meta:
+  title: Unknown perspective
+  perspectives: [all, not-a-perspective]
+catalog:
+  gateway:
+    label: Gateway
+    type: gateway
+system:
+  title: Unknown perspective
+  nodes: [gateway]
+  wires: []

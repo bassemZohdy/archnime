@@ -1,0 +1,47 @@
+{
+  "meta": {
+    "title": "Database label placement",
+    "layout": "dagre",
+    "direction": "LR"
+  },
+  "canvas": {
+    "w": 1200,
+    "h": 500,
+    "minWidth": 720
+  },
+  "catalog": {
+    "checkout": {
+      "label": "Checkout service",
+      "detail": "order writes",
+      "type": "service",
+      "shape": "service",
+      "kind": "new",
+      "w": 170,
+      "h": 64
+    },
+    "ordersDb": {
+      "label": "Orders database",
+      "detail": "PostgreSQL",
+      "type": "database",
+      "shape": "db",
+      "kind": "existing",
+      "w": 180,
+      "h": 86
+    }
+  },
+  "stages": [
+    {
+      "id": "only",
+      "title": "Incoming labelled database wire",
+      "nodes": ["checkout", "ordersDb"],
+      "wires": [
+        {
+          "from": "checkout",
+          "to": "ordersDb",
+          "type": "data",
+          "label": "INSERT /orders"
+        }
+      ]
+    }
+  ]
+}

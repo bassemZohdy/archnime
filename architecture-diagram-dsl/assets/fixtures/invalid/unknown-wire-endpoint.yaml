@@ -1,0 +1,10 @@
+dsl: transition-diagram/1.0
+meta:
+  title: Unknown wire endpoint
+catalog:
+  a: { label: A, type: service }
+system:
+  title: One state
+  nodes: [a]
+  wires:
+    - "a -> ghost: call"

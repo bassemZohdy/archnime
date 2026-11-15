@@ -1,0 +1,10 @@
+dsl: transition-diagram/1.0
+meta:
+  title: Missing scenarios base
+  composition: scenarios
+catalog:
+  client: { label: Client, type: actor }
+scenarios:
+  variants:
+    - id: primary-down
+      title: Primary down

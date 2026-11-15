@@ -1,0 +1,36 @@
+{
+  "meta": {
+    "title": "Printable checkout flow",
+    "flow": { "render": "all-steps", "intro": true }
+  },
+  "canvas": { "w": 1600, "h": 900, "minWidth": 960 },
+  "catalog": {
+    "client": { "label": "Checkout web app", "type": "actor", "shape": "actor", "kind": "existing" },
+    "gateway": { "label": "API gateway", "type": "gateway", "shape": "gateway", "kind": "existing" }
+  },
+  "packages": {},
+  "stages": [{
+    "id": "flow",
+    "title": "Printable checkout flow",
+    "nodes": ["client", "gateway"],
+    "wires": [{ "from": "client", "to": "gateway", "type": "data", "flow": true, "label": "HTTPS" }]
+  }],
+  "flow": {
+    "id": "flow",
+    "title": "Printable checkout flow",
+    "nodes": ["client", "gateway"],
+    "wires": [{ "from": "client", "to": "gateway", "type": "data", "flow": true, "label": "HTTPS" }],
+    "steps": [{
+      "id": "flow-intro",
+      "title": "Flow overview",
+      "kind": "intro",
+      "edges": [],
+      "note": "Steps: Client request"
+    }, {
+      "id": "step-1",
+      "title": "Client request",
+      "kind": "call",
+      "edges": [{ "from": "client", "to": "gateway", "kind": "call", "wireFrom": "client", "wireTo": "gateway" }]
+    }]
+  }
+}

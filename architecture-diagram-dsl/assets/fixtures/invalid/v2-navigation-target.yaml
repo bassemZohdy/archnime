@@ -1,0 +1,17 @@
+dsl: transition-diagram/2.0
+meta:
+  title: Invalid v2 navigation targets
+catalog:
+  app:
+    label: App
+    type: actor
+    contains: missing-package
+    navigateTo: missing-view
+views:
+  - id: context
+    mode: system
+    title: Context
+    nodes:
+      - id: app
+        navigateTo: missing-view
+    wires: []

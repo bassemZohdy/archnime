@@ -1,0 +1,13 @@
+dsl: transition-diagram/2.0
+meta:
+  title: Unknown view mode
+catalog:
+  web: { label: Web, type: actor }
+  api: { label: API, type: service }
+  db: { label: Database, type: database }
+views:
+  - id: bogus
+    mode: bogus
+    title: Bogus
+    nodes: [web, api]
+    wires: ["web -> api"]

@@ -1,0 +1,13 @@
+dsl: transition-diagram/1.0
+meta:
+  title: Single-state transition
+catalog:
+  a: { label: A, type: service }
+  b: { label: B, type: service }
+transition:
+  states:
+    - id: only
+      title: Only state
+      nodes: [a, b]
+      wires:
+        - "a -> b: call"

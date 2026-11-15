@@ -1,0 +1,64 @@
+{
+  "meta": {
+    "title": "Orders extraction",
+    "subtitle": "Portable current-state to target-state model",
+    "layout": "auto",
+    "direction": "LR",
+    "levels": ["Context", "Container", "Component"],
+    "autoExpandChangedPackages": true,
+    "flowPresentation": {
+      "secondaryTypes": ["control", "neutral"],
+      "mode": "deemphasize",
+      "secondaryRoute": "direct"
+    },
+    "gif": { "fps": 8, "maxDurationMs": 10000 }
+  },
+  "canvas": { "w": 2050, "h": 1050, "minWidth": 960 },
+  "catalog": {
+    "client": { "label": "Web & mobile clients", "type": "actor", "shape": "actor", "kind": "existing" },
+    "gateway": { "label": "API gateway", "type": "gateway", "shape": "gateway", "kind": "existing" },
+    "monolith": { "label": "Commerce monolith", "type": "service", "shape": "service", "kind": "existing" },
+    "orders": { "label": "Orders service", "type": "service", "shape": "service", "kind": "new" },
+    "ordersdb": { "label": "Orders DB", "type": "database", "shape": "db", "kind": "existing" },
+    "events": { "label": "Order events", "type": "topic", "shape": "queue", "kind": "new" },
+    "notify": { "label": "Notification service", "type": "service", "shape": "service", "kind": "new" }
+  },
+  "packages": {
+    "commerce": { "label": "Commerce platform", "level": "Container", "children": ["runtime"] },
+    "runtime": { "label": "Runtime components", "level": "Component", "children": ["gateway", "monolith", "orders", "ordersdb", "events"] }
+  },
+  "stages": [
+    {
+      "id": "current",
+      "title": "Current state",
+      "nodes": [{ "id": "client" }, { "id": "gateway" }, { "id": "monolith" }, { "id": "ordersdb" }],
+      "boundaries": [
+        { "id": "regulated", "label": "Cardholder data scope", "tone": "security", "contains": ["monolith", "ordersdb"] }
+      ],
+      "wires": [
+        { "from": "client", "to": "gateway", "type": "data", "label": "HTTPS", "layer": "primary" },
+        { "from": "gateway", "to": "monolith", "type": "data", "label": "all paths", "layer": "primary" },
+        { "from": "monolith", "to": "ordersdb", "type": "data", "label": "SQL", "layer": "primary" }
+      ],
+      "changed": []
+    },
+    {
+      "id": "target",
+      "title": "Target state",
+      "nodes": [{ "id": "client" }, { "id": "gateway" }, { "id": "monolith" }, { "id": "orders" }, { "id": "ordersdb" }, { "id": "events" }, { "id": "notify" }],
+      "boundaries": [
+        { "id": "regulated", "label": "Cardholder data scope", "tone": "security", "contains": ["orders", "ordersdb"] }
+      ],
+      "wires": [
+        { "from": "client", "to": "gateway", "type": "data", "label": "HTTPS", "layer": "primary" },
+        { "from": "gateway", "to": "monolith", "type": "data", "label": "/catalog", "layer": "primary" },
+        { "from": "gateway", "to": "orders", "type": "data", "label": "/orders", "layer": "primary", "flow": true },
+        { "from": "monolith", "to": "orders", "type": "compat", "label": "legacy lookup", "layer": "secondary" },
+        { "from": "orders", "to": "ordersdb", "type": "data", "label": "SQL", "layer": "primary" },
+        { "from": "orders", "to": "events", "type": "data", "label": "publish", "layer": "primary", "flow": true },
+        { "from": "events", "to": "notify", "type": "data", "label": "events", "layer": "primary" }
+      ],
+      "changed": ["gateway", "monolith", "orders", "ordersdb", "events", "notify"]
+    }
+  ]
+}

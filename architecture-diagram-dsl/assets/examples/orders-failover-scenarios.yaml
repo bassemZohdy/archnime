@@ -1,0 +1,67 @@
+dsl: transition-diagram/1.0
+
+meta:
+  title: Orders failover scenarios
+  subtitle: Named database and region variants over one shared architecture
+  composition: scenarios
+  layout: auto
+  direction: LR
+  levels: [Container]
+
+catalog:
+  client:
+    label: Checkout web app
+    type: actor
+    kind: existing
+  gateway:
+    label: API gateway
+    type: gateway
+    kind: existing
+    detail: routes order traffic
+  orders:
+    label: Orders service
+    type: service
+    kind: existing
+    detail: owns order lifecycle
+  ordersdb:
+    label: Orders primary
+    type: database
+    kind: existing
+    detail: PostgreSQL primary
+  ordersdbReplica:
+    label: Orders replica
+    type: database
+    kind: existing
+    detail: PostgreSQL replica
+
+scenarios:
+  base:
+    title: Steady state
+    summary: Orders writes to the primary database and streams a read replica.
+    nodes: [client, gateway, orders, ordersdb, ordersdbReplica]
+    wires:
+      - "client => gateway: HTTPS"
+      - "gateway => orders: POST /orders"
+      - "orders -> ordersdb: RW"
+      - "orders -> ordersdbReplica: replication"
+  variants:
+    - id: primary-down
+      title: Primary database failover
+      summary: The replica is promoted after the primary becomes unreachable.
+      set:
+        ordersdb: { kind: retired, detail: unreachable }
+        ordersdbReplica: { kind: new, detail: promoted to primary }
+      remove:
+        wires:
+          - "orders -> ordersdb: RW"
+          - "orders -> ordersdbReplica: replication"
+      add:
+        wires:
+          - "orders -> ordersdbReplica: RW (promoted)"
+      changed: [ordersdb, ordersdbReplica]
+    - id: region-down
+      title: Regional gateway degradation
+      summary: The gateway routes traffic through the surviving regional path.
+      set:
+        gateway: { detail: routes to surviving region }
+      changed: [gateway]

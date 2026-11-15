@@ -1,0 +1,25 @@
+dsl: transition-diagram/1.0
+
+meta:
+  title: Cumulative presentation refinement
+  direction: LR
+
+catalog:
+  client: { label: Client, type: actor, kind: existing }
+  gateway: { label: Gateway, type: gateway, kind: existing, detail: routing }
+
+steps:
+  base:
+    id: base
+    title: Baseline
+    nodes: [client, gateway]
+    wires: ["client => gateway: HTTPS"]
+  sequence:
+    - id: classify
+      title: Classify gateway
+      set:
+        gateway: { kind: mixed }
+    - id: refine
+      title: Refine gateway detail
+      set:
+        gateway: { detail: auth + routing }

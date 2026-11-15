@@ -1,0 +1,5 @@
+dsl: transition-diagram/1.0
+meta:
+  title: No mode
+catalog:
+  web: { label: Web, type: actor }

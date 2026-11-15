@@ -1,0 +1,4 @@
+interface:
+  display_name: "Architecture Diagram Validation"
+  short_description: "Validate diagram sources, models, and rendered output"
+  default_prompt: "Use $architecture-diagram-validation to review this diagram source and its rendered output and report evidence-based findings."

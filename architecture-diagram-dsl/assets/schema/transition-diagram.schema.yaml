@@ -1,0 +1,699 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://ai-skills.local/schemas/transition-diagram/schema.yaml"
+title: Transition Diagram DSL
+type: object
+required: [dsl, meta, catalog]
+additionalProperties: false
+properties:
+  dsl:
+    enum: ["transition-diagram/1.0", "transition-diagram/2.0"]
+  meta:
+    $ref: "#/$defs/meta"
+  canvas:
+    $ref: "#/$defs/canvas"
+  catalog:
+    $ref: "#/$defs/catalog"
+  packages:
+    $ref: "#/$defs/packages"
+  system:
+    $ref: "#/$defs/system"
+  transition:
+    $ref: "#/$defs/transition"
+  flow:
+    $ref: "#/$defs/flow"
+  steps:
+    $ref: "#/$defs/steps"
+  scenarios:
+    $ref: "#/$defs/scenarios"
+  views:
+    $ref: "#/$defs/views"
+
+oneOf:
+  - required: [system]
+    not:
+      anyOf:
+        - required: [transition]
+        - required: [flow]
+        - required: [steps]
+        - required: [scenarios]
+  - required: [transition]
+    not:
+      anyOf:
+        - required: [system]
+        - required: [flow]
+        - required: [steps]
+        - required: [scenarios]
+  - required: [flow]
+    not:
+      anyOf:
+        - required: [system]
+        - required: [transition]
+        - required: [steps]
+        - required: [scenarios]
+  - required: [steps]
+    not:
+      anyOf:
+        - required: [system]
+        - required: [transition]
+        - required: [flow]
+        - required: [scenarios]
+  - required: [scenarios]
+    not:
+      anyOf:
+        - required: [system]
+        - required: [transition]
+        - required: [steps]
+        - required: [flow]
+  - required: [views]
+
+allOf:
+  - if:
+      properties:
+        dsl: { const: "transition-diagram/1.0" }
+    then:
+      not: { required: [views] }
+  - if:
+      properties:
+        dsl: { const: "transition-diagram/2.0" }
+    then:
+      required: [views]
+      not:
+        anyOf:
+          - required: [system]
+          - required: [transition]
+          - required: [flow]
+          - required: [steps]
+          - required: [scenarios]
+
+$defs:
+  id:
+    type: string
+    pattern: "^[A-Za-z][A-Za-z0-9_-]*$"
+
+  wireType:
+    type: string
+    enum: [data, security, control, compat, neutral]
+
+  perspective:
+    type: string
+    enum: [all, data, security, migration, devops, control, compat, neutral, zones]
+
+  nodeType:
+    type: string
+    pattern: "^[A-Za-z][A-Za-z0-9_-]*$"
+
+  kind:
+    type: string
+    enum: [existing, new, mixed, security, retired]
+
+  meta:
+    type: object
+    required: [title]
+    additionalProperties: false
+    properties:
+      title: { type: string, minLength: 1 }
+      subtitle: { type: string }
+      layout: { type: string, enum: [auto, dagre, elk, force, manual] }
+      minWireLen: { type: number, exclusiveMinimum: 0 }
+      perspectives:
+        type: array
+        uniqueItems: true
+        items: { $ref: "#/$defs/perspective" }
+      routing: { type: string, enum: [curved, orthogonal, direct] }
+      wireJumps: { type: string, enum: [arc, gap, none] }
+      composition: { type: string, enum: [scenarios] }
+      comparison: { $ref: "#/$defs/comparison" }
+      direction: { type: string, enum: [LR, TB] }
+      focusHops: { type: integer, minimum: 0 }
+      levels:
+        type: array
+        items: { type: string }
+        minItems: 1
+      icons:
+        type: object
+        propertyNames: { $ref: "#/$defs/id" }
+        additionalProperties: { $ref: "#/$defs/iconDefinition" }
+      flow:
+        type: object
+        additionalProperties: false
+        properties:
+          secondary:
+            type: array
+            items: { $ref: "#/$defs/wireType" }
+          mode: { type: string, enum: [deemphasize, bundle, hide] }
+          secondaryRoute: { type: string, enum: [direct, bundle] }
+          intro: { type: boolean }
+          render: { type: string, enum: [stepwise, all-steps, single] }
+          autoAdvanceMs: { type: number, exclusiveMinimum: 0 }
+          loop: { type: boolean }
+      gif:
+        type: object
+        additionalProperties: false
+        properties:
+          fps: { type: number, exclusiveMinimum: 0, maximum: 12 }
+          maxDurationMs: { type: number, exclusiveMinimum: 0, maximum: 10000 }
+
+  canvas:
+    type: object
+    additionalProperties: false
+    properties:
+      w: { type: number, exclusiveMinimum: 0 }
+      h: { type: number, exclusiveMinimum: 0 }
+      minWidth: { type: number, exclusiveMinimum: 0 }
+
+  comparison:
+    type: object
+    required: [criteria]
+    additionalProperties: false
+    properties:
+      criteria:
+        type: array
+        minItems: 1
+        items: { $ref: "#/$defs/comparisonCriterion" }
+      recommended: { $ref: "#/$defs/id" }
+
+  comparisonCriterion:
+    type: object
+    required: [id, label]
+    additionalProperties: false
+    properties:
+      id: { $ref: "#/$defs/id" }
+      label: { type: string, minLength: 1 }
+      weight: { type: number, exclusiveMinimum: 0 }
+
+  comparisonTradeoff:
+    type: object
+    additionalProperties: false
+    properties:
+      rating: { type: number, minimum: 0, maximum: 5 }
+      note: { type: string }
+
+  catalogEntry:
+    type: object
+    required: [label, type]
+    additionalProperties: false
+    properties:
+      label: { type: string, minLength: 1 }
+      type: { $ref: "#/$defs/nodeType" }
+      kind: { $ref: "#/$defs/kind" }
+      detail: { type: string }
+      size:
+        type: array
+        items: { type: number, exclusiveMinimum: 0 }
+        minItems: 2
+        maxItems: 2
+      level: { type: string }
+      contains: { $ref: "#/$defs/id" }
+      navigateTo: { $ref: "#/$defs/id" }
+      ops: { type: boolean }
+
+  iconDefinition:
+    oneOf:
+      - type: string
+        minLength: 1
+      - type: object
+        required: [viewBox, markup]
+        additionalProperties: false
+        properties:
+          viewBox: { type: string, minLength: 1 }
+          markup: { type: string, minLength: 1 }
+
+  catalog:
+    type: object
+    minProperties: 1
+    propertyNames: { $ref: "#/$defs/id" }
+    additionalProperties: { $ref: "#/$defs/catalogEntry" }
+
+  package:
+    type: object
+    required: [label, children]
+    additionalProperties: false
+    properties:
+      label: { type: string, minLength: 1 }
+      level: { type: string }
+      detail: { type: string }
+      kind: { $ref: "#/$defs/kind" }
+      ops: { type: boolean }
+      children:
+        type: array
+        items: { $ref: "#/$defs/id" }
+        minItems: 1
+
+  packages:
+    type: object
+    propertyNames: { $ref: "#/$defs/id" }
+    additionalProperties: { $ref: "#/$defs/package" }
+
+  boundary:
+    type: object
+    required: [id, label, contains]
+    additionalProperties: false
+    properties:
+      id: { $ref: "#/$defs/id" }
+      label: { type: string, minLength: 1 }
+      tone: { type: string }
+      ops: { type: boolean }
+      contains:
+        type: array
+        items: { $ref: "#/$defs/id" }
+        minItems: 1
+
+  nodeOverride:
+    type: object
+    required: [id]
+    additionalProperties: false
+    properties:
+      id: { $ref: "#/$defs/id" }
+      label: { type: string }
+      detail: { type: string }
+      kind: { $ref: "#/$defs/kind" }
+      ops: { type: boolean }
+      size:
+        type: array
+        items: { type: number, exclusiveMinimum: 0 }
+        minItems: 2
+        maxItems: 2
+      navigateTo: { $ref: "#/$defs/id" }
+
+  nodeRef:
+    oneOf:
+      - $ref: "#/$defs/id"
+      - $ref: "#/$defs/nodeOverride"
+
+  wireMapping:
+    type: object
+    required: [from, to]
+    additionalProperties: false
+    properties:
+      from: { $ref: "#/$defs/id" }
+      to: { $ref: "#/$defs/id" }
+      type: { $ref: "#/$defs/wireType" }
+      label: { type: string }
+      flow: { type: boolean }
+      layer: { type: string, enum: [primary, secondary] }
+      bundle: { type: string }
+      offset: { type: number }
+      priority: { type: number }
+      ops: { type: boolean }
+
+  wire:
+    oneOf:
+      - type: string
+        minLength: 1
+      - $ref: "#/$defs/wireMapping"
+
+  disclosureLayer:
+    type: object
+    required: [id, label]
+    additionalProperties: false
+    properties:
+      id: { type: string }
+      label: { type: string }
+
+  disclosure:
+    type: object
+    required: [mode, layers]
+    additionalProperties: false
+    properties:
+      mode: { type: string, enum: [progressive] }
+      initialStep: { type: integer, minimum: 0 }
+      intervalMs: { type: number, exclusiveMinimum: 0 }
+      layers:
+        type: array
+        items: { $ref: "#/$defs/disclosureLayer" }
+        minItems: 1
+      auto: { type: boolean }
+
+  system:
+    type: object
+    required: [title, nodes, wires]
+    additionalProperties: false
+    properties:
+      id: { $ref: "#/$defs/id" }
+      title: { type: string, minLength: 1 }
+      summary: { type: string }
+      callout: { type: string }
+      docs: { type: string, minLength: 1 }
+      adr: { type: string, minLength: 1 }
+      boundaries:
+        type: array
+        items: { $ref: "#/$defs/boundary" }
+      expandedPackages:
+        type: array
+        items: { $ref: "#/$defs/id" }
+      layout: { type: string, enum: [dagre, elk, force, manual] }
+      nodes:
+        type: array
+        items: { $ref: "#/$defs/nodeRef" }
+        minItems: 1
+      wires:
+        type: array
+        items: { $ref: "#/$defs/wire" }
+      disclosure: { $ref: "#/$defs/disclosure" }
+
+  state:
+    type: object
+    required: [id, title, nodes, wires]
+    additionalProperties: false
+    properties:
+      id: { $ref: "#/$defs/id" }
+      title: { type: string, minLength: 1 }
+      navigateTo: { $ref: "#/$defs/id" }
+      summary: { type: string }
+      docs: { type: string, minLength: 1 }
+      adr: { type: string, minLength: 1 }
+      changes:
+        type: array
+        items: { type: string }
+      callout: { type: string }
+      boundaries:
+        type: array
+        items: { $ref: "#/$defs/boundary" }
+      nodes:
+        type: array
+        items: { $ref: "#/$defs/nodeRef" }
+        minItems: 1
+      wires:
+        type: array
+        items: { $ref: "#/$defs/wire" }
+      changed:
+        type: array
+        items: { $ref: "#/$defs/id" }
+      disclosure: { $ref: "#/$defs/disclosure" }
+      expandedPackages:
+        type: array
+        items: { $ref: "#/$defs/id" }
+      layout: { type: string, enum: [dagre, elk, force, manual] }
+
+  transition:
+    type: object
+    required: [states]
+    additionalProperties: false
+    properties:
+      states:
+        type: array
+        items: { $ref: "#/$defs/state" }
+        minItems: 2
+
+  stepDelta:
+    type: object
+    additionalProperties: false
+    properties:
+      nodes:
+        type: array
+        items: { $ref: "#/$defs/nodeRef" }
+        minItems: 1
+      wires:
+        type: array
+        items: { $ref: "#/$defs/wire" }
+        minItems: 1
+
+  stepRemove:
+    type: object
+    additionalProperties: false
+    properties:
+      nodes:
+        type: array
+        items: { $ref: "#/$defs/id" }
+        minItems: 1
+      wires:
+        type: array
+        items: { $ref: "#/$defs/wire" }
+        minItems: 1
+
+  stepSet:
+    type: object
+    propertyNames: { $ref: "#/$defs/id" }
+    additionalProperties:
+      type: object
+      additionalProperties: false
+      properties:
+        label: { type: string }
+        detail: { type: string }
+        kind: { $ref: "#/$defs/kind" }
+        ops: { type: boolean }
+        size:
+          type: array
+          items: { type: number, exclusiveMinimum: 0 }
+          minItems: 2
+          maxItems: 2
+
+  step:
+    type: object
+    required: [id, title]
+    additionalProperties: false
+    properties:
+      id: { $ref: "#/$defs/id" }
+      title: { type: string, minLength: 1 }
+      summary: { type: string }
+      docs: { type: string, minLength: 1 }
+      adr: { type: string, minLength: 1 }
+      navigateTo: { $ref: "#/$defs/id" }
+      changes:
+        type: array
+        items: { type: string }
+      callout: { type: string }
+      boundaries:
+        type: array
+        items: { $ref: "#/$defs/boundary" }
+      changed:
+        type: array
+        items: { $ref: "#/$defs/id" }
+      disclosure: { $ref: "#/$defs/disclosure" }
+      expandedPackages:
+        type: array
+        items: { $ref: "#/$defs/id" }
+      layout: { type: string, enum: [dagre, elk, force, manual] }
+      add: { $ref: "#/$defs/stepDelta" }
+      remove: { $ref: "#/$defs/stepRemove" }
+      set: { $ref: "#/$defs/stepSet" }
+
+  steps:
+    type: object
+    required: [base, sequence]
+    additionalProperties: false
+    properties:
+      base: { $ref: "#/$defs/state" }
+      sequence:
+        type: array
+        items: { $ref: "#/$defs/step" }
+        minItems: 1
+
+  scenarioBase:
+    type: object
+    required: [title, nodes, wires]
+    additionalProperties: false
+    properties:
+      id: { $ref: "#/$defs/id" }
+      title: { type: string, minLength: 1 }
+      summary: { type: string }
+      docs: { type: string, minLength: 1 }
+      adr: { type: string, minLength: 1 }
+      callout: { type: string }
+      boundaries:
+        type: array
+        items: { $ref: "#/$defs/boundary" }
+      nodes:
+        type: array
+        items: { $ref: "#/$defs/nodeRef" }
+        minItems: 1
+      wires:
+        type: array
+        items: { $ref: "#/$defs/wire" }
+
+  scenarioVariant:
+    type: object
+    required: [id, title]
+    additionalProperties: false
+    properties:
+      id: { $ref: "#/$defs/id" }
+      title: { type: string, minLength: 1 }
+      navigateTo: { $ref: "#/$defs/id" }
+      summary: { type: string }
+      docs: { type: string, minLength: 1 }
+      adr: { type: string, minLength: 1 }
+      changes:
+        type: array
+        items: { type: string }
+      callout: { type: string }
+      boundaries:
+        type: array
+        items: { $ref: "#/$defs/boundary" }
+      changed:
+        type: array
+        items: { $ref: "#/$defs/id" }
+      disclosure: { $ref: "#/$defs/disclosure" }
+      expandedPackages:
+        type: array
+        items: { $ref: "#/$defs/id" }
+      layout: { type: string, enum: [dagre, elk, force, manual] }
+      add: { $ref: "#/$defs/stepDelta" }
+      remove: { $ref: "#/$defs/stepRemove" }
+      set: { $ref: "#/$defs/stepSet" }
+
+  scenarios:
+    type: object
+    required: [base, variants]
+    additionalProperties: false
+    properties:
+      base: { $ref: "#/$defs/scenarioBase" }
+      variants:
+        type: array
+        items: { $ref: "#/$defs/scenarioVariant" }
+        minItems: 1
+
+  flowStep:
+    type: object
+    additionalProperties: false
+    properties:
+      title: { type: string, minLength: 1 }
+      edge: { type: string, minLength: 1 }
+      group:
+        type: array
+        items: { type: string, minLength: 1 }
+        minItems: 1
+      parallel:
+        type: array
+        items: { $ref: "#/$defs/flowStep" }
+        minItems: 1
+      note: { type: string }
+      label: { type: string }
+      kind: { type: string, enum: [call, return, async, loop] }
+      repeat: { type: string }
+      navigateTo: { $ref: "#/$defs/id" }
+    oneOf:
+      - required: [edge]
+      - required: [group]
+      - required: [parallel]
+
+  flow:
+    type: object
+    required: [title, nodes, wires, steps]
+    additionalProperties: false
+    properties:
+      id: { $ref: "#/$defs/id" }
+      title: { type: string, minLength: 1 }
+      summary: { type: string }
+      callout: { type: string }
+      docs: { type: string, minLength: 1 }
+      adr: { type: string, minLength: 1 }
+      boundaries:
+        type: array
+        items: { $ref: "#/$defs/boundary" }
+      expandedPackages:
+        type: array
+        items: { $ref: "#/$defs/id" }
+      layout: { type: string, enum: [dagre, elk, force, manual] }
+      nodes:
+        type: array
+        items: { $ref: "#/$defs/nodeRef" }
+        minItems: 1
+      wires:
+        type: array
+        items: { $ref: "#/$defs/wire" }
+      steps:
+        type: array
+        items: { $ref: "#/$defs/flowStep" }
+        minItems: 1
+
+  deploymentInfra:
+    type: object
+    required: [label, kind]
+    additionalProperties: false
+    properties:
+      label: { type: string, minLength: 1 }
+      kind: { type: string, enum: [region, cluster, host, runtime, network] }
+      children:
+        type: array
+        items: { $ref: "#/$defs/id" }
+        minItems: 1
+      detail: { type: string }
+      size:
+        type: array
+        items: { type: number, exclusiveMinimum: 0 }
+        minItems: 2
+        maxItems: 2
+      ops: { type: boolean }
+
+  deploymentPlacement:
+    type: object
+    required: [component, target]
+    additionalProperties: false
+    properties:
+      component: { $ref: "#/$defs/id" }
+      target: { $ref: "#/$defs/id" }
+      replicas: { type: integer, minimum: 1 }
+      label: { type: string }
+
+  deployment:
+    type: object
+    required: [infrastructure, placements]
+    additionalProperties: false
+    properties:
+      infrastructure:
+        type: object
+        minProperties: 1
+        propertyNames: { $ref: "#/$defs/id" }
+        additionalProperties: { $ref: "#/$defs/deploymentInfra" }
+      placements:
+        type: array
+        items: { $ref: "#/$defs/deploymentPlacement" }
+        minItems: 1
+
+  view:
+    type: object
+    required: [id, mode, title]
+    additionalProperties: false
+    properties:
+      id: { $ref: "#/$defs/id" }
+      mode: { type: string, enum: [system, transition, steps, scenarios, flow, deployment] }
+      title: { type: string, minLength: 1 }
+      summary: { type: string }
+      callout: { type: string }
+      layout: { type: string, enum: [dagre, elk, force, manual] }
+      docs: { type: string, minLength: 1 }
+      adr: { type: string, minLength: 1 }
+      boundaries:
+        type: array
+        items: { $ref: "#/$defs/boundary" }
+      nodes:
+        type: array
+        items: { $ref: "#/$defs/nodeRef" }
+      wires:
+        type: array
+        items: { $ref: "#/$defs/wire" }
+      states:
+        type: array
+        items: { $ref: "#/$defs/state" }
+        minItems: 2
+      base: { $ref: "#/$defs/state" }
+      sequence:
+        type: array
+        items: { $ref: "#/$defs/step" }
+        minItems: 1
+      variants:
+        type: array
+        items: { $ref: "#/$defs/scenarioVariant" }
+        minItems: 1
+      steps:
+        type: array
+        items: { $ref: "#/$defs/flowStep" }
+        minItems: 1
+      disclosure: { $ref: "#/$defs/disclosure" }
+      expandedPackages:
+        type: array
+        items: { $ref: "#/$defs/id" }
+      deployment: { $ref: "#/$defs/deployment" }
+      comparison:
+        type: object
+        additionalProperties: false
+        properties:
+          tradeoffs:
+            type: object
+            propertyNames: { $ref: "#/$defs/id" }
+            additionalProperties: { $ref: "#/$defs/comparisonTradeoff" }
+
+  views:
+    type: array
+    minItems: 1
+    items: { $ref: "#/$defs/view" }
