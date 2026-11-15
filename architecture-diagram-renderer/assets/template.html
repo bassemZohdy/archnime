@@ -708,9 +708,23 @@ const MODEL = {
     }
     return css;
   }
+  // getBBox() is reported in the scene's own coordinates, but its float error
+  // grows with the presenter transform and can move a rounded viewBox edge by
+  // a pixel. Measure with the transform removed so every zoom yields one answer.
+  function documentationBounds() {
+    const scene = viewport.node();
+    if (!scene) return null;
+    const presenterTransform = scene.getAttribute("transform");
+    try {
+      scene.removeAttribute("transform");
+      return scene.getBBox();
+    } finally {
+      if (presenterTransform !== null) scene.setAttribute("transform", presenterTransform);
+    }
+  }
   function serializeDocumentationSvg() {
     const parsed = new DOMParser().parseFromString(serializeVisibleSvg(), "image/svg+xml");
-    const root = parsed.documentElement, scene = root.querySelector("g.viewport"), bounds = viewport.node()?.getBBox();
+    const root = parsed.documentElement, scene = root.querySelector("g.viewport"), bounds = documentationBounds();
     if (parsed.querySelector("parsererror") || !scene || !bounds
         || ![bounds.x, bounds.y, bounds.width, bounds.height].every(Number.isFinite)
         || bounds.width <= 0 || bounds.height <= 0) {
