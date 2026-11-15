@@ -24,7 +24,14 @@ Those runtime scripts are pinned twice: by exact version in the URL, and by a
 fetched instead of loaded by a tag, passes the same kind of hash to `fetch()`.
 `assets/cdn-integrity.json` lists every hash, `npm run check-integrity` keeps the
 pages and the list in step, and `VERIFY_CDN_INTEGRITY=1 npm run check-integrity`
-re-downloads each file to confirm the hash. A browser refuses a file that does not
+re-downloads each file to confirm the hash.
+
+For use without a network, `assets/vendor/` holds exact copies of those same files (d3, dagre,
+elkjs, gif.js and its worker, js-yaml) with their licence texts and a `manifest.json`; see its
+README. Each copy's SHA-384 equals the hash pinned for its CDN URL, `offline_assets.test.mjs`
+enforces that, and `scripts/vendor_assets.mjs` regenerates the directory (refusing any
+download that does not match the pinned hash). The vendored files are not loaded by the
+default template: building a presenter that uses them is the offline bundle's job. A browser refuses a file that does not
 match, so a changed or mis-served CDN file fails closed instead of running.
 
 ## Reconsider publishing when
