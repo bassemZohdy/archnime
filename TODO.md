@@ -11,8 +11,9 @@
   - Done when: every requested architecture state has a stable snapshot and valid manifest; `npm test`
   - Links: Ref: architecture-diagram-renderer/references/documentation-export.md
   - State: branch todo/FEAT-002-batch-export-documented-views from main; next: build children
-  - [ ] **FEAT-002.1** · mid · Add named snapshot export for flow steps, migration stages and multi-view bundles
+  - [/] **FEAT-002.1** · mid · Add named snapshot export for flow steps, migration stages and multi-view bundles
     - Done when: exported artifacts cover each selected state exactly once; `node --test architecture-diagram-renderer/tests/batch_snapshots.test.mjs`
+    - State: attempts 0/3; baseline 46 passing; branch todo/FEAT-002.1-add-named-snapshot-export from todo/FEAT-002-batch-export-documented-views; next: build
   - [ ] **FEAT-002.2** · mid · Generate a SHA-256 manifest identifying source model, view, stage, output and renderer
     - Done when: manifest hashes match bytes and reject missing or tampered snapshots; `node --test architecture-diagram-renderer/tests/export_manifest.test.mjs`
   - [ ] **FEAT-002.3** · low · Produce Markdown-friendly links to snapshots and the interactive presenter
