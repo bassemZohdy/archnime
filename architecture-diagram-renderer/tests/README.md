@@ -116,6 +116,12 @@ toolbar uses. A missing browser skips them locally and fails them under
   export must carry the same theme background as the SVG. A final test injects each defect and
   requires it to be caught.
 
+- `pdf_conversion.test.mjs` — `scripts/document_format.mjs`: a documentation SVG converted to PDF
+  keeps one page of the diagram's size and every visible label as text (checked on a
+  trust-boundary, a nested and a dense layout); a PDF that only holds a picture of the diagram is
+  rejected and a 2x PNG fallback is written with the reason; markdown and html get the SVG,
+  word and google-docs get a PNG (or the SVG when told they accept it); bad requests fail first.
+
 ## `script_integrity_check.mjs` — pinned CDN scripts
 
 Every external script the pages load (D3, Dagre, ELK, gif.js and js-yaml) carries a
