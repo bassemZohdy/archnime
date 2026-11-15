@@ -58,7 +58,8 @@ missing dependency).
 
 | Rule | Meaning | Fix |
 | --- | --- | --- |
-| `mode-required` | None of `system:`, `transition:`, `steps:`, or `flow:` is present | Add one (schema also rejects this; this rule names it) |
+| `mode-required` | None of `system:`, `transition:`, `steps:`, `scenarios:`, `flow:` or `views:` is present | Add one (schema also rejects this; this rule names it) |
+| `yaml-parse-error` | The file is not valid YAML, so nothing else can be checked | Fix the syntax at the reported line and column |
 | `unknown-catalog-ref` | A wire endpoint, package child, node id, boundary `contains` member, or `expandedPackages` id isn't a real catalog/package id | Fix the id or add the missing catalog/package entry |
 | `wire-endpoint-not-in-state` | A wire endpoint exists in the catalog but is not listed in the current state's `nodes` | Add the endpoint to this state's `nodes`, or remove the wire |
 | `duplicate-id` | The same id is used in both `catalog` and `packages`, or a `transition` state id repeats | Rename one of them |
@@ -90,6 +91,18 @@ missing dependency).
 | `deployment-unplaced-component` | A selected deployment component has no placement | Add at least one placement |
 | `navigation-target-unknown` | `navigateTo` points outside the v2 view bundle | Use an existing view id |
 | `contains-target-unknown` | `contains` points to neither a package nor a view | Correct the package/view id |
+| `views-required` | `views:` is present but empty or not a list | Add at least one view, or use a single-mode document |
+| `view-invalid` | An entry of `views:` is not a mapping | Replace it with a view mapping (`id`, `mode`, `title`, ...) |
+| `view-mode-required` | A view's `mode` is missing or not one of `system`, `transition`, `steps`, `scenarios`, `flow`, `deployment` | Use one of the six modes |
+| `flow-step-unknown-edge` | A flow step's edge is not valid wire shorthand, names a node outside `flow.nodes`, or matches no wire in `flow.wires` (a `return` may reverse a wire) | Fix the edge, or add the wire it follows |
+| `flow-step-empty` | A flow step has none of `edge`, `group` or `parallel` | Give the step exactly one of them |
+| `flow-return-no-forward` | A `kind: return` step has no earlier forward call over the same wire | Add the call step first, or change the step's `kind` |
+| `deployment-duplicate-placement` | The same `(component, target)` pair is placed more than once | Combine the placements into one and use `replicas` |
+| `comparison-requires-views` | `meta.comparison` is set on a document without a `views:` bundle | Use `transition-diagram/2.0` with `views:` |
+| `comparison-duplicate-criterion` | Two comparison criteria share an `id` | Give each criterion a unique id |
+| `comparison-recommended-unknown` | `meta.comparison.recommended` is not a view id | Name an existing view, or remove it |
+| `comparison-criterion-unknown` | A view's `comparison.tradeoffs` names a criterion that `meta.comparison.criteria` does not declare | Declare the criterion, or correct the key |
+| `comparison-rating-invalid` | A tradeoff `rating` is not a number from 0 to 5 | Use a rating from 0 to 5 |
 | `lint-internal-error` | The lint pass hit an unexpected exception on malformed input | Should not happen on a schema-valid document; report it |
 
 ## Review procedure for an existing document
