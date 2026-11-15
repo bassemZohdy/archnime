@@ -11,7 +11,7 @@
   - Done when: browser-rendered image and PDF fixtures are checked at document-friendly widths; `npm test`
   - Links: Ref: architecture-diagram-renderer/references/validation.md
   - State: branch todo/TASK-004-add-visual-conversion-regression from main; next: build children
-  - [ ] **TASK-004.1** · mid · Compare SVG-as-image and PNG output across dense, nested, light and dark layouts
+  - [x] **TASK-004.1** · mid · Compare SVG-as-image and PNG output across dense, nested, light and dark layouts
     - Done when: baseline screenshots detect clipping, fallback fonts and shifted arrows; `node --test architecture-diagram-renderer/tests/documentation_visual.test.mjs`
   - [ ] **TASK-004.2** · mid · Exercise PDF conversion and document-safe fallback selection
     - Done when: conversion preserves text and diagram bounds or selects an explicit PNG fallback; `node --test architecture-diagram-renderer/tests/pdf_conversion.test.mjs`

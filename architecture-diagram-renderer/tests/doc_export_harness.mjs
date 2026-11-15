@@ -41,12 +41,12 @@ export function browserSkip() {
  * Open a model in the renderer. `template` lets a test point at another template file
  * (used to prove a test fails against a known-bad one).
  */
-export async function openDiagram(modelPath, { viewport = { width: 1440, height: 900 }, query = "", template = TEMPLATE } = {}) {
+export async function openDiagram(modelPath, { viewport = { width: 1440, height: 900 }, query = "", template = TEMPLATE, colorScheme, acceptDownloads } = {}) {
   const work = mkdtempSync(join(tmpdir(), "doc-export-"));
   const html = join(work, "diagram.html");
   execFileSync(PYTHON, [BUILDER, "--template", template, "--model", modelPath, "--output", html]);
   const browser = await chromium.launch(process.env.BROWSER_EXECUTABLE ? { executablePath: process.env.BROWSER_EXECUTABLE } : undefined);
-  const page = await browser.newPage({ viewport, reducedMotion: "reduce" });
+  const page = await browser.newPage({ viewport, reducedMotion: "reduce", ...(colorScheme ? { colorScheme } : {}), ...(acceptDownloads === undefined ? {} : { acceptDownloads }) });
   const pageErrors = [];
   page.on("pageerror", error => pageErrors.push(error.message));
   await page.goto(pathToFileURL(html).href + query, { waitUntil: "domcontentloaded", timeout: 120000 });
