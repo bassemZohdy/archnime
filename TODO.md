@@ -51,11 +51,6 @@
   - [ ] **FIX-005.2** · high · Add a licensed font and metrics strategy for requested non-Latin scripts
     - Done when: supported glyphs paint offline and missing glyph ranges are rejected rather than silently substituted; `node --test architecture-diagram-renderer/tests/font_portability.test.mjs`
 
-- [/] **FIX-010** · P1 · low · Reject docs and adr links whose scheme is javascript, data or vbscript even when obfuscated with control characters
-  - Done when: tab, newline and control-prefixed schemes render no link while relative and https links still render; `node architecture-diagram-renderer/tests/link_safety_check.mjs`
-  - Links: Ref: architecture-diagram-renderer/references/validation.md · Lane: hardening
-  - State: attempts 0/3; baseline 46 passing; branch todo/FIX-010-reject-docs-adr-links from main; next: drain
-
 - [ ] **FIX-011** · P1 · low · Print each finding and a distinct SKIP result in validate_artifact text output
   - Done when: text output lists rule and path per finding and exit codes match the JSON status; `python -m unittest discover -s architecture-diagram-validation/tests -p test_validate_artifact.py`
   - Links: Ref: architecture-diagram-validation/SKILL.md · Lane: hardening
