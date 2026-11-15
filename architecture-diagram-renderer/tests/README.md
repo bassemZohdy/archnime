@@ -52,6 +52,14 @@ headless Chromium, and checks:
   blocks remain painted above routes, and confirms Tune layout performs a
   multi-start search
 
+## `link_safety_check.mjs` — stage link safety
+
+Stage `docs` and `adr` values come from the model, so the renderer treats them as
+untrusted. The check renders one stage per hostile value (`javascript:` with tab,
+newline, carriage return, leading control characters or spaces, plus `data:`,
+`vbscript:` and `file:`) and fails if any becomes a script-capable or non-web
+link, while relative, fragment, `https:` and `mailto:` targets still render.
+
 ### Run
 
 ```bash

@@ -333,6 +333,17 @@ const MODEL = {
   const BASE_LIBRARY = window.ARCHITECTURE_LIBRARY || { iconName: () => "service", icons: {}, styles: { flows: {} } };
   const SAFE_ICON_TAGS = new Set(["circle", "ellipse", "line", "path", "polygon", "polyline", "rect"]);
   const SAFE_ICON_ATTRS = new Set(["d", "cx", "cy", "r", "rx", "ry", "x", "x1", "x2", "y", "y1", "y2", "points", "width", "height", "fill", "stroke", "stroke-width", "stroke-linecap", "stroke-linejoin", "fill-rule", "clip-rule", "opacity"]);
+  // Stage docs/adr links come from the model, so they are untrusted. A browser deletes
+  // tab, CR and LF from a URL and strips leading control characters and spaces before it
+  // reads the scheme ("java\tscript:" is a javascript: URL), so normalise the same way,
+  // then allow only web and mail links or a scheme-less (relative or fragment) target.
+  const SAFE_LINK_SCHEMES = new Set(["http", "https", "mailto"]);
+  function safeLinkTarget(raw) {
+    const value = String(raw).replace(/[\t\n\r]/g, "").replace(/^[\u0000- ]+|[\u0000- ]+$/g, "");
+    if (!value) return null;
+    const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(value);
+    return !scheme || SAFE_LINK_SCHEMES.has(scheme[1].toLowerCase()) ? value : null;
+  }
   function sanitizeIconMarkup(markup) {
     if (typeof markup !== "string" || !markup.trim()) return "";
     const parsed = new DOMParser().parseFromString(`<svg xmlns="http://www.w3.org/2000/svg">${markup}</svg>`, "image/svg+xml");
@@ -974,7 +985,7 @@ ${style}</style>${sharedDefs}${groups.join("")}<g class="animated-legend" aria-l
     document.getElementById("diagram-title").textContent = META.title; document.getElementById("diagram-subtitle").textContent = META.subtitle || ""; document.getElementById("stage-eyebrow").textContent = `${unit} ${index + 1} of ${count} · ${layout.engine} layout`; document.getElementById("stage-title").textContent = title; document.getElementById("stage-summary").textContent = summary;
     const list = document.getElementById("stage-changes"); list.innerHTML = ""; (IS_FLOW ? [] : (stage.changes || [])).forEach(change => { const item = document.createElement("li"); item.textContent = change; list.appendChild(item); });
     const callout = document.getElementById("stage-callout"); callout.textContent = stage.callout || ""; callout.style.display = stage.callout ? "" : "none";
-    const links = document.getElementById("stage-links"); links.innerHTML = ""; [["docs", "Documentation"], ["adr", "Architecture decision record"]].forEach(([key, label]) => { const value = typeof stage[key] === "string" ? stage[key].trim() : ""; if (!value || /^(?:javascript|data|vbscript):/i.test(value)) return; const link = document.createElement("a"); link.href = value; link.textContent = label; if (/^https?:\/\//i.test(value)) { link.target = "_blank"; link.rel = "noopener noreferrer"; } links.appendChild(link); }); links.style.display = links.childNodes.length ? "flex" : "none";
+    const links = document.getElementById("stage-links"); links.innerHTML = ""; [["docs", "Documentation"], ["adr", "Architecture decision record"]].forEach(([key, label]) => { const value = typeof stage[key] === "string" ? safeLinkTarget(stage[key]) : null; if (!value) return; const link = document.createElement("a"); link.href = value; link.textContent = label; if (/^https?:\/\//i.test(value)) { link.target = "_blank"; link.rel = "noopener noreferrer"; } links.appendChild(link); }); links.style.display = links.childNodes.length ? "flex" : "none";
     document.getElementById("stage-indicator").textContent = `${unit} ${index + 1} / ${count} · ${title}`; document.getElementById("progress").style.width = `${((index + 1) / count) * 100}%`; document.title = `${META.title} · ${title}`;
     const breadcrumb = document.getElementById("breadcrumbs"); breadcrumb.replaceChildren(); const appendSeparator = () => { if (breadcrumb.lastChild) breadcrumb.append(" → "); }; (META.levels || []).forEach((level, index) => { appendSeparator(); const item = document.createElement("span"); item.textContent = level; breadcrumb.appendChild(item); }); if (VIEW_BUNDLE.length) { appendSeparator(); const rootView = VIEW_BUNDLE[0], rootItem = document.createElement("button"); rootItem.type = "button"; rootItem.textContent = rootView.viewTitle || rootView.meta?.title || rootView.viewId; rootItem.setAttribute("aria-label", `Return to ${rootItem.textContent}`); if (rootView.viewId === ACTIVE_MODEL.viewId) { rootItem.disabled = true; rootItem.setAttribute("aria-current", "page"); } else rootItem.onclick = () => navigateToView(rootView.viewId); breadcrumb.appendChild(rootItem); if (ACTIVE_MODEL.viewId !== rootView.viewId) { appendSeparator(); const currentItem = document.createElement("strong"); currentItem.textContent = ACTIVE_MODEL.viewTitle || title; currentItem.setAttribute("aria-current", "page"); breadcrumb.appendChild(currentItem); } } const viewing = document.createElement("strong"); viewing.textContent = ` · viewing ${META.level || "Container"}`; breadcrumb.appendChild(viewing);
     updateDisclosureControl(stage);
