@@ -21,6 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- **FIX-020** (fix): Export every flow layer of a progressive-disclosure stage instead of whichever layer is showing. Ref: architecture-diagram-renderer/references/documentation-export.md. Validated: `node --test architecture-diagram-renderer/tests/documentation_disclosure.test.mjs`. Docs: updated architecture-diagram-renderer/references/documentation-export.md, architecture-diagram-renderer/tests/README.md.
 - **FIX-011** (fix): Print each finding and a distinct SKIP result in validate_artifact text output. Ref: architecture-diagram-validation/SKILL.md. Validated: `python -m unittest discover -s architecture-diagram-validation/tests -p test_validate_artifact.py`.
 - **FIX-010** (fix): Reject docs and adr links whose scheme is javascript, data or vbscript even when obfuscated with control characters. Ref: architecture-diagram-renderer/references/validation.md. Validated: `node architecture-diagram-renderer/tests/link_safety_check.mjs`. Docs: updated architecture-diagram-renderer/tests/README.md.
 - **FIX-009** (fix): Emit Mermaid companions that parse and keep authored labels, and give the translate CLI clean errors. Ref: architecture-diagram-dsl/references/sequence-policy.md. Validated: `python -m unittest discover -s architecture-diagram-dsl/tests -p test_translate_transition_diagram.py`. Docs: updated architecture-diagram-dsl/references/validation-and-review.md, architecture-diagram-dsl/references/sequence-policy.md. Includes: FIX-009.1, FIX-009.2.
