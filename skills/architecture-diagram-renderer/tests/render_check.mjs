@@ -34,7 +34,7 @@ import { pathToFileURL, fileURLToPath } from "node:url";
 import { readdirSync, readFileSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
 import { resolve, join, basename } from "node:path";
 import { tmpdir } from "node:os";
-import { PYTHON } from "../../scripts/python_command.mjs";
+import { PYTHON } from "../../../scripts/python_command.mjs";
 import { retainWork } from "./retain_artifacts.mjs";
 
 const HERE = resolve(fileURLToPath(new URL(".", import.meta.url)));

@@ -15,7 +15,7 @@ import { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync }
 import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { PYTHON } from "../../scripts/python_command.mjs";
+import { PYTHON } from "../../../scripts/python_command.mjs";
 import { MODES, compareBudgets, selfTest } from "./route_fallback_budget.mjs";
 import { retainWork } from "./retain_artifacts.mjs";
 

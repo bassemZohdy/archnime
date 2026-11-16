@@ -17,7 +17,8 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { PYTHON } from "../../scripts/python_command.mjs";
+// Same interpreter policy as the repository harnesses (scripts/python_command.mjs), inlined so an installed skill needs nothing outside its folder.
+const PYTHON = process.env.PYTHON || (process.platform === "win32" ? "python" : "python3");
 import { buildManifest, writeManifest } from "./snapshot_manifest.mjs";
 import { buildMarkdown, checkViewerUrl } from "./snapshot_links.mjs";
 

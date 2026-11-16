@@ -3,7 +3,7 @@ import { execFileSync, execSync } from "node:child_process";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve, join, basename } from "node:path";
-import { PYTHON } from "../../scripts/python_command.mjs";
+import { PYTHON } from "../../../scripts/python_command.mjs";
 
 const HERE = resolve(fileURLToPath(new URL(".", import.meta.url)));
 const ROOT = resolve(fileURLToPath(new URL("../..", import.meta.url)));
