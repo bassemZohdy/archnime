@@ -1,5 +1,5 @@
 {
-  "$comment": "Recorded route-fallback counts per model and wire style (stages x default/all-expanded, summed over views). `crossings` records fallback routes that also cross a node, package, or boundary: known defects (for example CASE-08), ceilings that may only be lowered. Lower a number when a fix removes fallbacks; never raise one to hide a regression. Regenerate with: node architecture-diagram-renderer/tests/route_fallback_check.mjs --write-budgets",
+  "$comment": "Recorded route-fallback counts per model and wire style (stages x default/all-expanded, summed over views). `crossings` records fallback routes that also cross a node, package, or boundary: known defects (for example CASE-08), ceilings that may only be lowered. Lower a number when a fix removes fallbacks; never raise one to hide a regression. Regenerate with: node skills/architecture-diagram-renderer/tests/route_fallback_check.mjs --write-budgets",
   "budgets": {
     "examples/boundary-label-collision-model": {
       "curved": 0,

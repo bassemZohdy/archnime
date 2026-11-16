@@ -14,7 +14,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { test } from "node:test";
-import { PYTHON } from "../../scripts/python_command.mjs";
+import { PYTHON } from "../../../scripts/python_command.mjs";
 import { EXAMPLES, FIXTURES, ROOT, TEMPLATE, browserSkip, chromium } from "./doc_export_harness.mjs";
 
 const skip = browserSkip();

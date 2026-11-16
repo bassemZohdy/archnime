@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { PYTHON } from "../../scripts/python_command.mjs";
+import { PYTHON } from "../../../scripts/python_command.mjs";
 import { retainWork } from "./retain_artifacts.mjs";
 
 const HERE = resolve(fileURLToPath(new URL(".", import.meta.url)));

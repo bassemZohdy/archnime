@@ -15,7 +15,7 @@ import { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync }
 import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { PYTHON } from "../../scripts/python_command.mjs";
+import { PYTHON } from "../../../scripts/python_command.mjs";
 import { MODES, compareBudgets, selfTest } from "./route_fallback_budget.mjs";
 import { retainWork } from "./retain_artifacts.mjs";
 
@@ -112,7 +112,7 @@ if (writeBudgets) {
     for (const entry of result.withCrossing) crossings[entry.mode] = (crossings[entry.mode] || 0) + 1;
     return [name, { ...result.counts, ...(Object.keys(crossings).length ? { crossings } : {}) }];
   }));
-  writeFileSync(BUDGETS, JSON.stringify({ $comment: "Recorded route-fallback counts per model and wire style (stages x default/all-expanded, summed over views). `crossings` records fallback routes that also cross a node, package, or boundary: known defects (for example CASE-08), ceilings that may only be lowered. Lower a number when a fix removes fallbacks; never raise one to hide a regression. Regenerate with: node architecture-diagram-renderer/tests/route_fallback_check.mjs --write-budgets", budgets: recorded }, null, 2) + "\n");
+  writeFileSync(BUDGETS, JSON.stringify({ $comment: "Recorded route-fallback counts per model and wire style (stages x default/all-expanded, summed over views). `crossings` records fallback routes that also cross a node, package, or boundary: known defects (for example CASE-08), ceilings that may only be lowered. Lower a number when a fix removes fallbacks; never raise one to hide a regression. Regenerate with: node skills/architecture-diagram-renderer/tests/route_fallback_check.mjs --write-budgets", budgets: recorded }, null, 2) + "\n");
   console.log(`wrote ${BUDGETS}`);
   process.exit(0);
 }

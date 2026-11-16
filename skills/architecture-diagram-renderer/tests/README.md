@@ -236,7 +236,7 @@ grow, a model needs a recorded budget, and a fallback that also crosses a node,
 package, or boundary always fails. The gate logic is in
 `route_fallback_budget.mjs` and self-tests an injected regression on every run.
 Lower a number when a fix removes fallbacks; regenerate after review with
-`node architecture-diagram-renderer/tests/route_fallback_check.mjs --write-budgets`.
+`node skills/architecture-diagram-renderer/tests/route_fallback_check.mjs --write-budgets`.
 Test System is tracked at curved 2, orthogonal 0, direct 10.
 
 ## Font metrics
@@ -263,9 +263,9 @@ Run `npm run check-fixtures` in CI and before rendering a changed translator.
 
 | Fixture | Source | Exercises |
 | --- | --- | --- |
-| `checkout-flow.json` | generated from `architecture-diagram-dsl/assets/examples/checkout-flow.yaml` | fixed-topology flow steps with a return edge, grouped work, parallel async delivery, and a retry loop |
-| `commerce-views.json` | generated from `architecture-diagram-dsl/assets/examples/commerce-views.yaml` | DSL 2.0 context/deployment/flow bundle, infrastructure nesting, representative replica routing, and navigation |
-| `orders-failover-scenarios.json` | generated from `architecture-diagram-dsl/assets/examples/orders-failover-scenarios.yaml` | independent named variants over one shared base, with keyed node identity |
+| `checkout-flow.json` | generated from `skills/architecture-diagram-dsl/assets/examples/checkout-flow.yaml` | fixed-topology flow steps with a return edge, grouped work, parallel async delivery, and a retry loop |
+| `commerce-views.json` | generated from `skills/architecture-diagram-dsl/assets/examples/commerce-views.yaml` | DSL 2.0 context/deployment/flow bundle, infrastructure nesting, representative replica routing, and navigation |
+| `orders-failover-scenarios.json` | generated from `skills/architecture-diagram-dsl/assets/examples/orders-failover-scenarios.yaml` | independent named variants over one shared base, with keyed node identity |
 | `checkout-flow-all-steps.json` | hand-authored | static all-steps flow presentation, including a non-geometric intro |
 | `collapse-boundary-chip.json` | hand-authored | collapse folds two disjoint boundary scopes onto one block → the smaller renders as a dashed chip, not a false-nested rectangle |
 | `collapse-boundary-venn.json` | hand-authored | two disjoint zones share a collapsed block but keep exclusive members → Venn overlap, neither swallowed |

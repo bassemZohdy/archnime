@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Minimal structural checks for the public diagram skills: four domain skills and their aggregator."""
 from pathlib import Path
+import json
 import re
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
+SKILLS_DIR = ROOT / "skills"
 SKILLS = (
     "architecture-diagram",
     "architecture-diagram-interview",
@@ -13,10 +15,57 @@ SKILLS = (
     "architecture-diagram-validation",
 )
 
+MANIFESTS = (
+    ".claude-plugin/plugin.json",
+    "plugin.json",
+    "gemini-extension.json",
+)
+
+
+def check_plugin_manifests(failures):
+    """One plugin named diagram-skills, one version, in every tool's manifest and marketplace."""
+    versions = {}
+    for relative in MANIFESTS:
+        path = ROOT / relative
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as error:
+            failures.append(f"{relative}: cannot read manifest ({error})")
+            continue
+        if data.get("name") != "diagram-skills":
+            failures.append(f"{relative}: name must be diagram-skills, found {data.get('name')!r}")
+        versions[relative] = data.get("version")
+    marketplaces = {
+        ".claude-plugin/marketplace.json": lambda d: d.get("plugins", []),
+        ".agents/plugins/marketplace.json": lambda d: d.get("plugins", []),
+    }
+    for relative, entries_of in marketplaces.items():
+        try:
+            data = json.loads((ROOT / relative).read_text(encoding="utf-8"))
+        except (OSError, ValueError) as error:
+            failures.append(f"{relative}: cannot read marketplace ({error})")
+            continue
+        entries = [entry for entry in entries_of(data) if entry.get("name") == "diagram-skills"]
+        if len(entries) != 1:
+            failures.append(f"{relative}: expected exactly one diagram-skills entry, found {len(entries)}")
+            continue
+        if "version" in entries[0]:
+            versions[relative] = entries[0]["version"]
+        source = entries[0].get("source")
+        path = source.get("path") if isinstance(source, dict) else source
+        if path not in ("./", "."):
+            failures.append(f"{relative}: the plugin lives at the repository root, source must be ./, found {path!r}")
+    if len(set(versions.values())) > 1:
+        failures.append(f"plugin versions differ between manifests: {versions}")
+    elif not versions or None in versions.values():
+        failures.append(f"every manifest needs a version: {versions}")
+
+
 def main():
     failures = []
+    check_plugin_manifests(failures)
     for name in SKILLS:
-        skill_dir = ROOT / name
+        skill_dir = SKILLS_DIR / name
         skill_md = skill_dir / "SKILL.md"
         agent = skill_dir / "agents" / "openai.yaml"
         if not skill_md.is_file():
@@ -39,7 +88,7 @@ def main():
                 continue
             if not (skill_md.parent / link).resolve().is_file():
                 failures.append(f"{name}: broken relative link {link}")
-    actual = {p.parent.name for p in ROOT.glob("*/SKILL.md")}
+    actual = {p.parent.name for p in SKILLS_DIR.glob("*/SKILL.md")}
     if actual != set(SKILLS):
         failures.append(f"unexpected skill directories: {sorted(actual ^ set(SKILLS))}")
     for issue in failures:

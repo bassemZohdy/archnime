@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { isDeepStrictEqual } from "node:util";
 import vm from "node:vm";
-import { PYTHON } from "../../scripts/python_command.mjs";
+import { PYTHON } from "../../../scripts/python_command.mjs";
 
 const ROOT = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const source = readFileSync(resolve(ROOT, "architecture-diagram-dsl/scripts/validate_transition_diagram.js"), "utf8");
