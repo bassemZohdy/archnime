@@ -1,0 +1,15 @@
+dsl: transition-diagram/1.0
+meta:
+  title: Refusal with no call
+catalog:
+  agent: { label: Agent, type: agent }
+  guard: { label: Policy check, type: security }
+flow:
+  title: A refusal answers nothing
+  nodes: [agent, guard]
+  wires:
+    - "agent -> guard: request"
+  steps:
+    - title: Refused
+      edge: "guard -> agent"
+      kind: refused

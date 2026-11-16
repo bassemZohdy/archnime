@@ -111,6 +111,7 @@
     if (has(value, "size")) checkSize(value.size, pathKey(path, "size"), findings);
     if (has(value, "navigateTo") && !idValid(value.navigateTo)) findings.push(schema("navigateTo must be a valid id", pathKey(path, "navigateTo")));
     if (has(value, "ops") && typeof value.ops !== "boolean") findings.push(schema("ops must be a boolean", pathKey(path, "ops")));
+    if (has(value, "variant") && value.variant !== "external") findings.push(schema("variant must be \"external\"", pathKey(path, "variant")));
     if (has(value, "source")) checkSource(value.source, pathKey(path, "source"), findings);
   }
 
@@ -536,6 +537,7 @@
       if (has(entry, "contains") && !idValid(entry.contains)) findings.push(schema("contains must be a valid id", pathKey(entryPath, "contains")));
       if (has(entry, "navigateTo") && !idValid(entry.navigateTo)) findings.push(schema("navigateTo must be a valid id", pathKey(entryPath, "navigateTo")));
       if (has(entry, "ops") && typeof entry.ops !== "boolean") findings.push(schema("catalog entry ops must be a boolean", pathKey(entryPath, "ops")));
+      if (has(entry, "variant") && entry.variant !== "external") findings.push(schema("variant must be \"external\"", pathKey(entryPath, "variant")));
       if (has(entry, "source")) checkSource(entry.source, pathKey(entryPath, "source"), findings);
     });
     if (has(doc, "canvas")) {

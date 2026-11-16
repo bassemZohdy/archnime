@@ -11,7 +11,7 @@
  * source and renderer write the same bytes on every run. Nothing is patched in the generated HTML.
  */
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -59,6 +59,7 @@ export async function exportSvg({ source, out, state, view, sequence = false, te
     let modelPath = resolve(source);
     if ([".yaml", ".yml"].includes(extname(modelPath).toLowerCase())) {
       const translated = join(work, "model.json");
+      if (!existsSync(TRANSLATOR)) throw new Error(`a YAML spec needs archnime-dsl installed beside archnime-renderer (looked for ${TRANSLATOR}); or pass a translated model.json`);
       execFileSync(PYTHON, [TRANSLATOR, modelPath, "--output", translated], { stdio: ["ignore", "ignore", "pipe"] });
       modelPath = translated;
     }

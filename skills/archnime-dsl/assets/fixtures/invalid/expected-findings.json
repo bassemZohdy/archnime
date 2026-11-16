@@ -25,6 +25,7 @@
   "duplicate-yaml-key": {"rules": ["duplicate-yaml-key"], "paths": ["$"]},
   "evidence-source-missing": {"rules": ["evidence-source-missing"], "paths": ["$.catalog.api", "$.system.wires[0]"]},
   "expanded-package-not-package": {"rules": ["expanded-package-not-package"], "paths": ["$.transition.states[1].expandedPackages"]},
+  "flow-refused-no-forward": {"rules": ["flow-return-no-forward"], "paths": ["$.flow.steps[0].edge"]},
   "flow-invalid-step": {"rules": ["flow-return-no-forward", "flow-step-unknown-edge"], "paths": ["$.flow.steps[0].edge", "$.flow.steps[1].edge"]},
   "flow-step-empty": {"rules": ["flow-step-empty", "schema"], "paths": ["$.flow.steps[1]", "$['flow']['steps'][1]"]},
   "flow-step-wire-type-mismatch": {"rules": ["flow-step-wire-type-mismatch"], "paths": ["$.flow.steps[0].edge"]},
@@ -51,6 +52,7 @@
   "v2-navigation-target": {"rules": ["contains-target-unknown", "navigation-target-unknown"], "paths": ["$.catalog.app.navigateTo", "$.catalog.app.contains", "$.views[0].nodes[0].navigateTo"]},
   "view-invalid": {"rules": ["schema", "view-invalid"], "paths": ["$.views[0]", "$['views'][0]"]},
   "view-mode-required": {"rules": ["schema", "view-mode-required"], "paths": ["$.views[0].mode", "$['views'][0]['mode']"]},
+  "variant-invalid": {"rules": ["schema"], "paths": ["$.catalog['b'].variant", "$['catalog']['b']['variant']"]},
   "views-required": {"rules": ["schema", "views-required"], "paths": ["$.views", "$['views']"]},
   "wire-endpoint-not-in-state": {"rules": ["wire-endpoint-not-in-state"], "paths": ["$.system.wires"]},
   "yaml-parse-error": {"rules": ["yaml-parse-error"], "paths": ["$"]}

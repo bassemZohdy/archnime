@@ -72,7 +72,7 @@ Open `checkout.html` in a browser. By default it loads pinned D3/ELK/Dagre/GIF r
 
 ## Presentation vs documentation
 
-Use **interactive HTML** for live demonstrations and drill-down. In the HTML export menu use **SVG (documentation)** for a static, zoom-independent SVG with embedded font data, a bounded viewBox, and an opaque background. Keep the viewer link alongside README diagrams; **embedded SVG images cannot provide the HTML interaction controls**. Export each important stage/view separately for formal documents. Animated SVG is available but needs destination-specific compatibility checks.
+Use **interactive HTML** for live demonstrations and drill-down. In the HTML export menu use **SVG (documentation)** for a static, zoom-independent SVG with embedded font data, a bounded viewBox, and an opaque background, in light and dark from one file. `node skills/archnime-renderer/scripts/export_svg.mjs spec.yaml --out diagram.svg` writes the same SVG headless (add `--sequence` for a flow's sequence view). Keep the viewer link alongside README diagrams; **embedded SVG images cannot provide the HTML interaction controls**. Export each important stage/view separately for formal documents. Animated SVG is available but needs destination-specific compatibility checks.
 
 See [documentation-export.md](skills/archnime-renderer/references/documentation-export.md) and [the renderer guide](docs/archnime-renderer.md).
 

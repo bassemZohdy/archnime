@@ -128,10 +128,12 @@ try {
       const root = element.shadowRoot;
       const body = root.querySelector("body");
       const mermaid = element.serializeArchitectureMermaid();
+      let documentation = ""; try { documentation = element.serializeDocumentationSvg(); } catch (error) { documentation = `error: ${error.message}`; }
       return {
         stage: root.querySelector("#stage-indicator")?.textContent || "",
         selfcheck: element.diagramSelfCheck(),
         mermaid: { header: mermaid.startsWith("architecture-beta\n"), service: /\n    service /.test(mermaid), edge: /\n    [A-Za-z0-9_]+:[RBLT] (?:-->|--) [RBLT]:[A-Za-z0-9_]+/.test(mermaid) },
+        documentation: documentation.startsWith("<svg") && documentation.includes("doc-background") ? "ok" : documentation.slice(0, 200),
         controlsHidden: getComputedStyle(root.querySelector(".controls")).display === "none",
         perspective: root.querySelector("#perspective-select")?.value || "",
         nodeCount: root.querySelectorAll("g.nodes > g.node").length,
@@ -143,6 +145,7 @@ try {
     return { src: inspect(document.getElementById("from-src")), inline: inspect(document.getElementById("from-inline")), broken: { status: document.getElementById("broken-src").diagramStatus, selfcheck: document.getElementById("broken-src").diagramSelfCheck() }, hostDiagram: !!document.querySelector("#diagram") };
   });
   const problems = [];
+  for (const key of ["src", "inline"]) if (result[key].documentation !== "ok") problems.push(`${key}: documentation SVG export failed inside the element (${result[key].documentation})`);
   if (!result.src.stage.includes("Stage 2 / 2")) problems.push(`src stage attribute was not applied: ${result.src.stage}`);
   if (!result.src.controlsHidden || !result.src.bodyClasses.includes("element-static")) problems.push("static/none controls were not scoped to the shadow root");
   if (result.src.perspective !== "migration") problems.push("changed perspective attribute was not applied through the dropdown");

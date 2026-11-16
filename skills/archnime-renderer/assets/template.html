@@ -722,10 +722,13 @@ const MODEL = {
     const take = (rule, into) => { for (let i = 0; i < rule.style.length; i++) { const name = rule.style[i]; if (name.startsWith("--")) into[name.slice(2)] = rule.style.getPropertyValue(name).trim(); } };
     const visit = (rules, target) => [...rules].forEach(rule => {
       if (rule.type === CSSRule.MEDIA_RULE) { if (/prefers-color-scheme:\s*dark/.test(rule.conditionText || rule.media?.mediaText || "")) visit(rule.cssRules, dark); }
-      else if (rule.type === CSSRule.STYLE_RULE && rule.selectorText === ":root") take(rule, target);
+      else if (rule.type === CSSRule.STYLE_RULE && (rule.selectorText === ":root" || rule.selectorText === ":host")) take(rule, target);
     });
-    [...document.styleSheets].forEach(sheet => { try { visit(sheet.cssRules, light); } catch { /* a cross-origin sheet holds no theme */ } });
-    if (!Object.keys(light).length) throw new Error("Cannot read the diagram palette from the page stylesheet");
+    // Inside <architecture-diagram> the template's stylesheet lives in the shadow root, not the page.
+    const scope = document.getElementById("diagram")?.getRootNode?.(), sheets = new Set([...(scope?.styleSheets || []), ...document.styleSheets]);
+    sheets.forEach(sheet => { try { visit(sheet.cssRules, light); } catch { /* a cross-origin sheet holds no theme */ } });
+    // No palette found (a host that restyles the diagram its own way): export the colours as shown, one theme.
+    if (!light.panel) return null;
     return { light, dark: { ...light, ...dark } };
   }
   const DOCUMENTATION_STYLE_PROPERTIES = ["fill", "stroke", "stroke-width", "stroke-dasharray", "stroke-linecap", "stroke-linejoin", "opacity", "font-family", "font-size", "font-weight", "letter-spacing", "paint-order", "display"];
@@ -753,8 +756,9 @@ const MODEL = {
     // <symbol> is the unrendered default (black fill) and would override that, so leave them unstyled.
     const inSymbol = [...sourceEls].map(el => !!el.closest("symbol"));
     let darkRules = "", panel = getComputedStyle(document.body).getPropertyValue("--panel");
-    if (themes) {
-      const palettes = documentationPalettes(), light = computedStylesUnder(sourceEls, palettes.light), dark = computedStylesUnder(sourceEls, palettes.dark), classes = new Map();
+    const palettes = themes ? documentationPalettes() : null;
+    if (palettes) {
+      const light = computedStylesUnder(sourceEls, palettes.light), dark = computedStylesUnder(sourceEls, palettes.dark), classes = new Map();
       light.forEach((entries, i) => {
         if (inSymbol[i]) return;
         cloneEls[i].setAttribute("style", inline(entries));
@@ -853,7 +857,7 @@ const MODEL = {
     const background = parsed.createElementNS("http://www.w3.org/2000/svg", "rect");
     background.setAttribute("x", String(x)); background.setAttribute("y", String(y));
     background.setAttribute("width", String(width)); background.setAttribute("height", String(height));
-    background.setAttribute("fill", documentationPalettes().light.panel || "#ffffff");
+    background.setAttribute("fill", documentationPalettes()?.light.panel || getComputedStyle(document.body).getPropertyValue("--panel").trim() || "#ffffff");
     background.setAttribute("class", "doc-background");
     background.setAttribute("pointer-events", "none");
     root.insertBefore(background, scene);

@@ -468,7 +468,10 @@ re-renders reuse it; only stage nav and package expand/collapse re-solve.
   the choice is persisted per diagram title.
 - **Documentation SVG** — **SVG (documentation)** exports the selected settled stage
   at full content bounds, independent of presenter zoom, with the pinned Inter
-  font, explicit opaque background, and preserved vector paths. Use it as the
+  font, explicit opaque background, and preserved vector paths. One file carries the
+  light and the dark palette and follows the reader's `prefers-color-scheme`.
+  `scripts/export_svg.mjs spec.yaml --out diagram.svg` writes the same SVG headless,
+  offline and byte-stable, for CI. Use it as the
   static embedding artifact for Markdown/web docs and as the source of a PNG
   fallback for formal documents. Export all relevant stages/views explicitly;
   no SVG image embedding retains the interactive controls. See
@@ -477,9 +480,10 @@ re-renders reuse it; only stage nav and package expand/collapse re-solve.
   current zoom), Animated SVG (all stages as CSS-timed groups), and GIF (the
   staged sequence, capped at `fps` ≤ 12 and `maxDurationMs` ≤ 10 000).
 - **Flow sequence export** — flow models can download a Mermaid
-  `sequenceDiagram` companion containing participants, calls, returns, grouped
-  or parallel work, and retry loops. It is a companion export, not a second
-  native renderer.
+  `sequenceDiagram` companion containing participants, calls, returns, refusals
+  (`--x`), grouped or parallel work, and retry loops, and a native
+  **SVG (sequence)** view (also `export_svg.mjs --sequence`): a lifeline per flow
+  node and a numbered message per step, returns dashed, refusals ending in a cross.
 - **Comparison navigation** — v2 comparison options switch through keyed
   views, show weighted criteria and trade-offs, mark the recommendation, and
   do not autoplay.
