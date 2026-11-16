@@ -9,12 +9,13 @@
   "use strict";
 
   const ID_RE = /^[A-Za-z][A-Za-z0-9_-]*$/;
-  let NODE_TYPES = ["actor", "service", "gateway", "agent", "database", "cache", "queue", "topic", "external", "security", "package"];
+  let NODE_TYPES = ["actor", "service", "gateway", "agent", "database", "cache", "queue", "topic", "external", "security", "package", "llm", "vector-store", "tool"];
+  const RETURN_KINDS = ["return", "refused"]; // a reply travels back along the wire of an earlier call
   let WIRE_TYPES = ["data", "security", "control", "compat", "neutral"];
   let KINDS = ["existing", "new", "mixed", "security", "retired"];
   const PERSPECTIVES = ["all", "data", "security", "migration", "devops", "control", "compat", "neutral", "zones"];
   let SCHEMA = null;
-  const NODE_OVERRIDE_KEYS = new Set(["id", "label", "detail", "kind", "size", "navigateTo", "ops", "source"]);
+  const NODE_OVERRIDE_KEYS = new Set(["id", "label", "detail", "kind", "size", "navigateTo", "ops", "variant", "source"]);
   const WIRE_KEYS = new Set(["from", "to", "type", "label", "flow", "layer", "bundle", "offset", "priority", "ops", "source"]);
 
   const isObject = value => value !== null && typeof value === "object" && !Array.isArray(value);
@@ -209,7 +210,7 @@
     if (has(value, "note") && typeof value.note !== "string") findings.push(schema("flow step note must be a string", pathKey(path, "note")));
     if (has(value, "title") && (typeof value.title !== "string" || !value.title.length)) findings.push(schema("flow step title must be a non-empty string", pathKey(path, "title")));
     if (has(value, "label") && typeof value.label !== "string") findings.push(schema("flow step label must be a string", pathKey(path, "label")));
-    if (has(value, "kind") && !["call", "return", "async", "loop"].includes(value.kind)) findings.push(schema("flow step kind has an invalid value", pathKey(path, "kind")));
+    if (has(value, "kind") && !["call", "return", "refused", "async", "loop"].includes(value.kind)) findings.push(schema("flow step kind has an invalid value", pathKey(path, "kind")));
     if (has(value, "repeat") && typeof value.repeat !== "string") findings.push(schema("flow step repeat must be a string", pathKey(path, "repeat")));
     if (has(value, "navigateTo") && !idValid(value.navigateTo)) findings.push(schema("navigateTo must be a valid id", pathKey(path, "navigateTo")));
     if (has(value, "source")) checkSource(value.source, pathKey(path, "source"), findings);
@@ -524,7 +525,7 @@
       const entryPath = pathKey(pathKey("$", "catalog"), id);
       if (!idValid(id)) findings.push(schema("catalog keys must be valid ids", entryPath));
       if (!isObject(entry)) { findings.push(schema("catalog entry must be an object", entryPath)); return; }
-      checkAdditional(entry, new Set(["label", "type", "kind", "detail", "size", "level", "contains", "navigateTo", "ops", "source"]), entryPath, findings);
+      checkAdditional(entry, new Set(["label", "type", "kind", "detail", "size", "level", "contains", "navigateTo", "ops", "variant", "source"]), entryPath, findings);
       if (typeof entry.label !== "string" || !entry.label.length) findings.push(schema("catalog entry requires a non-empty label", pathKey(entryPath, "label")));
       const registeredTypes = new Set(Object.keys(doc.meta?.icons || {}));
       if (!idValid(entry.type) || (!enumValid(entry.type, NODE_TYPES) && !registeredTypes.has(entry.type))) findings.push(schema(`type must be a built-in or registered meta.icons type`, pathKey(entryPath, "type")));
@@ -780,14 +781,14 @@
       let edge;
       try { edge = parseWireShorthand(text); } catch (error) { findings.push(finding("flow-step-unknown-edge", `flow step edge '${text}' is not a valid wire shorthand`, edgePath)); return; }
       const key = `${edge.from}>${edge.to}`, reverse = `${edge.to}>${edge.from}`, syntheticLoop = kind === "loop" && edge.from === edge.to;
-      if (!flowNodeIds.has(edge.from) || !flowNodeIds.has(edge.to) || (!known.has(key) && !(kind === "return" && known.has(reverse)) && !syntheticLoop)) findings.push(finding("flow-step-unknown-edge", `flow step edge '${text}' is not present in flow.wires`, edgePath));
+      if (!flowNodeIds.has(edge.from) || !flowNodeIds.has(edge.to) || (!known.has(key) && !(RETURN_KINDS.includes(kind) && known.has(reverse)) && !syntheticLoop)) findings.push(finding("flow-step-unknown-edge", `flow step edge '${text}' is not present in flow.wires`, edgePath));
       else if (!syntheticLoop) {
         // The translator binds a step to a wire by endpoints and type; a mismatch leaves the step unbound.
         const stepType = edge.type === undefined ? "data" : edge.type;
-        if (!typed.has(`${key}>${stepType}`) && !(kind === "return" && typed.has(`${reverse}>${stepType}`))) findings.push(finding("flow-step-wire-type-mismatch", `flow step edge '${text}' has type '${stepType}' but the wire between those nodes has a different type; write the step with the wire's type prefix`, edgePath));
+        if (!typed.has(`${key}>${stepType}`) && !(RETURN_KINDS.includes(kind) && typed.has(`${reverse}>${stepType}`))) findings.push(finding("flow-step-wire-type-mismatch", `flow step edge '${text}' has type '${stepType}' but the wire between those nodes has a different type; write the step with the wire's type prefix`, edgePath));
       }
-      if (kind === "return" && !seenCalls.has(reverse)) findings.push(finding("flow-return-no-forward", `return edge '${text}' has no earlier forward call`, edgePath));
-      else if (kind !== "return" && known.has(key)) seenCalls.add(key);
+      if (RETURN_KINDS.includes(kind) && !seenCalls.has(reverse)) findings.push(finding("flow-return-no-forward", `${kind} edge '${text}' has no earlier forward call`, edgePath));
+      else if (!RETURN_KINDS.includes(kind) && known.has(key)) seenCalls.add(key);
     };
     const checkStep = (step, path) => {
       if (!isObject(step)) return;

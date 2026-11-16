@@ -87,7 +87,7 @@ try {
     throw new Error(`${error.message}; script state=${JSON.stringify(state)}; page errors=${pageErrors.join(" | ")}; console errors=${consoleErrors.join(" | ")}`);
   }
 
-  for (const name of ["one-shot-checkout.yaml", "strangler-migration.yaml", "strangler-migration-steps.yaml", "steps-refinement.yaml", "orders-failover-scenarios.yaml", "checkout-flow.yaml", "commerce-views.yaml", "comparison-views.yaml"]) {
+  for (const name of ["one-shot-checkout.yaml", "strangler-migration.yaml", "strangler-migration-steps.yaml", "steps-refinement.yaml", "orders-failover-scenarios.yaml", "checkout-flow.yaml", "commerce-views.yaml", "comparison-views.yaml", "agent-refusal-flow.yaml"]) {
     const text = readFileSync(join(EXAMPLES, name), "utf8");
     await page.evaluate(async value => { document.getElementById("source").value = value; await window.translateSource(); }, text);
     const result = await page.evaluate(() => ({
@@ -110,6 +110,7 @@ try {
     if (name === "checkout-flow.yaml" && (activeModel.flow.steps[0]?.kind !== "intro" || !activeModel.flow.steps[0].note.includes("Client request"))) problems.push("flow intro did not synthesize a title list");
     if (name === "commerce-views.yaml" && (result.model.views?.length !== 3 || result.model.views[1]?.viewMode !== "deployment" || result.model.views[1]?.deployment?.placements?.[1]?.instanceIds?.length !== 2 || result.model.shared?.catalog?.client?.navigateTo !== "checkout")) problems.push("v2 views did not preserve the compact bundle or deployment instances");
     if (name === "comparison-views.yaml" && (result.model.meta?.comparison?.recommended !== "option-b" || result.model.views?.[1]?.comparison?.tradeoffs?.operability?.rating !== 4)) problems.push("comparison metadata or per-option tradeoffs were not preserved");
+    if (name === "agent-refusal-flow.yaml") { const last = activeModel.flow?.steps?.at(-1)?.edges?.[0], model = activeModel.catalog?.model, index = activeModel.catalog?.index; if (last?.kind !== "refused" || last.wireFrom !== "agent" || !result.sequence.includes("guard--xagent")) problems.push("refused step was not bound to its forward wire or exported as a cross"); if (model?.variant !== "external" || model?.type !== "llm" || index?.shape !== "db") problems.push("variant external or AI node types were not translated"); }
     if (!result.html.includes("diagram-engine.js (inlined by translate.html)")) problems.push("engine was not inlined");
     if (problems.length) {
       failures++;

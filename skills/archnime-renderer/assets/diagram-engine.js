@@ -2330,9 +2330,9 @@
           if (!edges.length) { push("flow-step-empty", `${path}: no edge, group, or parallel item`); return; }
           edges.forEach(edge => {
             const edgeKind = edge.kind || kind, key = `${edge.from}>${edge.to}`, reverse = `${edge.to}>${edge.from}`, syntheticLoop = edgeKind === "loop" && edge.from === edge.to;
-            if (!known.has(key) && !(edgeKind === "return" && known.has(reverse)) && !syntheticLoop) push("flow-step-unknown-edge", `${path}: ${edge.from} → ${edge.to}`);
-            if (edgeKind === "return" && !seenCalls.has(reverse)) push("flow-return-no-forward", `${path}: ${edge.from} → ${edge.to}`);
-            else if (edgeKind !== "return" && known.has(key)) seenCalls.add(key);
+            if (!known.has(key) && !((edgeKind === "return" || edgeKind === "refused") && known.has(reverse)) && !syntheticLoop) push("flow-step-unknown-edge", `${path}: ${edge.from} → ${edge.to}`);
+            if ((edgeKind === "return" || edgeKind === "refused") && !seenCalls.has(reverse)) push("flow-return-no-forward", `${path}: ${edge.from} → ${edge.to}`);
+            else if (edgeKind !== "return" && edgeKind !== "refused" && known.has(key)) seenCalls.add(key);
           });
         };
         (FLOW.steps || []).forEach((step, index) => checkStep(step, `flow.steps[${index}]`));

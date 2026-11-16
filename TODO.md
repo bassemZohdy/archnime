@@ -38,13 +38,13 @@
 - [ ] **FEAT-019** · P1 · high · Reach static-SVG parity: headless CLI export, one SVG for light and dark, byte-stable output, refused flows, node variants and AI kinds, and a native sequence view
   - Done when: a headless command writes identical SVG bytes twice, carries both themes and draws a refused flow; `node skills/archnime-renderer/tests/static_svg_cli_check.mjs`
   - Links: Depends: FEAT-018
-  - [ ] **FEAT-019.1** · mid · `export_svg.mjs`: YAML or model in, one documentation SVG out, headless and byte-stable
+  - [x] **FEAT-019.1** · mid · `export_svg.mjs`: YAML or model in, one documentation SVG out, headless and byte-stable
     - Done when: two runs write identical bytes; `node skills/archnime-renderer/tests/static_svg_cli_check.mjs`
-  - [ ] **FEAT-019.2** · high · One documentation SVG carries light and dark through `prefers-color-scheme`
+  - [x] **FEAT-019.2** · high · One documentation SVG carries light and dark through `prefers-color-scheme`
     - Done when: the SVG holds both palettes and Chromium paints dark under emulated dark; `node skills/archnime-renderer/tests/static_svg_cli_check.mjs`
-  - [ ] **FEAT-019.3** · mid · Refused flow steps (`kind: refused`) through schema, validators, translators and renderer
+  - [x] **FEAT-019.3** · mid · Refused flow steps (`kind: refused`) through schema, validators, translators and renderer
     - Done when: a refused step validates, translates alike and draws a marked line; `node skills/archnime-renderer/tests/static_svg_cli_check.mjs`; regression: `npm test`
-  - [ ] **FEAT-019.4** · mid · Node `variant: external` and the AI types `llm`, `vector-store` and `tool`
+  - [x] **FEAT-019.4** · mid · Node `variant: external` and the AI types `llm`, `vector-store` and `tool`
     - Done when: each type and the variant validate in both validators and draw their own icon; `node skills/archnime-renderer/tests/static_svg_cli_check.mjs`
-  - [ ] **FEAT-019.5** · high · Native sequence view of a flow: participants, numbered messages, returns and refusals as SVG
+  - [x] **FEAT-019.5** · high · Native sequence view of a flow: participants, numbered messages, returns and refusals as SVG
     - Done when: `--sequence` writes a stable SVG with a lifeline per node and a message per step; `node skills/archnime-renderer/tests/static_svg_cli_check.mjs`

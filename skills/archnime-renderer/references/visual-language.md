@@ -24,11 +24,16 @@ The library maps semantic types to fixed SVG symbols:
 | `service`, `function` | Service icon in a rounded rectangle | Applications and executable services |
 | `gateway` | Gateway icon in a rounded rectangle | Gateways, ingress, routers |
 | `agent` | Agent icon in a rounded rectangle | AI agents |
+| `llm`, `model` | Model chip icon in a rounded rectangle | Language models the system calls |
+| `vector-store` | Store icon with linked points, database cylinder | Embedding indexes for retrieval |
+| `tool` | Wrench icon in a rounded rectangle | Functions an agent may call |
 | `database`, `cache` | Database cylinder | Durable stores and caches |
 | `queue`, `topic` | Rounded queue rail with stacked-message glyph | Queues, topics, streams |
 | `external`, `provider` | External-system icon | Systems outside the estate |
 | `security`, `idp` | Shield icon | Identity/security services |
 | `package` | Package icon in a grouped block | Collapsed nested cluster |
+
+`variant: external` draws any type with a dashed outline: the part is run by someone else. A `refused` flow step is drawn as short dashes in the security colour ending in a cross at the caller.
 
 `kind` remains a lifecycle/role treatment: existing amber, new cyan, mixed cyan-on-amber, security pink, retired grey. The type/icon and kind/treatment carry different meanings and should not be conflated.
 

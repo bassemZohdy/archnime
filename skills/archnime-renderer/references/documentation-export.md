@@ -37,6 +37,10 @@ Replace URLs with actual published artifact locations; never promise that a
    selected frame, drops presentation zoom/pan, fits the SVG `viewBox` around the
    visible geometry with padding, includes the pinned Inter font, and adds an
    explicit opaque background. It does **not** mutate component IDs or wires.
+   One file serves light and dark pages: the light colours are inline and a
+   `@media (prefers-color-scheme: dark)` rule repaints every element whose
+   colour differs, so a README shows the diagram in the reader's theme. Both
+   palettes are read from the template's own `:root` rules.
 4. For a migration, export **every important stage** separately and give each a
    caption. For v2 bundles, export each view separately. Do not silently discard
    stages, flow steps, hidden perspectives, or collapsed subgraphs.
@@ -54,6 +58,28 @@ showing: exporting never skips or advances the presenter's own reveal.
 
 The ordinary **SVG (this view)** action deliberately retains current presenter
 zoom. It is not a documentation-safe export.
+
+## One SVG from the command line
+
+`export_svg.mjs` writes one documentation SVG from a spec or a translated model,
+headless and with nothing from the network (it builds a single offline bundle from
+the vendored libraries):
+
+```bash
+node archnime-renderer/scripts/export_svg.mjs docs/diagrams/system.yaml --out docs/diagrams/system.svg
+node archnime-renderer/scripts/export_svg.mjs docs/diagrams/checkout.yaml --state 5 --out checkout-step-5.svg
+node archnime-renderer/scripts/export_svg.mjs docs/diagrams/checkout.yaml --sequence --out checkout-sequence.svg
+```
+
+The SVG is exactly what **SVG (documentation)** produces for that state (`--state`
+takes a number or a stage/step id, `--view` a v2 view id). It holds no timestamps or
+random ids: the same spec and renderer write the same bytes, so a CI job can
+regenerate it and fail on a diff. `--sequence` writes the flow's **sequence view**
+instead (also in the toolbar as **SVG (sequence)**): one lifeline per flow node in
+`flow.nodes` order, one numbered message per step edge under its step title, calls
+solid, returns and async messages dashed, a `refused` reply dashed in the security
+colour and ending in a cross. It carries both palettes too. `--sequence` on a spec
+without a flow is refused. It needs Playwright with Chromium, like the batch export.
 
 ## Batch export
 

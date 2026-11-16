@@ -44,7 +44,9 @@ SHAPE_BY_TYPE = {
     "queue": "queue",
     "topic": "queue",
     "package": "package",
+    "vector-store": "db",
 }
+RETURN_KINDS = {"return", "refused"}
 
 
 def _renderer_shape(node_type: str) -> str:
@@ -80,7 +82,7 @@ def _copy_catalog(catalog: dict[str, Any]) -> dict[str, Any]:
             "shape": _renderer_shape(source["type"]),
             "kind": source.get("kind", "existing"),
         }
-        for key in ("detail", "level", "contains", "navigateTo", "ops", "source"):
+        for key in ("detail", "level", "contains", "navigateTo", "ops", "variant", "source"):
             if key in source:
                 node[key] = copy.deepcopy(source[key])
         if "size" in source:
@@ -193,7 +195,7 @@ def _copy_flow_step(step: dict[str, Any], wires: list[dict[str, Any]], index: in
     def normalize_edge(text: str, kind: str, repeat: Any = None) -> dict[str, Any]:
         edge = _flow_edge(text)
         key = (edge["from"], edge["to"], edge.get("type", "data"))
-        target = known.get(key) or (reverse.get(key) if kind == "return" else None)
+        target = known.get(key) or (reverse.get(key) if kind in RETURN_KINDS else None)
         result = {
             "from": edge["from"],
             "to": edge["to"],
@@ -306,7 +308,7 @@ def _copy_deployment_view(doc: dict[str, Any], view: dict[str, Any]) -> dict[str
             instance["label"] = f"{source.get('label', component)} · {suffix}"
             instance["deploymentComponent"] = component
             instance["deploymentTarget"] = target
-            for key in ("label", "detail", "kind", "navigateTo", "ops"):
+            for key in ("label", "detail", "kind", "navigateTo", "ops", "variant"):
                 if key in override:
                     instance[key] = copy.deepcopy(override[key])
             if "size" in override:
@@ -546,7 +548,7 @@ def sequence_mermaid(model: dict[str, Any]) -> str:
     def wire_label(edge: dict[str, Any], step: dict[str, Any]) -> str:
         wire_type = edge.get("wireType", edge.get("type", "data"))
         wire = wires.get((edge.get("from"), edge.get("to"), wire_type))
-        if wire is None and (edge.get("kind") == "return"):
+        if wire is None and edge.get("kind") in RETURN_KINDS:
             wire = wires.get((edge.get("to"), edge.get("from"), wire_type))
         return str(step.get("label") or (wire or {}).get("label") or f"{edge.get('from')} → {edge.get('to')}").replace("\n", " ")
 
@@ -555,7 +557,7 @@ def sequence_mermaid(model: dict[str, Any]) -> str:
         if source not in aliases or target not in aliases:
             return
         kind = edge.get("kind") or step.get("kind") or "call"
-        arrow = "-->>" if kind in {"async", "return"} else "->>"
+        arrow = "--x" if kind == "refused" else "-->>" if kind in {"async", "return"} else "->>"
         lines.append(f"{indent}{aliases[source]}{arrow}{aliases[target]}: {wire_label(edge, step)}")
 
     def emit_step(step: dict[str, Any], indent: str = "    ", nested: bool = False) -> None:

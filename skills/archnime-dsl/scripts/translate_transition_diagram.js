@@ -9,7 +9,8 @@
 
   const Validator = () => global.TransitionDiagramValidator;
   const DEFAULT_CANVAS = { w: 1600, h: 900, minWidth: 960 };
-  const SHAPE_BY_TYPE = { actor: "actor", database: "db", cache: "db", queue: "queue", topic: "queue", package: "package" };
+  const SHAPE_BY_TYPE = { actor: "actor", database: "db", cache: "db", queue: "queue", topic: "queue", package: "package", "vector-store": "db" };
+  const RETURN_KINDS = ["return", "refused"];
   const copy = value => value === undefined ? value : JSON.parse(JSON.stringify(value));
 
   function rendererShape(type) { return SHAPE_BY_TYPE[type] || type; }
@@ -34,7 +35,7 @@
     const result = {};
     Object.entries(catalog || {}).forEach(([id, source]) => {
       const node = { label: source.label, type: source.type, shape: rendererShape(source.type), kind: source.kind || "existing" };
-      ["detail", "level", "contains", "navigateTo", "ops", "source"].forEach(key => { if (key in source) node[key] = copy(source[key]); });
+      ["detail", "level", "contains", "navigateTo", "ops", "variant", "source"].forEach(key => { if (key in source) node[key] = copy(source[key]); });
       if (Array.isArray(source.size)) { node.w = source.size[0]; node.h = source.size[1]; }
       result[id] = node;
     });
@@ -108,7 +109,7 @@
   function copyFlow(source, intro = false) {
     const wires = Validator().normalizeWires(source.wires || []), known = new Map(wires.map(wire => [`${wire.from}>${wire.to}>${wire.type || "data"}`, wire])), reverse = new Map(wires.map(wire => [`${wire.to}>${wire.from}>${wire.type || "data"}`, wire]));
     const normalizeEdge = (text, kind, repeat = undefined) => {
-      const edge = Validator().parseWireShorthand(text), wireType = edge.type || "data", target = known.get(`${edge.from}>${edge.to}>${wireType}`) || (kind === "return" ? reverse.get(`${edge.from}>${edge.to}>${wireType}`) : null);
+      const edge = Validator().parseWireShorthand(text), wireType = edge.type || "data", target = known.get(`${edge.from}>${edge.to}>${wireType}`) || (RETURN_KINDS.includes(kind) ? reverse.get(`${edge.from}>${edge.to}>${wireType}`) : null);
       const result = { from: edge.from, to: edge.to, kind, wireType, wireFrom: target ? target.from : null, wireTo: target ? target.to : null };
       if (repeat !== undefined) result.repeat = copy(repeat);
       return result;
@@ -157,7 +158,7 @@
       const override = (view.nodes || []).find(node => node && typeof node === "object" && node.id === placement.component) || {};
       instanceIds.forEach((instanceId, index) => {
         const instance = { ...copy(source), label: `${source.label || placement.component} · ${placement.label || (replicas > 1 ? `replica ${index + 1}` : placement.target)}`, deploymentComponent: placement.component, deploymentTarget: placement.target };
-        ["label", "detail", "kind", "navigateTo", "ops"].forEach(key => { if (key in override) instance[key] = copy(override[key]); });
+        ["label", "detail", "kind", "navigateTo", "ops", "variant"].forEach(key => { if (key in override) instance[key] = copy(override[key]); });
         if (Array.isArray(override.size)) { instance.w = override.size[0]; instance.h = override.size[1]; }
         catalog[instanceId] = instance;
       });
@@ -264,8 +265,8 @@
     const wires = Object.fromEntries((flow.wires || []).map(wire => [`${wire.from}>${wire.to}>${wire.type || "data"}`, wire]));
     const edgeEntries = step => [ ...(step?.edge && typeof step.edge === "object" ? [step.edge] : []), ...(Array.isArray(step?.edges) ? step.edges : []) ];
     const participants = step => { const result = []; edgeEntries(step).forEach(edge => [edge.from, edge.to].forEach(id => { if (id && !result.includes(id)) result.push(id); })); (Array.isArray(step?.parallel) ? step.parallel : []).forEach(child => participants(child).forEach(id => { if (!result.includes(id)) result.push(id); })); return result; };
-    const wireLabel = (edge, step) => { const type = edge.wireType || edge.type || "data", wire = wires[`${edge.from}>${edge.to}>${type}`] || (edge.kind === "return" ? wires[`${edge.to}>${edge.from}>${type}`] : null); return String(step.label || wire?.label || `${edge.from} → ${edge.to}`).replace(/\n/g, " "); };
-    const emitEdge = (edge, step, indent) => { const source = edge.from, target = edge.to; if (!aliases[source] || !aliases[target]) return; const kind = edge.kind || step.kind || "call", arrow = kind === "async" || kind === "return" ? "-->>" : "->>"; lines.push(`${indent}${aliases[source]}${arrow}${aliases[target]}: ${wireLabel(edge, step)}`); };
+    const wireLabel = (edge, step) => { const type = edge.wireType || edge.type || "data", wire = wires[`${edge.from}>${edge.to}>${type}`] || (RETURN_KINDS.includes(edge.kind) ? wires[`${edge.to}>${edge.from}>${type}`] : null); return String(step.label || wire?.label || `${edge.from} → ${edge.to}`).replace(/\n/g, " "); };
+    const emitEdge = (edge, step, indent) => { const source = edge.from, target = edge.to; if (!aliases[source] || !aliases[target]) return; const kind = edge.kind || step.kind || "call", arrow = kind === "refused" ? "--x" : kind === "async" || kind === "return" ? "-->>" : "->>"; lines.push(`${indent}${aliases[source]}${arrow}${aliases[target]}: ${wireLabel(edge, step)}`); };
     const emitStep = (step, indent = "    ", nested = false) => {
       const kind = step.kind || "call"; if (kind === "intro") return;
       const title = String(step.title || step.label || "parallel work").replace(/\n/g, " "), named = participants(step).filter(id => aliases[id]).map(id => aliases[id]), people = (named.length < 2 ? named : [named[0], named[named.length - 1]]).join(",");
