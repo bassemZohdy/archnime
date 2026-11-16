@@ -14,8 +14,8 @@
   let KINDS = ["existing", "new", "mixed", "security", "retired"];
   const PERSPECTIVES = ["all", "data", "security", "migration", "devops", "control", "compat", "neutral", "zones"];
   let SCHEMA = null;
-  const NODE_OVERRIDE_KEYS = new Set(["id", "label", "detail", "kind", "size", "navigateTo", "ops"]);
-  const WIRE_KEYS = new Set(["from", "to", "type", "label", "flow", "layer", "bundle", "offset", "priority", "ops"]);
+  const NODE_OVERRIDE_KEYS = new Set(["id", "label", "detail", "kind", "size", "navigateTo", "ops", "source"]);
+  const WIRE_KEYS = new Set(["from", "to", "type", "label", "flow", "layer", "bundle", "offset", "priority", "ops", "source"]);
 
   const isObject = value => value !== null && typeof value === "object" && !Array.isArray(value);
   const has = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
@@ -110,6 +110,7 @@
     if (has(value, "size")) checkSize(value.size, pathKey(path, "size"), findings);
     if (has(value, "navigateTo") && !idValid(value.navigateTo)) findings.push(schema("navigateTo must be a valid id", pathKey(path, "navigateTo")));
     if (has(value, "ops") && typeof value.ops !== "boolean") findings.push(schema("ops must be a boolean", pathKey(path, "ops")));
+    if (has(value, "source")) checkSource(value.source, pathKey(path, "source"), findings);
   }
 
   function checkWire(value, path, findings) {
@@ -131,6 +132,7 @@
     if (has(value, "offset") && !numberValid(value.offset)) findings.push(schema("offset must be a number", pathKey(path, "offset")));
     if (has(value, "priority") && !numberValid(value.priority)) findings.push(schema("priority must be a number", pathKey(path, "priority")));
     if (has(value, "ops") && typeof value.ops !== "boolean") findings.push(schema("ops must be a boolean", pathKey(path, "ops")));
+    if (has(value, "source")) checkSource(value.source, pathKey(path, "source"), findings);
   }
 
   function checkBoundary(value, path, findings) {
@@ -193,7 +195,7 @@
   }
 
   function checkFlowStep(value, path, findings) {
-    const allowed = new Set(["title", "edge", "group", "parallel", "note", "label", "kind", "repeat", "navigateTo"]);
+    const allowed = new Set(["title", "edge", "group", "parallel", "note", "label", "kind", "repeat", "navigateTo", "source"]);
     if (!isObject(value)) { findings.push(schema("flow step must be an object", path)); return; }
     checkAdditional(value, allowed, path, findings);
     const branches = ["edge", "group", "parallel"].filter(key => has(value, key));
@@ -210,6 +212,7 @@
     if (has(value, "kind") && !["call", "return", "async", "loop"].includes(value.kind)) findings.push(schema("flow step kind has an invalid value", pathKey(path, "kind")));
     if (has(value, "repeat") && typeof value.repeat !== "string") findings.push(schema("flow step repeat must be a string", pathKey(path, "repeat")));
     if (has(value, "navigateTo") && !idValid(value.navigateTo)) findings.push(schema("navigateTo must be a valid id", pathKey(path, "navigateTo")));
+    if (has(value, "source")) checkSource(value.source, pathKey(path, "source"), findings);
   }
 
   function checkFlow(value, path, findings) {
@@ -330,6 +333,67 @@
     else value.variants.forEach((variant, index) => checkStep(variant, pathIndex(pathKey(path, "variants"), index), findings));
   }
 
+  // `source`: the file (and optionally the line and a few quoted words) that backs a part or a line.
+  // Mirrors parse_source / source_path_problem / collect_sources in validate_transition_diagram.py.
+  const SOURCE_STRING_RE = /^([^#]+?)(?::([1-9][0-9]*))?(?:#(.+))?$/;
+  const SECRET_FILE_NAMES = new Set([".env", ".npmrc", ".pypirc", ".netrc", ".git-credentials", ".htpasswd", ".pgpass", "credentials", "credentials.json", "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519"]);
+  const SECRET_FILE_SUFFIXES = [".pem", ".key", ".p12", ".pfx", ".jks", ".keystore", ".kdbx", ".asc", ".gpg"];
+  const SECRET_DIRECTORIES = new Set([".git", ".ssh", ".aws", ".gnupg", ".azure", ".kube", ".docker"]);
+  const SAFE_ENV_SUFFIXES = [".example", ".sample", ".template", ".dist"];
+  const ID_KEYED_MAPS = new Set(["catalog", "packages", "icons", "infrastructure", "set"]);
+  function parseSource(value) {
+    if (typeof value === "string") {
+      const match = SOURCE_STRING_RE.exec(value.trim());
+      if (!match || !match[1].trim()) return { error: `source '${value}' is not path[:line][#quoted words]` };
+      return { path: match[1].trim(), line: match[2] ? Number(match[2]) : null, quote: match[3] && match[3].trim() ? match[3].trim() : null };
+    }
+    if (isObject(value)) {
+      if (typeof value.path !== "string" || !value.path.trim()) return { error: "source mapping needs a non-empty path" };
+      return { path: value.path.trim(), line: Number.isInteger(value.line) ? value.line : null, quote: typeof value.quote === "string" && value.quote.trim() ? value.quote.trim() : null };
+    }
+    return { error: "source must be a string or a mapping with path" };
+  }
+  function sourcePathProblem(path) {
+    const text = String(path).trim().replaceAll("\\", "/");
+    if (/^[A-Za-z][A-Za-z0-9+.-]*:\/\//.test(text)) return "is a URL, not a project file";
+    if (text.startsWith("/") || text.startsWith("~") || /^[A-Za-z]:/.test(text)) return "is absolute; name it relative to the project root";
+    const parts = text.split("/").filter(part => part !== "" && part !== ".");
+    let depth = 0;
+    for (const part of parts) { depth += part === ".." ? -1 : 1; if (depth < 0) return "leaves the project root"; }
+    const lowered = parts.map(part => part.toLowerCase());
+    if (lowered.some(part => SECRET_DIRECTORIES.has(part))) return "is inside a folder that holds credentials or repository internals";
+    const name = lowered.length ? lowered[lowered.length - 1] : "";
+    const secret = "names a file that commonly holds secrets";
+    if (SECRET_FILE_NAMES.has(name) || SECRET_FILE_SUFFIXES.some(suffix => name.endsWith(suffix)) || ["id_rsa", "id_dsa", "id_ecdsa", "id_ed25519"].some(prefix => name.startsWith(prefix))) return secret;
+    if (name.startsWith(".env.") && !SAFE_ENV_SUFFIXES.some(suffix => name.endsWith(suffix))) return secret;
+    if (name.startsWith("secrets.") || name.startsWith("secret.")) return secret;
+    return null;
+  }
+  function collectSources(doc, where = "$", idKeyed = false) {
+    const found = [];
+    if (isObject(doc)) Object.entries(doc).forEach(([key, value]) => {
+      if (key === "source" && !idKeyed) found.push({ ...parseSource(value), where: `${where}.source` });
+      else found.push(...collectSources(value, `${where}.${key}`, !idKeyed && ID_KEYED_MAPS.has(key)));
+    });
+    else if (Array.isArray(doc)) doc.forEach((value, index) => found.push(...collectSources(value, `${where}[${index}]`)));
+    return found;
+  }
+  function lintSources(doc) {
+    return collectSources(doc).filter(entry => !entry.error).flatMap(entry => {
+      const problem = sourcePathProblem(entry.path);
+      return problem ? [finding("source-path-unsafe", `source '${entry.path}' ${problem}`, entry.where)] : [];
+    });
+  }
+  function checkSource(value, path, findings) {
+    const parsed = parseSource(value);
+    if (parsed.error) { findings.push(schema(parsed.error, path)); return; }
+    if (isObject(value)) {
+      checkAdditional(value, new Set(["path", "line", "quote"]), path, findings);
+      if (has(value, "line") && (!Number.isInteger(value.line) || value.line < 1)) findings.push(schema("source line must be a positive integer", pathKey(path, "line")));
+      if (has(value, "quote") && (typeof value.quote !== "string" || !value.quote.trim())) findings.push(schema("source quote must be a non-empty string", pathKey(path, "quote")));
+    }
+  }
+
   function schemaPass(doc) {
     const findings = [];
     if (!isObject(doc)) return [schema("must be an object")];
@@ -386,7 +450,7 @@
       const entryPath = pathKey(pathKey("$", "catalog"), id);
       if (!idValid(id)) findings.push(schema("catalog keys must be valid ids", entryPath));
       if (!isObject(entry)) { findings.push(schema("catalog entry must be an object", entryPath)); return; }
-      checkAdditional(entry, new Set(["label", "type", "kind", "detail", "size", "level", "contains", "navigateTo", "ops"]), entryPath, findings);
+      checkAdditional(entry, new Set(["label", "type", "kind", "detail", "size", "level", "contains", "navigateTo", "ops", "source"]), entryPath, findings);
       if (typeof entry.label !== "string" || !entry.label.length) findings.push(schema("catalog entry requires a non-empty label", pathKey(entryPath, "label")));
       const registeredTypes = new Set(Object.keys(doc.meta?.icons || {}));
       if (!idValid(entry.type) || (!enumValid(entry.type, NODE_TYPES) && !registeredTypes.has(entry.type))) findings.push(schema(`type must be a built-in or registered meta.icons type`, pathKey(entryPath, "type")));
@@ -397,6 +461,7 @@
       if (has(entry, "contains") && !idValid(entry.contains)) findings.push(schema("contains must be a valid id", pathKey(entryPath, "contains")));
       if (has(entry, "navigateTo") && !idValid(entry.navigateTo)) findings.push(schema("navigateTo must be a valid id", pathKey(entryPath, "navigateTo")));
       if (has(entry, "ops") && typeof entry.ops !== "boolean") findings.push(schema("catalog entry ops must be a boolean", pathKey(entryPath, "ops")));
+      if (has(entry, "source")) checkSource(entry.source, pathKey(entryPath, "source"), findings);
     });
     if (has(doc, "canvas")) {
       const canvasPath = pathKey("$", "canvas");
@@ -858,7 +923,7 @@
   function lintPass(doc) {
     const findings = [], hasSystem = has(doc, "system"), hasTransition = has(doc, "transition"), hasSteps = has(doc, "steps"), hasScenarios = has(doc, "scenarios"), hasFlow = has(doc, "flow"), hasViews = has(doc, "views");
     if (!hasSystem && !hasTransition && !hasSteps && !hasScenarios && !hasFlow && !hasViews) findings.push(finding("mode-required", "document has neither system:, transition:, steps:, scenarios:, flow:, nor views:", "$"));
-    findings.push(...lintDuplicateIds(doc), ...lintPackageGraph(doc));
+    findings.push(...lintDuplicateIds(doc), ...lintPackageGraph(doc), ...lintSources(doc));
     const knownIds = collectKnownIds(doc), packageIds = new Set(Object.keys(obj(doc.packages)));
     Object.entries(obj(doc.packages)).forEach(([packageId, pkg]) => (isObject(pkg) ? strs(pkg.children) : []).forEach(child => { if (!knownIds.has(child)) findings.push(finding("unknown-catalog-ref", `package '${packageId}' child '${child}' is not a catalog or package id`, `$.packages.${packageId}.children`)); }));
     if (hasViews) {

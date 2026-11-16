@@ -34,7 +34,7 @@
     const result = {};
     Object.entries(catalog || {}).forEach(([id, source]) => {
       const node = { label: source.label, type: source.type, shape: rendererShape(source.type), kind: source.kind || "existing" };
-      ["detail", "level", "contains", "navigateTo", "ops"].forEach(key => { if (key in source) node[key] = copy(source[key]); });
+      ["detail", "level", "contains", "navigateTo", "ops", "source"].forEach(key => { if (key in source) node[key] = copy(source[key]); });
       if (Array.isArray(source.size)) { node.w = source.size[0]; node.h = source.size[1]; }
       result[id] = node;
     });
@@ -54,7 +54,7 @@
   function copyNode(entry) {
     if (typeof entry === "string") return entry;
     const result = { id: entry.id };
-    ["label", "detail", "kind", "navigateTo", "contains", "ops"].forEach(key => { if (key in entry) result[key] = copy(entry[key]); });
+    ["label", "detail", "kind", "navigateTo", "contains", "ops", "source"].forEach(key => { if (key in entry) result[key] = copy(entry[key]); });
     if (Array.isArray(entry.size)) { result.w = entry.size[0]; result.h = entry.size[1]; }
     return result;
   }
@@ -115,7 +115,7 @@
     };
     const normalizeNode = (step, inheritedKind) => {
       const kind = step.kind || inheritedKind, result = { kind, edges: [] };
-      ["title", "note", "label", "repeat", "navigateTo"].forEach(key => { if (key in step) result[key] = copy(step[key]); });
+      ["title", "note", "label", "repeat", "navigateTo", "source"].forEach(key => { if (key in step) result[key] = copy(step[key]); });
       if (typeof step.edge === "string") result.edges = [normalizeEdge(step.edge, kind, step.repeat)];
       else if (Array.isArray(step.group)) { result.group = true; result.edges = step.group.map(edge => normalizeEdge(edge, kind, step.repeat)); }
       else if (Array.isArray(step.parallel)) {

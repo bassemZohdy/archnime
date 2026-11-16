@@ -25,6 +25,11 @@ is independent of any renderer.
    cd /path/to/archnime-dsl && python3 scripts/validate_transition_diagram.py path/to/diagram.yaml
    ```
    Read `references/validation-and-review.md` for the rule list and exit codes.
+   When the diagram is drawn from code or a document, give each part and line a
+   `source` and check that the code still holds it, from the project root:
+   ```bash
+   python3 /path/to/archnime-dsl/scripts/check_sources.py path/to/diagram.yaml --root .
+   ```
 6. **Deliver.** Hand over the validated YAML plus a short narrative of what it describes and any assumptions or placeholders.
 
 ## Pairing with archnime-renderer
@@ -68,6 +73,7 @@ review the validation report before copying any artifact into the project.
   meshes with irreducible cycles. Use an
   explicit layout only when the presentation constraint is part of the
   diagram's intent; never put renderer coordinates in the DSL.
+- **Sources** tie the drawing to the code: `source` on a catalog entry, node override, wire mapping or flow step names the file (and optionally the line and a few quoted words) behind it, relative to the project root. The validator refuses absolute, root-escaping, `.git` and secret-file paths; `scripts/check_sources.py` reports a source whose file or words are gone.
 - **Boundaries** express ownership, trust, or compliance via `contains`; they are not structural packages and have no renderer coordinates.
 - **Flows** keep one fixed topology and express the narrative separately in ordered `steps`; use `return` only for a reverse of an earlier call, and use `group`/`parallel` when the viewer should see concurrency rather than inventing extra stages.
 - **Steps** are cumulative deltas over a full `base` state. Use `add`, `remove`, and `set`; the translator materializes every result into ordinary full stages so renderer behavior stays identical to `transition:`.

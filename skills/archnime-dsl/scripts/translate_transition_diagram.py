@@ -80,7 +80,7 @@ def _copy_catalog(catalog: dict[str, Any]) -> dict[str, Any]:
             "shape": _renderer_shape(source["type"]),
             "kind": source.get("kind", "existing"),
         }
-        for key in ("detail", "level", "contains", "navigateTo", "ops"):
+        for key in ("detail", "level", "contains", "navigateTo", "ops", "source"):
             if key in source:
                 node[key] = copy.deepcopy(source[key])
         if "size" in source:
@@ -104,7 +104,7 @@ def _copy_node(entry: str | dict[str, Any]) -> str | dict[str, Any]:
     if isinstance(entry, str):
         return entry
     result = {"id": entry["id"]}
-    for key in ("label", "detail", "kind", "navigateTo", "contains", "ops"):
+    for key in ("label", "detail", "kind", "navigateTo", "contains", "ops", "source"):
         if key in entry:
             result[key] = copy.deepcopy(entry[key])
     if "size" in entry:
@@ -209,7 +209,7 @@ def _copy_flow_step(step: dict[str, Any], wires: list[dict[str, Any]], index: in
     def normalize_node(value: dict[str, Any], inherited_kind: str) -> dict[str, Any]:
         kind = value.get("kind", inherited_kind)
         result: dict[str, Any] = {"kind": kind, "edges": []}
-        for key in ("title", "note", "label", "repeat", "navigateTo"):
+        for key in ("title", "note", "label", "repeat", "navigateTo", "source"):
             if key in value:
                 result[key] = copy.deepcopy(value[key])
         if isinstance(value.get("edge"), str):

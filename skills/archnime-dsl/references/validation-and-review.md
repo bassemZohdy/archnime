@@ -107,7 +107,36 @@ missing dependency).
 | `comparison-recommended-unknown` | `meta.comparison.recommended` is not a view id | Name an existing view, or remove it |
 | `comparison-criterion-unknown` | A view's `comparison.tradeoffs` names a criterion that `meta.comparison.criteria` does not declare | Declare the criterion, or correct the key |
 | `comparison-rating-invalid` | A tradeoff `rating` is not a number from 0 to 5 | Use a rating from 0 to 5 |
+| `source-path-unsafe` | A `source` is absolute, a URL, leaves the project root, enters `.git` or a credentials folder (`.ssh`, `.aws`, ...), or names a file that commonly holds secrets (`.env`, `*.pem`, `*.key`, `id_rsa`, `.npmrc`, `credentials`, `secrets.*`) | Name the code file that makes the part or line, relative to the project root; never point a diagram at a secret |
 | `lint-internal-error` | The lint pass hit an unexpected exception on malformed input | Should not happen on a schema-valid document; report it |
+
+## Checking sources against the code
+
+`source` on a catalog entry, node override, wire mapping or flow step names
+the file that backs it: `path`, `path:line`, `path#quoted words`,
+`path:line#quoted words`, or the mapping `{ path, line, quote }`. The
+validator checks only the shape and that the path is safe. Whether the code
+is still there is a separate, file-reading check, run from the project root:
+
+```bash
+python3 scripts/check_sources.py diagram.yaml --root .
+python3 scripts/check_sources.py --format json diagrams/*.yaml
+```
+
+It reports, each with the path of the `source` in the YAML:
+
+- **source-path-unsafe**: as above, plus a path that leaves the root through a
+  link or junction. The file is never opened.
+- **source-missing**: no file at that path any more.
+- **source-line-out-of-range**: the line is past the end of the file.
+- **source-quote-missing**: the quoted words are no longer in the file
+  (runs of whitespace match any whitespace, so re-indenting is not a change).
+
+Only whether each file holds the words is kept; nothing from the files is
+printed. Exit code `1` when anything is reported. The check cannot see what
+the code gained: after it passes, walk the code again for new parts. When it
+fails, find where the code went and move the source, or remove the part or
+line no code backs any more; never delete the `source` to make it pass.
 
 ## Review procedure for an existing document
 

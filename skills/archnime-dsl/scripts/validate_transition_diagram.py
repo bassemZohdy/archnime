@@ -89,7 +89,7 @@ DEFAULT_SCHEMA_PATH = os.path.join(
     os.path.dirname(SCRIPT_DIR), "assets", "schema", "transition-diagram.schema.yaml"
 )
 
-NODE_OVERRIDE_ALLOWED_FIELDS = {"id", "label", "detail", "kind", "size", "navigateTo", "ops"}
+NODE_OVERRIDE_ALLOWED_FIELDS = {"id", "label", "detail", "kind", "size", "navigateTo", "ops", "source"}
 BUILTIN_NODE_TYPES = {"actor", "service", "gateway", "agent", "database", "cache", "queue", "topic", "external", "security", "package"}
 
 
@@ -186,6 +186,95 @@ def load_document(path: str) -> Any:
 def load_schema(path: str) -> dict:
     with open(path, "r", encoding="utf-8") as f:
         return yaml.load(f, Loader=UniqueKeySafeLoader)
+
+
+SOURCE_STRING_RE = re.compile(r'^(?P<path>[^#]+?)(?::(?P<line>[1-9][0-9]*))?(?:#(?P<quote>.+))?$')
+SECRET_FILE_NAMES = {
+    ".env", ".npmrc", ".pypirc", ".netrc", ".git-credentials", ".htpasswd", ".pgpass",
+    "credentials", "credentials.json", "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519",
+}
+SECRET_FILE_SUFFIXES = (".pem", ".key", ".p12", ".pfx", ".jks", ".keystore", ".kdbx", ".asc", ".gpg")
+SECRET_DIRECTORIES = {".git", ".ssh", ".aws", ".gnupg", ".azure", ".kube", ".docker"}
+SAFE_ENV_SUFFIXES = (".example", ".sample", ".template", ".dist")
+
+
+def parse_source(value) -> dict:
+    """A `source` value as {path, line, quote}, or {error} when its shape is wrong.
+
+    Accepted: "path", "path:42", "path#quoted words", "path:42#quoted words",
+    or a mapping {path, line?, quote?}."""
+    if isinstance(value, str):
+        m = SOURCE_STRING_RE.match(value.strip())
+        if not m or not m.group("path").strip():
+            return {"error": f"source {value!r} is not path[:line][#quoted words]"}
+        quote = m.group("quote")
+        return {"path": m.group("path").strip(), "line": int(m.group("line")) if m.group("line") else None,
+                "quote": quote.strip() if quote and quote.strip() else None}
+    if isinstance(value, dict):
+        path, line, quote = value.get("path"), value.get("line"), value.get("quote")
+        if not isinstance(path, str) or not path.strip():
+            return {"error": "source mapping needs a non-empty path"}
+        return {"path": path.strip(), "line": line if isinstance(line, int) and not isinstance(line, bool) else None,
+                "quote": quote.strip() if isinstance(quote, str) and quote.strip() else None}
+    return {"error": "source must be a string or a mapping with path"}
+
+
+def source_path_problem(path: str) -> str | None:
+    """Why a source path may not be read, or None when it is a plain path inside the project."""
+    text = path.strip().replace("\\", "/")
+    if re.match(r'^[A-Za-z][A-Za-z0-9+.-]*://', text):
+        return "is a URL, not a project file"
+    if text.startswith("/") or text.startswith("~") or re.match(r'^[A-Za-z]:', text):
+        return "is absolute; name it relative to the project root"
+    depth = 0
+    parts = [part for part in text.split("/") if part not in ("", ".")]
+    for part in parts:
+        depth = depth - 1 if part == ".." else depth + 1
+        if depth < 0:
+            return "leaves the project root"
+    lowered = [part.lower() for part in parts]
+    if any(part in SECRET_DIRECTORIES for part in lowered[:-1]) or (lowered and lowered[-1] in SECRET_DIRECTORIES):
+        return "is inside a folder that holds credentials or repository internals"
+    name = lowered[-1] if lowered else ""
+    if name in SECRET_FILE_NAMES or name.endswith(SECRET_FILE_SUFFIXES) or name.startswith(("id_rsa", "id_dsa", "id_ecdsa", "id_ed25519")):
+        return "names a file that commonly holds secrets"
+    if name.startswith(".env.") and not name.endswith(SAFE_ENV_SUFFIXES):
+        return "names a file that commonly holds secrets"
+    if name.startswith("secrets.") or name.startswith("secret."):
+        return "names a file that commonly holds secrets"
+    return None
+
+
+# Mappings whose keys are ids, not fields: a catalog entry may be called "source".
+ID_KEYED_MAPS = {"catalog", "packages", "icons", "infrastructure", "set"}
+
+
+def collect_sources(doc, where: str = "$", id_keyed: bool = False) -> list[dict]:
+    """Every `source` field in the document, parsed, with the path of the object that holds it."""
+    found = []
+    if isinstance(doc, dict):
+        for key, value in doc.items():
+            if key == "source" and not id_keyed:
+                entry = parse_source(value)
+                entry["where"] = f"{where}.source"
+                found.append(entry)
+            else:
+                found += collect_sources(value, f"{where}.{key}", not id_keyed and key in ID_KEYED_MAPS)
+    elif isinstance(doc, list):
+        for index, value in enumerate(doc):
+            found += collect_sources(value, f"{where}[{index}]")
+    return found
+
+
+def _lint_sources(doc: dict) -> list[Finding]:
+    findings = []
+    for entry in collect_sources(doc):
+        if entry.get("error"):
+            continue  # the schema pass reports the shape
+        problem = source_path_problem(entry["path"])
+        if problem:
+            findings.append(Finding("source-path-unsafe", f"source {entry['path']!r} {problem}", entry["where"]))
+    return findings
 
 
 def run_schema_pass(doc: Any, schema: dict) -> list[Finding]:
@@ -856,6 +945,7 @@ def run_lint_pass(doc: dict) -> list[Finding]:
 
     findings += _lint_duplicate_ids(doc)
     findings += _lint_icons_and_node_types(doc)
+    findings += _lint_sources(doc)
     findings += _lint_package_graph(doc)
 
     known_ids = _collect_known_ids(doc)

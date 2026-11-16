@@ -206,6 +206,23 @@ $defs:
       contains: { $ref: "#/$defs/id" }
       navigateTo: { $ref: "#/$defs/id" }
       ops: { type: boolean }
+      source: { $ref: "#/$defs/source" }
+
+  source:
+    description: >-
+      The file that backs a part, a line or a step, relative to the project root: "path",
+      "path:line", "path#quoted words" or "path:line#quoted words", or the same as a mapping.
+      check_sources.py reports a source whose file or words are gone.
+    oneOf:
+      - type: string
+        pattern: '^\s*[^#\s][^#]*(#.+)?$'
+      - type: object
+        required: [path]
+        additionalProperties: false
+        properties:
+          path: { type: string, pattern: '\S' }
+          line: { type: integer, minimum: 1 }
+          quote: { type: string, pattern: '\S' }
 
   iconDefinition:
     oneOf:
@@ -274,6 +291,7 @@ $defs:
         minItems: 2
         maxItems: 2
       navigateTo: { $ref: "#/$defs/id" }
+      source: { $ref: "#/$defs/source" }
 
   nodeRef:
     oneOf:
@@ -295,6 +313,7 @@ $defs:
       offset: { type: number }
       priority: { type: number }
       ops: { type: boolean }
+      source: { $ref: "#/$defs/source" }
 
   wire:
     oneOf:
@@ -561,6 +580,7 @@ $defs:
       kind: { type: string, enum: [call, return, async, loop] }
       repeat: { type: string }
       navigateTo: { $ref: "#/$defs/id" }
+      source: { $ref: "#/$defs/source" }
     oneOf:
       - required: [edge]
       - required: [group]
