@@ -111,6 +111,11 @@
       "orthogonal": 0,
       "direct": 0
     },
+    "dsl/agent-refusal-flow": {
+      "curved": 0,
+      "orthogonal": 0,
+      "direct": 0
+    },
     "dsl/comparison-views": {
       "curved": 0,
       "orthogonal": 0,
