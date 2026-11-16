@@ -11,8 +11,8 @@ interview -> DSL source -> renderer model -> HTML bundle -> documentation snapsh
 ## The scanner
 
 ```bash
-python architecture-diagram/scripts/workspace_state.py --root . --format text
-python architecture-diagram/scripts/workspace_state.py --root . --format json
+python skills/architecture-diagram/scripts/workspace_state.py --root . --format text
+python skills/architecture-diagram/scripts/workspace_state.py --root . --format json
 ```
 
 It only reads. It finds DSL sources (any YAML or JSON with a `dsl: transition-diagram/` header),
@@ -33,8 +33,8 @@ Per source it reports one state, the owning skill and the exact command:
 
 The workspace's `next` step is the most urgent state any source is in. After each step the agent
 scans again; the work is done when the scan says `complete` and the validation skill has reported.
-The full state machine is in `architecture-diagram/references/state-machine.md`, and
-`architecture-diagram/tests/` keeps the scanner and the skill's routing table in step.
+The full state machine is in `skills/architecture-diagram/references/state-machine.md`, and
+`skills/architecture-diagram/tests/` keeps the scanner and the skill's routing table in step.
 
 ## Install
 

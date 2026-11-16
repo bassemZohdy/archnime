@@ -8,13 +8,13 @@
   "scripts": {
     "python": "node scripts/run_python.mjs",
     "check-skills": "npm run python -- scripts/check_skill_structure.py",
-    "check-fonts": "node architecture-diagram-renderer/scripts/gen_font_assets.mjs --check",
-    "check-integrity": "node architecture-diagram-renderer/tests/script_integrity_check.mjs",
-    "regen-fixtures": "npm run python -- architecture-diagram-renderer/scripts/regen_fixtures.py --write",
-    "check-fixtures": "npm run python -- architecture-diagram-renderer/scripts/regen_fixtures.py",
-    "test:python": "npm run python -- -m unittest discover -s architecture-diagram-dsl/tests -q && npm run python -- -m unittest discover -s architecture-diagram-interview/tests -q && npm run python -- -m unittest discover -s architecture-diagram-renderer/tests -p test_*.py -q && npm run python -- -m unittest discover -s architecture-diagram-validation/tests -p test_*.py -q && npm run python -- -m unittest discover -s architecture-diagram/tests -p test_*.py -q",
-    "test:documentation": "node --test \"architecture-diagram-renderer/tests/*.test.mjs\"",
-    "test:browser": "node architecture-diagram-dsl/tests/browser_validator_check.mjs && node architecture-diagram-renderer/tests/translate_check.mjs && node architecture-diagram-renderer/tests/element_check.mjs && node architecture-diagram-renderer/tests/test_system_layout_check.mjs && node architecture-diagram-renderer/tests/routing_stability_check.mjs && node architecture-diagram-renderer/tests/route_fallback_check.mjs && node architecture-diagram-renderer/tests/link_safety_check.mjs && npm run test:documentation && node architecture-diagram-renderer/tests/render_check.mjs",
+    "check-fonts": "node skills/architecture-diagram-renderer/scripts/gen_font_assets.mjs --check",
+    "check-integrity": "node skills/architecture-diagram-renderer/tests/script_integrity_check.mjs",
+    "regen-fixtures": "npm run python -- skills/architecture-diagram-renderer/scripts/regen_fixtures.py --write",
+    "check-fixtures": "npm run python -- skills/architecture-diagram-renderer/scripts/regen_fixtures.py",
+    "test:python": "npm run python -- -m unittest discover -s skills/architecture-diagram-dsl/tests -q && npm run python -- -m unittest discover -s skills/architecture-diagram-interview/tests -q && npm run python -- -m unittest discover -s skills/architecture-diagram-renderer/tests -p test_*.py -q && npm run python -- -m unittest discover -s skills/architecture-diagram-validation/tests -p test_*.py -q && npm run python -- -m unittest discover -s skills/architecture-diagram/tests -p test_*.py -q",
+    "test:documentation": "node --test \"skills/architecture-diagram-renderer/tests/*.test.mjs\"",
+    "test:browser": "node skills/architecture-diagram-dsl/tests/browser_validator_check.mjs && node skills/architecture-diagram-renderer/tests/translate_check.mjs && node skills/architecture-diagram-renderer/tests/element_check.mjs && node skills/architecture-diagram-renderer/tests/test_system_layout_check.mjs && node skills/architecture-diagram-renderer/tests/routing_stability_check.mjs && node skills/architecture-diagram-renderer/tests/route_fallback_check.mjs && node skills/architecture-diagram-renderer/tests/link_safety_check.mjs && npm run test:documentation && node skills/architecture-diagram-renderer/tests/render_check.mjs",
     "test": "npm run check-skills && npm run check-fonts && npm run check-integrity && npm run check-fixtures && npm run test:python && npm run test:browser"
   },
   "devDependencies": {

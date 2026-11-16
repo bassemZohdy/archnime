@@ -1,0 +1,5 @@
+{
+  "name": "diagram-skills",
+  "version": "1.0.0",
+  "description": "Architecture-diagram agent skills: interview, validated YAML source, interactive HTML presenter, documentation-safe SVG exports and validation."
+}

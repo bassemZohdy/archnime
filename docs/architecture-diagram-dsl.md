@@ -7,8 +7,8 @@ multi-view bundle) for architecture snapshots, migrations, flows, and
 deployment placement. The deliverable is one validated YAML document; this
 skill does not render a diagram.
 
-- **Skill directory:** [`architecture-diagram-dsl/`](../architecture-diagram-dsl/)
-- **Entry file:** [`SKILL.md`](../architecture-diagram-dsl/SKILL.md)
+- **Skill directory:** [`skills/architecture-diagram-dsl/`](../skills/architecture-diagram-dsl/)
+- **Entry file:** [`SKILL.md`](../skills/architecture-diagram-dsl/SKILL.md)
 - **Pairs with:** [`architecture-diagram-renderer`](architecture-diagram-renderer.md),
   which turns the validated model into an interactive HTML/D3 derivative using
   the shared IDs and semantics. The renderer owns layout-only geometry, bounded
@@ -41,7 +41,7 @@ versioned `views:` array over shared `catalog` and `packages`; it may include
 `mode: deployment` for physical placement. A comparison is represented by
 the same v2 views plus `meta.comparison`, rather than a separate root mode.
 See
-[`references/composition.md`](../architecture-diagram-dsl/references/composition.md).
+[`references/composition.md`](../skills/architecture-diagram-dsl/references/composition.md).
 
 ## 3. Vocabulary at a glance
 
@@ -78,19 +78,19 @@ wires:
   - "security: gateway -> idp: token check"
 ```
 
-See [`references/wire-shorthand.md`](../architecture-diagram-dsl/references/wire-shorthand.md) in the skill directory for the full grammar.
+See [`references/wire-shorthand.md`](../skills/architecture-diagram-dsl/references/wire-shorthand.md) in the skill directory for the full grammar.
 
 ## 5. Validating a document
 
 ```bash
-python3 architecture-diagram-dsl/scripts/validate_transition_diagram.py path/to/diagram.yaml
+python3 skills/architecture-diagram-dsl/scripts/validate_transition_diagram.py path/to/diagram.yaml
 ```
 
 Two passes -- JSON Schema (Draft 2020-12) for structure and types, then a
 referential lint pass (dangling ids, duplicate ids, wire-shorthand
 parsing, frozen-field overrides, and more) for what schema can't express.
 Exit codes: `0` clean, `1` errors found, `2` usage/tooling error. Full
-rule table in [`references/validation-and-review.md`](../architecture-diagram-dsl/references/validation-and-review.md).
+rule table in [`references/validation-and-review.md`](../skills/architecture-diagram-dsl/references/validation-and-review.md).
 
 Dependencies: `pyyaml`, `jsonschema>=4.18` -- identical to what
 `open-workflow-dsl`'s validator already requires.
@@ -98,8 +98,8 @@ Dependencies: `pyyaml`, `jsonschema>=4.18` -- identical to what
 To create the renderer derivative after validation:
 
 ```bash
-python3 architecture-diagram-dsl/scripts/translate_transition_diagram.py path/to/diagram.yaml --output path/to/diagram.model.json
-python3 architecture-diagram-renderer/scripts/build_bundle.py --template architecture-diagram-renderer/assets/template.html --model path/to/diagram.model.json --output path/to/diagram.html
+python3 skills/architecture-diagram-dsl/scripts/translate_transition_diagram.py path/to/diagram.yaml --output path/to/diagram.model.json
+python3 skills/architecture-diagram-renderer/scripts/build_bundle.py --template skills/architecture-diagram-renderer/assets/template.html --model path/to/diagram.model.json --output path/to/diagram.html
 ```
 
 The translator preserves semantic identities, normalizes wire shorthand,

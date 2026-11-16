@@ -25,7 +25,7 @@ Eclipse Public License 2.0, whose text is `elkjs.LICENSE.md`. It is distributed 
 
 1. Change the pinned URL and hash in `../cdn-integrity.json` (and the `<script>` tags).
 2. Update the version in `../../scripts/vendor_assets.mjs`.
-3. Run `node architecture-diagram-renderer/scripts/vendor_assets.mjs`: it refuses any download
+3. Run `node skills/architecture-diagram-renderer/scripts/vendor_assets.mjs`: it refuses any download
    whose SHA-384 differs from the pinned value, then rewrites the files, licences and manifest.
 
 `.gitattributes` marks this directory `-text` so git never converts line endings: that would

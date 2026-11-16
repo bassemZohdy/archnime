@@ -5,8 +5,8 @@ Build a browser-only **interactive architecture diagram** — an HTML page
 system, a current-state → target-state transition, a fixed-topology flow
 walkthrough, or a v2 multi-view bundle with deployment placement.
 
-- **Skill directory:** [`architecture-diagram-renderer/`](../architecture-diagram-renderer/)
-- **Entry file:** [`SKILL.md`](../architecture-diagram-renderer/SKILL.md)
+- **Skill directory:** [`skills/architecture-diagram-renderer/`](../skills/architecture-diagram-renderer/)
+- **Entry file:** [`SKILL.md`](../skills/architecture-diagram-renderer/SKILL.md)
 - **Not for:** static diagrams (use a diagramming tool) or numeric charts (use a
   charting library).
 
@@ -33,7 +33,7 @@ The handover also lists the CDN dependencies, any placeholders and assumptions,
 the selected layout engine, and the browser used for validation. For repeatable
 generation, `scripts/build_bundle.py` embeds the portable JSON in the canonical
 template without copying or rewriting renderer logic. For YAML authors, use
-[`assets/translate.html`](../architecture-diagram-renderer/assets/translate.html)
+[`assets/translate.html`](../skills/architecture-diagram-renderer/assets/translate.html)
 to parse, structurally validate, geometry-check, and download an HTML result in
 the browser; serve the repository over localhost when the page needs to fetch
 its template and sidecars.
@@ -145,8 +145,8 @@ shadow root so multiple diagrams can coexist on one page.
 For a reproducible bundle build:
 
 ```bash
-python architecture-diagram-renderer/scripts/build_bundle.py \
-  --template architecture-diagram-renderer/assets/template.html \
+python skills/architecture-diagram-renderer/scripts/build_bundle.py \
+  --template skills/architecture-diagram-renderer/assets/template.html \
   --model path/to/model.json \
   --output path/to/diagram.html
 ```
@@ -325,7 +325,7 @@ deterministic lane offset even when their authored offset is zero, so distinct
 types and directions cannot paint over one another.
 
 Full schema and migration patterns:
-[`references/data-model.md`](../architecture-diagram-renderer/references/data-model.md).
+[`references/data-model.md`](../skills/architecture-diagram-renderer/references/data-model.md).
 
 ### Fixed flow walkthroughs
 
@@ -398,7 +398,7 @@ label lanes; the best trial is retained and a clear trial stops early. The
 default is 12 trials per scenario (hard cap 32), and the scenario matrix is
 capped separately (default 20, hard cap 32). Positions remain deterministic —
 reloading produces the identical layout. See
-[`references/layout.md`](../architecture-diagram-renderer/references/layout.md).
+[`references/layout.md`](../skills/architecture-diagram-renderer/references/layout.md).
 
 The stage's fully expanded ("master") layout is solved once; its leaf positions
 seed every other expansion state (and a collapsed package is seeded at its
@@ -472,7 +472,7 @@ re-renders reuse it; only stage nav and package expand/collapse re-solve.
   static embedding artifact for Markdown/web docs and as the source of a PNG
   fallback for formal documents. Export all relevant stages/views explicitly;
   no SVG image embedding retains the interactive controls. See
-  [documentation-export.md](../architecture-diagram-renderer/references/documentation-export.md).
+  [documentation-export.md](../skills/architecture-diagram-renderer/references/documentation-export.md).
 - **Export** — SVG (lossless source of truth), PNG, JPEG (selected stage +
   current zoom), Animated SVG (all stages as CSS-timed groups), and GIF (the
   staged sequence, capped at `fps` ≤ 12 and `maxDurationMs` ≤ 10 000).
@@ -570,7 +570,7 @@ belongs in `resolveBoundaries`, not in the diagram.
 
 The full manual pass (CDN-missing behaviour, keyed morphing across stages,
 export inspection, viewport sizes, themes, reduced motion) is in
-[`references/validation.md`](../architecture-diagram-renderer/references/validation.md).
+[`references/validation.md`](../skills/architecture-diagram-renderer/references/validation.md).
 
 ## 9. Known limitations
 
@@ -598,7 +598,7 @@ usually the faster real fix once widening stalls.
 ## 10. Files in the skill
 
 ```text
-architecture-diagram-renderer/
+skills/architecture-diagram-renderer/
   SKILL.md
   assets/
     template.html                       the diagram shell + embedded MODEL + DOM/D3 rendering and interaction

@@ -1,0 +1,14 @@
+{
+  "name": "diagram-skills",
+  "displayName": "Diagram Skills",
+  "version": "1.0.0",
+  "description": "Architecture diagrams from conversation to documentation: interview, validated YAML source, interactive HTML presenter, documentation-safe SVG exports and validation.",
+  "author": {
+    "name": "Bassem Zohdy",
+    "url": "https://github.com/bassemZohdy"
+  },
+  "homepage": "https://github.com/bassemZohdy/diagram-skills",
+  "repository": "https://github.com/bassemZohdy/diagram-skills",
+  "license": "Apache-2.0",
+  "keywords": ["architecture", "diagram", "svg", "d3", "documentation", "yaml", "agent-skills"]
+}

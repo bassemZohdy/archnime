@@ -7,7 +7,7 @@ for semantic contracts and the renderer for geometry and interaction checks.
 ## Run
 
 From the repository root, use the commands in
-[`architecture-diagram-validation/SKILL.md`](../architecture-diagram-validation/SKILL.md).
+[`skills/architecture-diagram-validation/SKILL.md`](../skills/architecture-diagram-validation/SKILL.md).
 The repository gate is `npm test`; browser checks are explicit `SKIP` locally
 when Chromium is unavailable and required in CI.
 

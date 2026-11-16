@@ -1,0 +1,31 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "diagram-skills",
+  "version": "1.0.0",
+  "description": "Architecture diagrams from conversation to documentation: interview, validated YAML source, interactive HTML presenter, documentation-safe SVG exports and validation.",
+  "author": {
+    "name": "Bassem Zohdy",
+    "url": "https://github.com/bassemZohdy"
+  },
+  "homepage": "https://github.com/bassemZohdy/diagram-skills",
+  "repository": "https://github.com/bassemZohdy/diagram-skills",
+  "license": "Apache-2.0",
+  "keywords": ["architecture", "diagram", "svg", "d3", "documentation", "yaml", "agent-skills"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Diagram Skills",
+        "shortDescription": "Architecture diagrams from interview to documentation SVG",
+        "longDescription": "Interview for architecture facts, author a validated YAML model, build an interactive HTML presenter, export documentation-safe SVG and verify the result. The aggregator skill scans the workspace and routes to the step that is next.",
+        "developerName": "Bassem Zohdy",
+        "category": "Productivity",
+        "capabilities": ["Read", "Write"],
+        "websiteURL": "https://github.com/bassemZohdy/diagram-skills",
+        "defaultPrompt": [
+          "Use Diagram Skills to draw the architecture of this project.",
+          "Use Diagram Skills to check where this workspace is in the diagram workflow."
+        ]
+      }
+    }
+  }
+}

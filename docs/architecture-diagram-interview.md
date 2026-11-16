@@ -5,8 +5,8 @@ the right diagram mode has not been chosen. It elicits the smallest useful set
 of facts, makes assumptions visible, and hands a confirmed semantic source to
 the DSL and renderer skills.
 
-- **Skill directory:** [`architecture-diagram-interview/`](../architecture-diagram-interview/)
-- **Entry file:** [`SKILL.md`](../architecture-diagram-interview/SKILL.md)
+- **Skill directory:** [`skills/architecture-diagram-interview/`](../skills/architecture-diagram-interview/)
+- **Entry file:** [`SKILL.md`](../skills/architecture-diagram-interview/SKILL.md)
 - **Pairs with:** [`architecture-diagram-dsl`](architecture-diagram-dsl.md) for
   validation and [`architecture-diagram-renderer`](architecture-diagram-renderer.md)
   for HTML/SVG output.
@@ -50,13 +50,13 @@ must pass before the renderer is offered.
 
 ## 4. Reference material
 
-- [`references/question-banks.md`](../architecture-diagram-interview/references/question-banks.md)
+- [`references/question-banks.md`](../skills/architecture-diagram-interview/references/question-banks.md)
   — mode-specific questions and defaults.
-- [`references/best-practice-nudges.md`](../architecture-diagram-interview/references/best-practice-nudges.md)
+- [`references/best-practice-nudges.md`](../skills/architecture-diagram-interview/references/best-practice-nudges.md)
   — reusable modeling guidance.
-- [`references/output-contract.md`](../architecture-diagram-interview/references/output-contract.md)
+- [`references/output-contract.md`](../skills/architecture-diagram-interview/references/output-contract.md)
   — confirmation and handoff requirements.
-- [`references/comparison.md`](../architecture-diagram-interview/references/comparison.md)
+- [`references/comparison.md`](../skills/architecture-diagram-interview/references/comparison.md)
   — option comparison and ADR handoff.
 
 For a no-touch preview of the full interview-to-render path, pair this skill
