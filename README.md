@@ -1,4 +1,4 @@
-# diagram-skills
+# archnime
 
 Five portable Agent Skills (four domain skills and one aggregator) for **interactive, animated architecture presentations** and **documentation-safe diagram exports**. A single validated YAML architecture model drives semantic validation, rendering, and export.
 
@@ -6,11 +6,11 @@ Five portable Agent Skills (four domain skills and one aggregator) for **interac
 
 | Skill | Responsibility |
 | --- | --- |
-| [architecture-diagram](skills/architecture-diagram/) | Single entry point: scan the workspace, then route to the skill whose turn it is and re-check. |
-| [architecture-diagram-interview](skills/architecture-diagram-interview/) | Elicit architecture facts, boundaries, assumptions, and diagram type. |
-| [architecture-diagram-dsl](skills/architecture-diagram-dsl/) | Author, validate, and translate the renderer-independent YAML source. |
-| [architecture-diagram-renderer](skills/architecture-diagram-renderer/) | Present interactive HTML/D3, animated flows, multi-stage migrations, and SVG/raster exports. |
-| [architecture-diagram-validation](skills/architecture-diagram-validation/) | Validate semantics, layout, interactions, and documentation fidelity. |
+| [archnime](skills/archnime/) | Single entry point: scan the workspace, then route to the skill whose turn it is and re-check. |
+| [archnime-interview](skills/archnime-interview/) | Elicit architecture facts, boundaries, assumptions, and diagram type. |
+| [archnime-dsl](skills/archnime-dsl/) | Author, validate, and translate the renderer-independent YAML source. |
+| [archnime-renderer](skills/archnime-renderer/) | Present interactive HTML/D3, animated flows, multi-stage migrations, and SVG/raster exports. |
+| [archnime-validation](skills/archnime-validation/) | Validate semantics, layout, interactions, and documentation fidelity. |
 
 **Pipeline:** interview → canonical DSL → validate/translate → interactive HTML → documentation-safe SVG.
 
@@ -18,19 +18,19 @@ The canonical DSL, not any SVG geometry, is the architecture source of truth. Th
 
 ## Install
 
-This repository is one plugin, `diagram-skills`, that holds all five skills in `skills/<name>/SKILL.md`. Install it with the tool you use; every route installs the same skills.
+This repository is one plugin, `archnime`, that holds all five skills in `skills/<name>/SKILL.md`. Install it with the tool you use; every route installs the same skills.
 
 | Tool | Install |
 | --- | --- |
-| Claude Code | `/plugin install diagram-skills --marketplace bassemZohdy/diagram-skills` (Claude Code 2.1.275 or later), or `/plugin marketplace add bassemZohdy/diagram-skills` then `/plugin install diagram-skills@diagram-skills` |
-| Codex | `codex plugin marketplace add bassemZohdy/diagram-skills`, then install `diagram-skills` from the plugin directory |
+| Claude Code | `/plugin install archnime --marketplace bassemZohdy/diagram-skills` (Claude Code 2.1.275 or later), or `/plugin marketplace add bassemZohdy/diagram-skills` then `/plugin install archnime@archnime` |
+| Codex | `codex plugin marketplace add bassemZohdy/diagram-skills`, then install `archnime` from the plugin directory |
 | Gemini CLI | `gemini extensions install https://github.com/bassemZohdy/diagram-skills` |
 | Cursor and other Agent Plugins hosts | Add `https://github.com/bassemZohdy/diagram-skills` as a plugin source; the root `plugin.json` follows the [Agent Plugins](https://agent-plugins.org/) standard |
 | Any Agent Skills tool | `npx skills add bassemZohdy/diagram-skills` |
 
 Evidence, so you know what was run: `claude plugin validate . --strict` passes for the plugin and for `.claude-plugin/marketplace.json`; `codex plugin marketplace add` accepts `.agents/plugins/marketplace.json` and lists it; `gemini extensions validate .` passes. Installing from a published copy into Cursor was not run, so that route follows the vendor documentation only.
 
-Commands inside each `SKILL.md` and its `references/` are written relative to the folder that holds the skills (`skills/` in this repository, the skills install folder elsewhere), so `architecture-diagram-dsl/scripts/...` works in both places. Commands in this README and in `docs/` are relative to the repository root.
+Commands inside each `SKILL.md` and its `references/` are written relative to the folder that holds the skills (`skills/` in this repository, the skills install folder elsewhere), so `archnime-dsl/scripts/...` works in both places. Commands in this README and in `docs/` are relative to the repository root.
 
 ## Repository layout
 
@@ -55,9 +55,9 @@ python -m pip install -r requirements-dev.txt
 npm ci
 npx playwright install chromium
 
-python skills/architecture-diagram-dsl/scripts/validate_transition_diagram.py skills/architecture-diagram-dsl/assets/examples/checkout-flow.yaml
-python skills/architecture-diagram-dsl/scripts/translate_transition_diagram.py skills/architecture-diagram-dsl/assets/examples/checkout-flow.yaml --output checkout-model.json
-python skills/architecture-diagram-renderer/scripts/build_bundle.py --template skills/architecture-diagram-renderer/assets/template.html --model checkout-model.json --output checkout.html
+python skills/archnime-dsl/scripts/validate_transition_diagram.py skills/archnime-dsl/assets/examples/checkout-flow.yaml
+python skills/archnime-dsl/scripts/translate_transition_diagram.py skills/archnime-dsl/assets/examples/checkout-flow.yaml --output checkout-model.json
+python skills/archnime-renderer/scripts/build_bundle.py --template skills/archnime-renderer/assets/template.html --model checkout-model.json --output checkout.html
 ```
 
 Open `checkout.html` in a browser. By default it loads pinned D3/ELK/Dagre/GIF runtime scripts over the network; `--inline` only inlines the renderer's local sidecars and is **not** a fully offline bundle.
@@ -66,7 +66,7 @@ Open `checkout.html` in a browser. By default it loads pinned D3/ELK/Dagre/GIF r
 
 Use **interactive HTML** for live demonstrations and drill-down. In the HTML export menu use **SVG (documentation)** for a static, zoom-independent SVG with embedded font data, a bounded viewBox, and an opaque background. Keep the viewer link alongside README diagrams; **embedded SVG images cannot provide the HTML interaction controls**. Export each important stage/view separately for formal documents. Animated SVG is available but needs destination-specific compatibility checks.
 
-See [documentation-export.md](skills/architecture-diagram-renderer/references/documentation-export.md) and [the renderer guide](docs/architecture-diagram-renderer.md).
+See [documentation-export.md](skills/archnime-renderer/references/documentation-export.md) and [the renderer guide](docs/archnime-renderer.md).
 
 ## Work tracking
 
@@ -86,4 +86,4 @@ npm run check-fonts
 
 ## License
 
-This repository's original scaffold and new integration files are MIT licensed under [LICENSE](LICENSE). The architecture-diagram skills and their migrated implementation are Apache-2.0 licensed under [LICENSE-APACHE-2.0](LICENSE-APACHE-2.0) and each `SKILL.md` declares the same. The embedded Inter font is under the SIL Open Font License (see [font license](skills/architecture-diagram-renderer/assets/fonts/LICENSE-Inter-OFL.txt)). Preserve these notices when distributing artifacts.
+This repository's original scaffold and new integration files are MIT licensed under [LICENSE](LICENSE). The architecture-diagram skills and their migrated implementation are Apache-2.0 licensed under [LICENSE-APACHE-2.0](LICENSE-APACHE-2.0) and each `SKILL.md` declares the same. The embedded Inter font is under the SIL Open Font License (see [font license](skills/archnime-renderer/assets/fonts/LICENSE-Inter-OFL.txt)). Preserve these notices when distributing artifacts.

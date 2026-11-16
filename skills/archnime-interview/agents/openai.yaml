@@ -1,0 +1,4 @@
+interface:
+  display_name: "Architecture Diagram Interview"
+  short_description: "Elicit architecture facts and hand off validated diagram YAML"
+  default_prompt: "Use $archnime-interview to help me describe my architecture and produce validated diagram YAML."

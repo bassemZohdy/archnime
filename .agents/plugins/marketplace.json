@@ -1,11 +1,11 @@
 {
-  "name": "diagram-skills",
+  "name": "archnime",
   "interface": {
-    "displayName": "Diagram Skills"
+    "displayName": "Archnime"
   },
   "plugins": [
     {
-      "name": "diagram-skills",
+      "name": "archnime",
       "source": {
         "source": "local",
         "path": "./"

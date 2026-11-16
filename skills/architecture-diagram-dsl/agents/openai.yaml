@@ -1,4 +1,0 @@
-interface:
-  display_name: "Architecture Diagram DSL"
-  short_description: "Author and validate architecture-diagram YAML"
-  default_prompt: "Use $architecture-diagram-dsl to write and validate renderer-independent architecture-diagram YAML for this system."
