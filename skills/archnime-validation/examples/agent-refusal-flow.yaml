@@ -1,0 +1,80 @@
+dsl: transition-diagram/1.0
+
+meta:
+  title: Support agent answers a question
+  subtitle: An agent retrieves context, asks a hosted model and calls a tool; the policy check refuses one request
+  layout: auto
+  direction: LR
+  levels: [Container]
+  flow:
+    intro: true
+    autoAdvanceMs: 1200
+    loop: false
+
+catalog:
+  user:
+    label: Customer
+    type: actor
+    kind: existing
+  agent:
+    label: Support agent
+    type: agent
+    kind: new
+    detail: plans the answer
+  guard:
+    label: Policy check
+    type: security
+    kind: security
+    detail: blocks refunds over the limit
+  index:
+    label: Help-centre index
+    type: vector-store
+    kind: new
+    detail: article embeddings
+  model:
+    label: Hosted model
+    type: llm
+    kind: existing
+    variant: external
+    detail: run by the model provider
+  refunds:
+    label: Refund tool
+    type: tool
+    kind: new
+    detail: issues a refund
+
+flow:
+  title: One support question
+  summary: The agent grounds the answer in the help centre, asks the model, and the policy check refuses a refund the user may not get.
+  callout: A refused call comes back with a cross instead of an arrow.
+  nodes: [user, agent, index, model, guard, refunds]
+  wires:
+    - "user => agent: question"
+    - "agent => index: similar articles"
+    - "agent => model: prompt + articles"
+    - "agent -> guard: refund request"
+    - "guard => refunds: approved refund"
+  steps:
+    - title: Ask
+      edge: "user => agent"
+      note: The customer asks for a refund.
+    - title: Retrieve
+      edge: "agent => index"
+      note: The agent looks up the closest help-centre articles.
+    - title: Articles back
+      edge: "index => agent"
+      kind: return
+    - title: Draft the answer
+      edge: "agent => model"
+      note: The hosted model drafts a reply from the articles.
+    - title: Draft back
+      edge: "model => agent"
+      kind: return
+    - title: Request the refund
+      edge: "agent -> guard"
+      note: The agent asks the policy check before calling the refund tool.
+    - title: Refused
+      edge: "guard -> agent"
+      kind: refused
+      label: over limit
+      note: The amount is over the limit, so the tool is never called.
