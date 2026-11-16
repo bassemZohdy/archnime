@@ -152,6 +152,34 @@ $defs:
         properties:
           fps: { type: number, exclusiveMinimum: 0, maximum: 12 }
           maxDurationMs: { type: number, exclusiveMinimum: 0, maximum: 10000 }
+      reader:
+        description: >-
+          The reader contract: who reads the diagram, the 3 to 5 questions they must answer
+          from it alone, the one idea it must make obvious, and what is left out on purpose.
+        type: object
+        required: [audience, questions]
+        additionalProperties: false
+        properties:
+          audience: { type: string, minLength: 1 }
+          questions:
+            type: array
+            items: { type: string, minLength: 1 }
+            minItems: 1
+          idea: { type: string, minLength: 1 }
+          omitted:
+            type: array
+            items: { type: string, minLength: 1 }
+      evidence:
+        description: Where the facts come from; code and document require a source on every part and wire.
+        type: string
+        enum: [code, document, interview]
+      density:
+        description: Raise the per-state budget of 12 nodes and 16 wires knowingly.
+        type: object
+        additionalProperties: false
+        properties:
+          nodes: { type: integer, minimum: 1 }
+          wires: { type: integer, minimum: 1 }
 
   canvas:
     type: object

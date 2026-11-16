@@ -277,6 +277,80 @@ def _lint_sources(doc: dict) -> list[Finding]:
     return findings
 
 
+DENSITY_DEFAULT = {"nodes": 12, "wires": 16}
+# Parts no file backs: a person, a browser, a system the project calls but does not own.
+EVIDENCE_EXEMPT_TYPES = {"actor", "external"}
+
+
+def _lint_reader(doc: dict) -> list[Finding]:
+    reader = _map(doc.get("meta")).get("reader")
+    if not isinstance(reader, dict):
+        return []
+    findings, path = [], "$.meta.reader"
+    questions = [q for q in _seq(reader.get("questions")) if isinstance(q, str) and q.strip()]
+    if not 3 <= len(questions) <= 5:
+        findings.append(Finding("reader-contract-incomplete", f"reader has {len(questions)} question(s); write the 3 to 5 questions the reader must answer from the diagram alone", f"{path}.questions", "warning"))
+    if not (isinstance(reader.get("idea"), str) and reader["idea"].strip()):
+        findings.append(Finding("reader-contract-incomplete", "reader has no idea: name the one thing the diagram must make obvious", f"{path}.idea", "warning"))
+    return findings
+
+
+def _wire_lists(doc, where: str = "$", parent: str = ""):
+    """Every authored wires list, with its path; removal lists name wires, they do not draw them."""
+    if isinstance(doc, dict):
+        for key, value in doc.items():
+            if key == "wires" and isinstance(value, list) and parent != "remove":
+                yield f"{where}.wires", value
+            elif key not in ID_KEYED_MAPS:
+                yield from _wire_lists(value, f"{where}.{key}", key)
+    elif isinstance(doc, list):
+        for index, value in enumerate(doc):
+            yield from _wire_lists(value, f"{where}[{index}]", parent)
+
+
+def _lint_evidence(doc: dict) -> list[Finding]:
+    evidence = _map(doc.get("meta")).get("evidence")
+    if evidence not in ("code", "document"):
+        return []
+    backing = "file" if evidence == "code" else "sentence"
+    findings = []
+    for node_id, entry in _map(doc.get("catalog")).items():
+        if isinstance(entry, dict) and entry.get("type") not in EVIDENCE_EXEMPT_TYPES and "source" not in entry:
+            findings.append(Finding("evidence-source-missing", f"part {node_id!r} has no source: name the {backing} behind it, or leave it out and report it as a gap", f"$.catalog.{node_id}", "warning"))
+    for where, wires in _wire_lists(doc):
+        for index, wire in enumerate(wires):
+            if isinstance(wire, dict) and "source" in wire:
+                continue
+            label = wire if isinstance(wire, str) else f"{_map(wire).get('from')} -> {_map(wire).get('to')}"
+            findings.append(Finding("evidence-source-missing", f"wire {label!r} has no source: write it as a mapping with the {backing} that makes it", f"{where}[{index}]", "warning"))
+    return findings
+
+
+def _lint_density(doc: dict) -> list[Finding]:
+    budget = dict(DENSITY_DEFAULT)
+    budget.update({k: v for k, v in _map(_map(doc.get("meta")).get("density")).items() if k in budget and isinstance(v, int) and not isinstance(v, bool)})
+    findings = []
+
+    def visit(value, where: str) -> None:
+        if isinstance(value, dict):
+            nodes, wires = value.get("nodes"), value.get("wires")
+            if isinstance(nodes, list) and len(nodes) > budget["nodes"]:
+                findings.append(Finding("density-budget", f"{len(nodes)} nodes is past the budget of {budget['nodes']}: merge parts with the same relations, use packages or split into views (or raise meta.density.nodes)", f"{where}.nodes", "warning"))
+            if isinstance(nodes, list) and isinstance(wires, list) and len(wires) > budget["wires"]:
+                findings.append(Finding("density-budget", f"{len(wires)} wires is past the budget of {budget['wires']}: merge lines with the same meaning or split into views (or raise meta.density.wires)", f"{where}.wires", "warning"))
+            for key, child in value.items():
+                if key not in ID_KEYED_MAPS and key not in ("add", "remove"):
+                    visit(child, f"{where}.{key}")
+        elif isinstance(value, list):
+            for index, child in enumerate(value):
+                visit(child, f"{where}[{index}]")
+
+    for key in ("system", "transition", "steps", "scenarios", "flow", "views"):
+        if key in doc:
+            visit(doc[key], f"$.{key}")
+    return findings
+
+
 def run_schema_pass(doc: Any, schema: dict) -> list[Finding]:
     validator_cls = jsonschema.validators.validator_for(schema)
     validator_cls.check_schema(schema)
@@ -946,6 +1020,9 @@ def run_lint_pass(doc: dict) -> list[Finding]:
     findings += _lint_duplicate_ids(doc)
     findings += _lint_icons_and_node_types(doc)
     findings += _lint_sources(doc)
+    findings += _lint_reader(doc)
+    findings += _lint_evidence(doc)
+    findings += _lint_density(doc)
     findings += _lint_package_graph(doc)
 
     known_ids = _collect_known_ids(doc)

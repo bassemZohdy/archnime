@@ -1,0 +1,21 @@
+# Thirteen nodes in one state: past the budget of twelve.
+dsl: transition-diagram/1.0
+meta: {title: Too dense}
+catalog:
+  n0: {label: N0, type: service}
+  n1: {label: N1, type: service}
+  n2: {label: N2, type: service}
+  n3: {label: N3, type: service}
+  n4: {label: N4, type: service}
+  n5: {label: N5, type: service}
+  n6: {label: N6, type: service}
+  n7: {label: N7, type: service}
+  n8: {label: N8, type: service}
+  n9: {label: N9, type: service}
+  n10: {label: N10, type: service}
+  n11: {label: N11, type: service}
+  n12: {label: N12, type: service}
+system:
+  title: Too dense
+  nodes: [n0, n1, n2, n3, n4, n5, n6, n7, n8, n9, n10, n11, n12]
+  wires: []

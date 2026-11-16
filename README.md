@@ -28,6 +28,14 @@ This repository is one plugin, `archnime`, that holds all five skills in `skills
 | Cursor and other Agent Plugins hosts | Add `https://github.com/bassemZohdy/diagram-skills` as a plugin source; the root `plugin.json` follows the [Agent Plugins](https://agent-plugins.org/) standard |
 | Any Agent Skills tool | `npx skills add bassemZohdy/diagram-skills` |
 
+### One command, no plugin system
+
+```bash
+npx --yes github:bassemZohdy/diagram-skills
+```
+
+This copies the five skills into `~/.claude/skills` (Claude Code, for you). Add `--project` for `./.claude/skills` (this project only), `--target agents` for `~/.agents/skills` (tools that read the shared Agent Skills folder), `--dest <folder>` for any other skills folder, and `--dry-run` to see what would be copied. It copies each skill without its tests, replaces only folders an earlier run of it wrote (`--force` to replace others), downloads nothing beyond the package itself, and then tells you whether Python with `pyyaml` and `jsonschema` is ready. From a clone, `node scripts/install.mjs` does the same. Tested: a dry run and an install into a temporary folder (`npm run test:install`) and `npx` on a local checkout; the `github:` form runs the same `bin` once the branch is pushed.
+
 Evidence, so you know what was run: `claude plugin validate . --strict` passes for the plugin and for `.claude-plugin/marketplace.json`; `codex plugin marketplace add` accepts `.agents/plugins/marketplace.json` and lists it; `gemini extensions validate .` passes. Installing from a published copy into Cursor was not run, so that route follows the vendor documentation only.
 
 Commands inside each `SKILL.md` and its `references/` are written relative to the folder that holds the skills (`skills/` in this repository, the skills install folder elsewhere), so `archnime-dsl/scripts/...` works in both places. Commands in this README and in `docs/` are relative to the repository root.
@@ -41,7 +49,7 @@ plugin.json                  Agent Plugins manifest (Codex, Cursor and other hos
 .agents/plugins/             Codex marketplace.json
 gemini-extension.json        Gemini CLI extension manifest (skills/ is discovered automatically)
 docs/                        one guide per skill
-scripts/                     repository checks (check_skill_structure.py also verifies every manifest)
+scripts/                     repository checks (check_skill_structure.py also verifies every manifest) and install.mjs, the one-command installer
 ```
 
 The plugin name and version must be identical in every manifest; `npm run check-skills` fails when they differ. Claude keeps users on the `version` they installed until it changes, so bump it in all manifests when you release.

@@ -1,0 +1,12 @@
+# Drawn from code, yet the service and its wire name no file or line.
+dsl: transition-diagram/1.0
+meta:
+  title: Unbacked part
+  evidence: code
+catalog:
+  web: { label: Browser, type: actor }
+  api: { label: API, type: service }
+system:
+  title: Unbacked part
+  nodes: [web, api]
+  wires: ["web => api: POST /orders"]
