@@ -1,0 +1,153 @@
+{
+  "$comment": "Recorded route-fallback counts per model and wire style (stages x default/all-expanded, summed over views). `crossings` records fallback routes that also cross a node, package, or boundary: known defects (for example CASE-08), ceilings that may only be lowered. Lower a number when a fix removes fallbacks; never raise one to hide a regression. Regenerate with: node skills/archnime-renderer/tests/route_fallback_check.mjs --write-budgets",
+  "budgets": {
+    "examples/boundary-label-collision-model": {
+      "curved": 0,
+      "orthogonal": 0,
+      "direct": 0
+    },
+    "examples/commerce-views": {
+      "curved": 0,
+      "orthogonal": 0,
+      "direct": 0
+    },
+    "examples/comparison-views": {
+      "curved": 0,
+      "orthogonal": 0,
+      "direct": 0
+    },
+    "examples/dense-mesh-model": {
+      "curved": 0,
+      "orthogonal": 0,
+      "direct": 2
+    },
+    "examples/nested-sibling-packages-model": {
+      "curved": 0,
+      "orthogonal": 0,
+      "direct": 12
+    },
+    "examples/portable-transition-model": {
+      "curved": 0,
+      "orthogonal": 0,
+      "direct": 2
+    },
+    "examples/wire-merge-model": {
+      "curved": 0,
+      "orthogonal": 0,
+      "direct": 0
+    },
+    "fixtures/checkout-flow-all-steps": {
+      "curved": 0,
+      "orthogonal": 0,
+      "direct": 0
+    },
+    "fixtures/checkout-flow": {
+      "curved": 0,
+      "orthogonal": 0,
+      "direct": 0
+    },
+    "fixtures/collapse-boundary-chip": {
+      "curved": 0,
+      "orthogonal": 0,
+      "direct": 4
+    },
+    "fixtures/collapse-boundary-venn": {
+      "curved": 0,
+      "orthogonal": 0,
+      "direct": 2
+    },
+    "fixtures/commerce-views": {
+      "curved": 0,
+      "orthogonal": 0,
+      "direct": 0
+    },
+    "fixtures/db-label-placement": {
+      "curved": 0,
+      "orthogonal": 0,
+      "direct": 0
+    },
+    "fixtures/deep-nested-crosscut": {
+      "curved": 0,
+      "orthogonal": 0,
+      "direct": 4
+    },
+    "fixtures/flow-single": {
+      "curved": 0,
+      "orthogonal": 0,
+      "direct": 0
+    },
+    "fixtures/force-mesh-packages": {
+      "curved": 0,
+      "orthogonal": 0,
+      "direct": 4
+    },
+    "fixtures/min-wire-length": {
+      "curved": 0,
+      "orthogonal": 0,
+      "direct": 0
+    },
+    "fixtures/orders-failover-scenarios": {
+      "curved": 0,
+      "orthogonal": 0,
+      "direct": 0
+    },
+    "fixtures/orthogonal-routing": {
+      "curved": 0,
+      "orthogonal": 0,
+      "direct": 2
+    },
+    "fixtures/perspectives": {
+      "curved": 0,
+      "orthogonal": 0,
+      "direct": 0
+    },
+    "fixtures/stage-scoped-collapse": {
+      "curved": 0,
+      "orthogonal": 0,
+      "direct": 0
+    },
+    "fixtures/wire-routing-style": {
+      "curved": 0,
+      "orthogonal": 0,
+      "direct": 0
+    },
+    "dsl/comparison-views": {
+      "curved": 0,
+      "orthogonal": 0,
+      "direct": 0
+    },
+    "dsl/one-shot-checkout": {
+      "curved": 0,
+      "orthogonal": 0,
+      "direct": 0
+    },
+    "dsl/steps-refinement": {
+      "curved": 0,
+      "orthogonal": 0,
+      "direct": 0
+    },
+    "dsl/strangler-migration-steps": {
+      "curved": 0,
+      "orthogonal": 2,
+      "direct": 12,
+      "crossings": {
+        "orthogonal": 2,
+        "direct": 2
+      }
+    },
+    "dsl/strangler-migration": {
+      "curved": 0,
+      "orthogonal": 2,
+      "direct": 12,
+      "crossings": {
+        "orthogonal": 2,
+        "direct": 2
+      }
+    },
+    "dsl/test-system": {
+      "curved": 2,
+      "orthogonal": 0,
+      "direct": 10
+    }
+  }
+}

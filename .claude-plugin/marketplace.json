@@ -1,5 +1,5 @@
 {
-  "name": "diagram-skills",
+  "name": "archnime",
   "description": "Architecture-diagram skills: interview, DSL, renderer, validation and a workspace-aware aggregator.",
   "owner": {
     "name": "Bassem Zohdy",
@@ -7,10 +7,10 @@
   },
   "plugins": [
     {
-      "name": "diagram-skills",
+      "name": "archnime",
       "source": "./",
       "description": "Five Agent Skills that turn a validated YAML architecture model into an interactive presenter and documentation-safe SVG exports.",
-      "version": "1.0.0",
+      "version": "2.0.0",
       "category": "documentation",
       "keywords": ["architecture", "diagram", "svg", "documentation"]
     }

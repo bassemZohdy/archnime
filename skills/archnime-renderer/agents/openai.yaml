@@ -1,0 +1,4 @@
+interface:
+  display_name: "Architecture Diagram Renderer"
+  short_description: "Render interactive architecture diagrams from a model"
+  default_prompt: "Use $archnime-renderer to build an interactive HTML/SVG architecture diagram from this validated model."

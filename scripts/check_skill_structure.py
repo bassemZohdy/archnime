@@ -8,11 +8,11 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 SKILLS_DIR = ROOT / "skills"
 SKILLS = (
-    "architecture-diagram",
-    "architecture-diagram-interview",
-    "architecture-diagram-dsl",
-    "architecture-diagram-renderer",
-    "architecture-diagram-validation",
+    "archnime",
+    "archnime-interview",
+    "archnime-dsl",
+    "archnime-renderer",
+    "archnime-validation",
 )
 
 MANIFESTS = (
@@ -23,7 +23,7 @@ MANIFESTS = (
 
 
 def check_plugin_manifests(failures):
-    """One plugin named diagram-skills, one version, in every tool's manifest and marketplace."""
+    """One plugin named archnime, one version, in every tool's manifest and marketplace."""
     versions = {}
     for relative in MANIFESTS:
         path = ROOT / relative
@@ -32,8 +32,8 @@ def check_plugin_manifests(failures):
         except (OSError, ValueError) as error:
             failures.append(f"{relative}: cannot read manifest ({error})")
             continue
-        if data.get("name") != "diagram-skills":
-            failures.append(f"{relative}: name must be diagram-skills, found {data.get('name')!r}")
+        if data.get("name") != "archnime":
+            failures.append(f"{relative}: name must be archnime, found {data.get('name')!r}")
         versions[relative] = data.get("version")
     marketplaces = {
         ".claude-plugin/marketplace.json": lambda d: d.get("plugins", []),
@@ -45,9 +45,9 @@ def check_plugin_manifests(failures):
         except (OSError, ValueError) as error:
             failures.append(f"{relative}: cannot read marketplace ({error})")
             continue
-        entries = [entry for entry in entries_of(data) if entry.get("name") == "diagram-skills"]
+        entries = [entry for entry in entries_of(data) if entry.get("name") == "archnime"]
         if len(entries) != 1:
-            failures.append(f"{relative}: expected exactly one diagram-skills entry, found {len(entries)}")
+            failures.append(f"{relative}: expected exactly one archnime entry, found {len(entries)}")
             continue
         if "version" in entries[0]:
             versions[relative] = entries[0]["version"]
