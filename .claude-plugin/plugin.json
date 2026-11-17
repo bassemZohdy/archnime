@@ -7,8 +7,8 @@
     "name": "Bassem Zohdy",
     "url": "https://github.com/bassemZohdy"
   },
-  "homepage": "https://github.com/bassemZohdy/diagram-skills",
-  "repository": "https://github.com/bassemZohdy/diagram-skills",
+  "homepage": "https://github.com/bassemZohdy/archnime",
+  "repository": "https://github.com/bassemZohdy/archnime",
   "license": "Apache-2.0",
   "keywords": ["architecture", "diagram", "svg", "d3", "documentation", "yaml", "agent-skills"]
 }

@@ -22,16 +22,16 @@ This repository is one plugin, `archnime`, that holds all five skills in `skills
 
 | Tool | Install |
 | --- | --- |
-| Claude Code | `/plugin install archnime --marketplace bassemZohdy/diagram-skills` (Claude Code 2.1.275 or later), or `/plugin marketplace add bassemZohdy/diagram-skills` then `/plugin install archnime@archnime` |
-| Codex | `codex plugin marketplace add bassemZohdy/diagram-skills`, then install `archnime` from the plugin directory |
-| Gemini CLI | `gemini extensions install https://github.com/bassemZohdy/diagram-skills` |
-| Cursor and other Agent Plugins hosts | Add `https://github.com/bassemZohdy/diagram-skills` as a plugin source; the root `plugin.json` follows the [Agent Plugins](https://agent-plugins.org/) standard |
-| Any Agent Skills tool | `npx skills add bassemZohdy/diagram-skills` |
+| Claude Code | `/plugin install archnime --marketplace bassemZohdy/archnime` (Claude Code 2.1.275 or later), or `/plugin marketplace add bassemZohdy/archnime` then `/plugin install archnime@archnime` |
+| Codex | `codex plugin marketplace add bassemZohdy/archnime`, then install `archnime` from the plugin directory |
+| Gemini CLI | `gemini extensions install https://github.com/bassemZohdy/archnime` |
+| Cursor and other Agent Plugins hosts | Add `https://github.com/bassemZohdy/archnime` as a plugin source; the root `plugin.json` follows the [Agent Plugins](https://agent-plugins.org/) standard |
+| Any Agent Skills tool | `npx skills add bassemZohdy/archnime` |
 
 ### One command, no plugin system
 
 ```bash
-npx --yes github:bassemZohdy/diagram-skills
+npx --yes github:bassemZohdy/archnime
 ```
 
 This copies the five skills into `~/.claude/skills` (Claude Code, for you). Add `--project` for `./.claude/skills` (this project only), `--target agents` for `~/.agents/skills` (tools that read the shared Agent Skills folder), `--dest <folder>` for any other skills folder, and `--dry-run` to see what would be copied. It copies each skill without its tests, replaces only folders an earlier run of it wrote (`--force` to replace others), downloads nothing beyond the package itself, and then tells you whether Python with `pyyaml` and `jsonschema` is ready. From a clone, `node scripts/install.mjs` does the same. Tested: a dry run and an install into a temporary folder (`npm run test:install`) and `npx` on a local checkout; the `github:` form runs the same `bin` once the branch is pushed.

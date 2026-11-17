@@ -7,8 +7,8 @@
     "name": "Bassem Zohdy",
     "url": "https://github.com/bassemZohdy"
   },
-  "homepage": "https://github.com/bassemZohdy/diagram-skills",
-  "repository": "https://github.com/bassemZohdy/diagram-skills",
+  "homepage": "https://github.com/bassemZohdy/archnime",
+  "repository": "https://github.com/bassemZohdy/archnime",
   "license": "Apache-2.0",
   "keywords": ["architecture", "diagram", "svg", "d3", "documentation", "yaml", "agent-skills"],
   "extensions": {
@@ -20,7 +20,7 @@
         "developerName": "Bassem Zohdy",
         "category": "Productivity",
         "capabilities": ["Read", "Write"],
-        "websiteURL": "https://github.com/bassemZohdy/diagram-skills",
+        "websiteURL": "https://github.com/bassemZohdy/archnime",
         "defaultPrompt": [
           "Use Archnime to draw the architecture of this project.",
           "Use Archnime to check where this workspace is in the diagram workflow."

@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /* Install the archnime skills into an agent's skills folder in one command.
  *
- *   npx --yes github:bassemZohdy/diagram-skills                    Claude Code, for this user (~/.claude/skills)
- *   npx --yes github:bassemZohdy/diagram-skills --project          Claude Code, for this project (./.claude/skills)
- *   npx --yes github:bassemZohdy/diagram-skills --target agents    any Agent Skills tool reading ~/.agents/skills
- *   npx --yes github:bassemZohdy/diagram-skills --dest <folder>    any other skills folder
+ *   npx --yes github:bassemZohdy/archnime                    Claude Code, for this user (~/.claude/skills)
+ *   npx --yes github:bassemZohdy/archnime --project          Claude Code, for this project (./.claude/skills)
+ *   npx --yes github:bassemZohdy/archnime --target agents    any Agent Skills tool reading ~/.agents/skills
+ *   npx --yes github:bassemZohdy/archnime --dest <folder>    any other skills folder
  *   ... --dry-run                                                  say what would be copied, copy nothing
  *
  * Copies the five skill folders (SKILL.md, agents/, references/, scripts/, assets/) without their

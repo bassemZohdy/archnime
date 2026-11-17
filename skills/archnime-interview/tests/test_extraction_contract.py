@@ -79,7 +79,7 @@ class ExtractionContract(unittest.TestCase):
         self.assertIn("## Drawing from code or a document", SKILL)
 
     def test_the_readme_documents_the_one_command_install(self) -> None:
-        self.assertIn("npx --yes github:bassemZohdy/diagram-skills", README)
+        self.assertIn("npx --yes github:bassemZohdy/archnime", README)
         for flag in ("--project", "--target agents", "--dest <folder>", "--dry-run"):
             self.assertIn(flag, README)
         self.assertTrue((REPO / "scripts" / "install.mjs").is_file())

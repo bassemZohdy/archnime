@@ -39,4 +39,4 @@ The full state machine is in `skills/archnime/references/state-machine.md`, and
 ## Install
 
 The aggregator resolves the four domain skills as siblings of its own folder, so install them
-together (for example `npx skills add bassemZohdy/diagram-skills`).
+together (for example `npx skills add bassemZohdy/archnime`).
