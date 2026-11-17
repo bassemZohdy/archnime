@@ -164,6 +164,7 @@
   .kind-security .shape { fill: var(--security-fill); stroke: var(--security); }
   .kind-retired .shape { fill: var(--retired-fill); stroke: var(--retired); stroke-dasharray: 5 4; }
   .kind-retired text { fill: var(--retired); }
+  .node.variant-external .shape { stroke-dasharray: 6 4; }
   .node.changed { filter: drop-shadow(0 0 5px var(--glow)) drop-shadow(0 0 1.5px var(--glow)); }
   .node.search-hit { filter: drop-shadow(0 0 7px var(--data)) drop-shadow(0 0 2px var(--data)); }
   .focus-hidden { display: none !important; }
@@ -198,6 +199,9 @@
   .flow-marker text { fill: var(--data-label); font: 700 10px var(--font); }
   .wire.flow-return .main { stroke-dasharray: 9 6; }
   .wire.flow-return .flow { stroke-dasharray: 3 8; }
+  .wire.flow-refused .main { stroke-dasharray: 2 5; }
+  .wire.flow-refused .flow { stroke: var(--security); stroke-dasharray: 2 6; }
+  .refused-cross { fill: none; stroke: var(--security); stroke-width: 2.2; stroke-linecap: round; }
   .wire.flow-parallel .main { stroke-width: 3.1px; }
   .wire.flow-loop .main { stroke-dasharray: 4 5; }
   .flow-decoration { pointer-events: none; }
@@ -268,7 +272,7 @@
   <div class="notice">D3 could not be loaded. Reconnect, or vendor the pinned scripts beside this file.</div>
   <div class="scroller"><svg id="diagram" role="img" aria-labelledby="diagram-title"></svg></div><div class="progress"><div id="progress"></div></div>
   <div class="controls"><button id="btn-prev" type="button" disabled>◀ Prev</button><button id="btn-play" type="button" disabled>▶ Play</button><button id="btn-next" type="button" disabled>Next ▶</button><div class="pills" id="pills" role="tablist" aria-label="Stages"></div><button id="btn-disclosure" type="button" disabled hidden>Show supporting flows</button><div class="spacer"></div><div class="view-tools" id="view-tools" role="group" aria-label="Diagram view" hidden><label for="view-select">View</label><select id="view-select"></select></div><div class="view-tools" id="routing-tools"><label for="routing-select">Wires</label><select id="routing-select"><option value="curved">Curved</option><option value="orthogonal">Orthogonal</option><option value="direct">Direct</option></select></div><div class="perspective-tools" id="perspective-tools" role="group" aria-label="Perspective"><label for="perspective-select">Perspective</label><select id="perspective-select" aria-label="Perspective"></select></div><button id="btn-panel-toggle" class="panel-toggle" type="button" aria-controls="details-panel" aria-expanded="true" title="Hide the right details panel">Hide details</button>
-    <div class="search-tools"><input id="search" type="search" placeholder="Find node…" aria-label="Find node"><button id="btn-search" type="button" disabled>Find</button></div><button id="btn-fit" type="button" disabled>Fit</button><div class="tune-tools" id="tune-tools" hidden role="group" aria-label="Tune options"><label for="tune-strategy">Strategy</label><select id="tune-strategy"><option value="all">All strategies</option><option value="balanced">Balanced clarity</option><option value="wire-clearance">Wire clearance</option><option value="boundary-safe">Boundary-safe spacing</option></select><label class="tune-preserve"><input id="tune-preserve-routing" type="checkbox"> Keep wires</label></div><button id="btn-retry-elk" type="button" disabled hidden title="Try alternate ELK placement and wire-routing strategies, keeping the clearest valid result">Tune layout</button><button id="btn-presenter" type="button" disabled aria-pressed="false" title="Presentation mode: larger labels, hides the side panels and hints (shortcut: P)">Present</button><details class="menu" id="tools-menu"><summary>Export ▾</summary><div class="menu-panel"><button id="btn-print" type="button" disabled>Print</button><button id="btn-export-svg" type="button" disabled>SVG (this view)</button><button id="btn-export-documentation-svg" type="button" disabled>SVG (documentation)</button><button id="btn-export-animated-svg" type="button" disabled>Animated SVG</button><button id="btn-export-mermaid" type="button" disabled>Mermaid (architecture)</button><button id="btn-export-sequence" type="button" disabled hidden>Mermaid (sequence)</button><button id="btn-export-png" type="button" disabled>PNG</button><button id="btn-export-jpeg" type="button" disabled>JPEG</button><button id="btn-export-gif" type="button" disabled>GIF</button></div></details><span class="hint">← → · Home/End · P present · Esc clear</span>
+    <div class="search-tools"><input id="search" type="search" placeholder="Find node…" aria-label="Find node"><button id="btn-search" type="button" disabled>Find</button></div><button id="btn-fit" type="button" disabled>Fit</button><div class="tune-tools" id="tune-tools" hidden role="group" aria-label="Tune options"><label for="tune-strategy">Strategy</label><select id="tune-strategy"><option value="all">All strategies</option><option value="balanced">Balanced clarity</option><option value="wire-clearance">Wire clearance</option><option value="boundary-safe">Boundary-safe spacing</option></select><label class="tune-preserve"><input id="tune-preserve-routing" type="checkbox"> Keep wires</label></div><button id="btn-retry-elk" type="button" disabled hidden title="Try alternate ELK placement and wire-routing strategies, keeping the clearest valid result">Tune layout</button><button id="btn-presenter" type="button" disabled aria-pressed="false" title="Presentation mode: larger labels, hides the side panels and hints (shortcut: P)">Present</button><details class="menu" id="tools-menu"><summary>Export ▾</summary><div class="menu-panel"><button id="btn-print" type="button" disabled>Print</button><button id="btn-export-svg" type="button" disabled>SVG (this view)</button><button id="btn-export-documentation-svg" type="button" disabled>SVG (documentation)</button><button id="btn-export-animated-svg" type="button" disabled>Animated SVG</button><button id="btn-export-mermaid" type="button" disabled>Mermaid (architecture)</button><button id="btn-export-sequence" type="button" disabled hidden>Mermaid (sequence)</button><button id="btn-export-sequence-svg" type="button" disabled hidden>SVG (sequence)</button><button id="btn-export-png" type="button" disabled>PNG</button><button id="btn-export-jpeg" type="button" disabled>JPEG</button><button id="btn-export-gif" type="button" disabled>GIF</button></div></details><span class="hint">← → · Home/End · P present · Esc clear</span>
   </div><div class="flow-timeline" id="flow-timeline" role="list" aria-label="Flow steps" hidden></div><div class="status" id="status" role="status" aria-live="polite"></div>
 </section><aside class="panel" id="details-panel" aria-label="Diagram details"><div class="card" id="stage-card" aria-live="polite"><div class="eyebrow" id="stage-eyebrow"></div><h2 id="stage-title"></h2><p id="stage-summary"></p><ul id="stage-changes"></ul><div class="callout" id="stage-callout"></div><div class="stage-links" id="stage-links"></div></div><div class="card comparison-card" id="comparison-card" hidden><h3>Comparison</h3><div class="comparison-recommendation" id="comparison-recommendation"></div><table class="comparison-table"><thead><tr><th>Criterion</th><th>Weight</th><th>Active option</th></tr></thead><tbody id="comparison-rows"></tbody></table></div><div class="card legend"><h3>How to read this</h3><ul id="legend"></ul></div></aside></main>
 
@@ -421,6 +425,7 @@ const MODEL = {
     svg.attr("viewBox", `0 0 ${CANVAS.w} ${CANVAS.h}`).attr("preserveAspectRatio", "xMidYMid meet");
     defs = svg.append("defs");
     ["data", "security", "control", "neutral", "compat"].forEach(k => defs.append("marker").attr("id", "arrow-" + k).attr("viewBox", "0 0 10 10").attr("refX", 9).attr("refY", 5).attr("markerWidth", 7).attr("markerHeight", 7).attr("orient", "auto").append("path").attr("d", "M0,0 L10,5 L0,10 z").attr("class", "arrow-" + k));
+    defs.append("marker").attr("id", "refused-cross").attr("viewBox", "0 0 12 12").attr("refX", 10).attr("refY", 6).attr("markerWidth", 9).attr("markerHeight", 9).attr("orient", "auto").append("path").attr("d", "M2,2 L10,10 M10,2 L2,10").attr("class", "refused-cross");
     Object.entries(LIB.icons || {}).forEach(([name, icon]) => defs.append("symbol").attr("id", "icon-" + name).attr("viewBox", icon.viewBox).html(sanitizeIconMarkup(icon.markup)));
     viewport = svg.append("g").attr("class", "viewport");
     gBound = viewport.append("g").attr("class", "boundaries"); gPackages = viewport.append("g").attr("class", "packages"); gWires = viewport.append("g").attr("class", "wires"); gLabels = viewport.append("g").attr("class", "wire-labels"); gFlowMarkers = viewport.append("g").attr("class", "flow-markers"); gFlowDecorations = viewport.append("g").attr("class", "flow-decorations"); gNodes = viewport.append("g").attr("class", "nodes"); gBoundChips = viewport.append("g").attr("class", "boundary-chips"); gPackageHits = viewport.append("g").attr("class", "package-hits");
@@ -507,7 +512,7 @@ const MODEL = {
       const prior = clickTimers.get(event.currentTarget); if (prior) { clearTimeout(prior); clickTimers.delete(event.currentTarget); }
       activate(event, d);
     };
-    sel.attr("class", d => `node shape-${d.shape} kind-${d.kind}${d.changed ? " changed" : ""}${isHighlightedNode(d) ? " search-hit" : highlightedId ? " search-dim" : ""}${focusVisibleNode(d) ? "" : " focus-hidden"}`).attr("data-id", d => d.id).attr("role", "button").attr("tabindex", 0).attr("aria-label", d => d.package ? `${d.label}; expand package` : d.navigateTo ? `${d.label}; open linked view` : d.contains ? `${d.label}; open contained view` : `${d.label}; highlight connected flows`).each(function (d) { const g = d3.select(this); updateShape(g, d); fillNodeText(g, d); }).on("click", handleClick).on("dblclick", handleDoubleClick).on("keydown", (event, d) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); activate(event, d); } });
+    sel.attr("class", d => `node shape-${d.shape} kind-${d.kind}${d.variant === "external" ? " variant-external" : ""}${d.changed ? " changed" : ""}${isHighlightedNode(d) ? " search-hit" : highlightedId ? " search-dim" : ""}${focusVisibleNode(d) ? "" : " focus-hidden"}`).attr("data-id", d => d.id).attr("role", "button").attr("tabindex", 0).attr("aria-label", d => d.package ? `${d.label}; expand package` : d.navigateTo ? `${d.label}; open linked view` : d.contains ? `${d.label}; open contained view` : `${d.label}; highlight connected flows`).each(function (d) { const g = d3.select(this); updateShape(g, d); fillNodeText(g, d); }).on("click", handleClick).on("dblclick", handleDoubleClick).on("keydown", (event, d) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); activate(event, d); } });
   }
   const isHighlightedNode = d => highlightedId === d.id || (d.memberIds || []).includes(highlightedId), isHighlightedWire = w => !!highlightedId && ((w.originalEndpoints || []).includes(highlightedId) || w.from === highlightedId || w.to === highlightedId);
   const perspectiveOrder = ["all", "data", "security", "migration", "devops", "control", "compat", "neutral", "zones"], perspectiveLabels = { all: "All", data: "Data", security: "Security", migration: "Migration", devops: "Operations", control: "Control", compat: "Compat", neutral: "Neutral", zones: "Trust & compliance" };
@@ -683,6 +688,7 @@ const MODEL = {
   function configureCompositionControls() {
     const variant = IS_SCENARIOS, comparison = !!META.comparison, staticFlow = IS_FLOW && FLOW_RENDER !== "stepwise", sequenceButton = document.getElementById("btn-export-sequence");
     if (sequenceButton) sequenceButton.hidden = !IS_FLOW;
+    const sequenceSvgButton = document.getElementById("btn-export-sequence-svg"); if (sequenceSvgButton) sequenceSvgButton.hidden = !IS_FLOW;
     ["btn-prev", "btn-play", "btn-next"].forEach(id => { const button = document.getElementById(id); if (button) button.hidden = variant || comparison || staticFlow; });
     if (comparison) {
       pills.hidden = false; pills.innerHTML = ""; pills.setAttribute("aria-label", "Comparison options");
@@ -708,20 +714,70 @@ const MODEL = {
   function zoomToRect(r) { if (!r) return; const scale = Math.min(3.2, Math.max(.8, Math.min(CANVAS.w / Math.max(1, r.w * 1.8), CANVAS.h / Math.max(1, r.h * 1.8)))); settle(svg).call(zoom.transform, d3.zoomIdentity.translate(CANVAS.w / 2 - scale * (r.x + r.w / 2), CANVAS.h / 2 - scale * (r.y + r.h / 2)).scale(scale)); }
   function zoomToNode(id, L = IS_FLOW ? FLOW_LAYOUT : layoutStage(STAGES[current])) { const n = L.nodeMap[id] || L.nodes.find(x => (x.memberIds || []).includes(id)); if (!n) return; zoomToRect(rectOf(n)); }
   function zoomToPackage(id, L = IS_FLOW ? FLOW_LAYOUT : layoutStage(STAGES[current])) { const pack = (L.packages || []).find(item => item.id === id); if (pack) zoomToRect(pack); else { const child = (ENGINE.descendants(id) || []).find(member => L.nodeMap[member]); if (child) zoomToNode(child, L); } }
-  function serializeVisibleSvg({ embedFont = true } = {}) {
+  // A documentation SVG is read in light and dark READMEs alike, so it carries both palettes. The theme is
+  // nothing but the custom properties on :root (light) and on :root under prefers-color-scheme: dark, so
+  // read both from the page's own stylesheet instead of keeping a second copy of the colours here.
+  function documentationPalettes() {
+    const light = {}, dark = {};
+    const take = (rule, into) => { for (let i = 0; i < rule.style.length; i++) { const name = rule.style[i]; if (name.startsWith("--")) into[name.slice(2)] = rule.style.getPropertyValue(name).trim(); } };
+    const visit = (rules, target) => [...rules].forEach(rule => {
+      if (rule.type === CSSRule.MEDIA_RULE) { if (/prefers-color-scheme:\s*dark/.test(rule.conditionText || rule.media?.mediaText || "")) visit(rule.cssRules, dark); }
+      else if (rule.type === CSSRule.STYLE_RULE && (rule.selectorText === ":root" || rule.selectorText === ":host")) take(rule, target);
+    });
+    // Inside <architecture-diagram> the template's stylesheet lives in the shadow root, not the page.
+    const scope = document.getElementById("diagram")?.getRootNode?.(), sheets = new Set([...(scope?.styleSheets || []), ...document.styleSheets]);
+    sheets.forEach(sheet => { try { visit(sheet.cssRules, light); } catch { /* a cross-origin sheet holds no theme */ } });
+    // No palette found (a host that restyles the diagram its own way): export the colours as shown, one theme.
+    if (!light.panel) return null;
+    return { light, dark: { ...light, ...dark } };
+  }
+  const DOCUMENTATION_STYLE_PROPERTIES = ["fill", "stroke", "stroke-width", "stroke-dasharray", "stroke-linecap", "stroke-linejoin", "opacity", "font-family", "font-size", "font-weight", "letter-spacing", "paint-order", "display"];
+  // Paint the scene with one palette, transitions off so every colour is the final one, and read the computed
+  // style of each element; then put the page back exactly as it was.
+  function computedStylesUnder(elements, palette) {
+    const rootStyle = document.documentElement.style, names = Object.keys(palette), saved = names.map(name => [name, rootStyle.getPropertyValue(`--${name}`), rootStyle.getPropertyPriority(`--${name}`)]);
+    const freeze = document.createElement("style"); freeze.textContent = "*, *::before, *::after { transition: none !important; }"; document.head.appendChild(freeze);
+    try {
+      names.forEach(name => rootStyle.setProperty(`--${name}`, palette[name]));
+      return [...elements].map(el => { const cs = getComputedStyle(el); return DOCUMENTATION_STYLE_PROPERTIES.map(p => [p, cs.getPropertyValue(p)]); });
+    } finally {
+      saved.forEach(([name, value, priority]) => value ? rootStyle.setProperty(`--${name}`, value, priority) : rootStyle.removeProperty(`--${name}`));
+      getComputedStyle(document.documentElement).getPropertyValue("--panel");
+      freeze.remove();
+    }
+  }
+  // themes: inline the light colours and add a dark rule for every element whose colours change, so one
+  // file follows the reader's light or dark setting. Rules are numbered in document order: same scene, same bytes.
+  function serializeVisibleSvg({ embedFont = true, themes = false } = {}) {
     const source = document.getElementById("diagram"), clone = source.cloneNode(true);
     const sourceEls = source.querySelectorAll("*"), cloneEls = clone.querySelectorAll("*");
-    sourceEls.forEach((el, i) => {
-      const cs = getComputedStyle(el);
-      const style = ["fill", "stroke", "stroke-width", "stroke-dasharray", "stroke-linecap", "stroke-linejoin", "opacity", "font-family", "font-size", "font-weight", "letter-spacing", "paint-order", "display"].map(p => p + ":" + cs.getPropertyValue(p)).join(";");
-      cloneEls[i].setAttribute("style", style);
-    });
+    const inline = entries => entries.map(([p, v]) => p + ":" + v).join(";");
+    // An icon's shapes inherit their paint from the <use> that places them; a computed style read inside
+    // <symbol> is the unrendered default (black fill) and would override that, so leave them unstyled.
+    const inSymbol = [...sourceEls].map(el => !!el.closest("symbol"));
+    let darkRules = "", panel = getComputedStyle(document.body).getPropertyValue("--panel");
+    const palettes = themes ? documentationPalettes() : null;
+    if (palettes) {
+      const light = computedStylesUnder(sourceEls, palettes.light), dark = computedStylesUnder(sourceEls, palettes.dark), classes = new Map();
+      light.forEach((entries, i) => {
+        if (inSymbol[i]) return;
+        cloneEls[i].setAttribute("style", inline(entries));
+        const changed = entries.map(([p, value], k) => [p, value, dark[i][k][1]]).filter(([, value, night]) => night !== value).map(([p, , night]) => `${p}:${night} !important`).join(";");
+        if (!changed) return;
+        if (!classes.has(changed)) classes.set(changed, `dk${classes.size}`);
+        cloneEls[i].classList.add(classes.get(changed));
+      });
+      panel = palettes.light.panel;
+      darkRules = `@media (prefers-color-scheme: dark) { .doc-background { fill:${palettes.dark.panel} !important } ${[...classes].map(([rule, name]) => `.${name} { ${rule} }`).join(" ")} }`;
+    } else {
+      sourceEls.forEach((el, i) => { if (inSymbol[i]) return; const cs = getComputedStyle(el); cloneEls[i].setAttribute("style", inline(DOCUMENTATION_STYLE_PROPERTIES.map(p => [p, cs.getPropertyValue(p)]))); });
+    }
     clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
     clone.setAttribute("width", CANVAS.w); clone.setAttribute("height", CANVAS.h);
-    clone.style.background = getComputedStyle(document.body).getPropertyValue("--panel");
-    if (embedFont) {
+    clone.style.background = panel;
+    if (embedFont || darkRules) {
       const fonts = document.createElementNS("http://www.w3.org/2000/svg", "style");
-      fonts.textContent = embeddedSvgFontRules();
+      fonts.textContent = [embedFont ? embeddedSvgFontRules() : "", darkRules].filter(Boolean).join("\n");
       clone.insertBefore(fonts, clone.firstChild);
     }
     return new XMLSerializer().serializeToString(clone);
@@ -782,7 +838,7 @@ const MODEL = {
   }
   function serializeDocumentationSvgAsShown() {
     assertPaintableText();
-    const parsed = new DOMParser().parseFromString(serializeVisibleSvg(), "image/svg+xml");
+    const parsed = new DOMParser().parseFromString(serializeVisibleSvg({ themes: true }), "image/svg+xml");
     const root = parsed.documentElement, scene = root.querySelector("g.viewport"), bounds = documentationBounds();
     if (parsed.querySelector("parsererror") || !scene || !bounds
         || ![bounds.x, bounds.y, bounds.width, bounds.height].every(Number.isFinite)
@@ -801,7 +857,8 @@ const MODEL = {
     const background = parsed.createElementNS("http://www.w3.org/2000/svg", "rect");
     background.setAttribute("x", String(x)); background.setAttribute("y", String(y));
     background.setAttribute("width", String(width)); background.setAttribute("height", String(height));
-    background.setAttribute("fill", getComputedStyle(document.body).getPropertyValue("--panel").trim() || "#ffffff");
+    background.setAttribute("fill", documentationPalettes()?.light.panel || getComputedStyle(document.body).getPropertyValue("--panel").trim() || "#ffffff");
+    background.setAttribute("class", "doc-background");
     background.setAttribute("pointer-events", "none");
     root.insertBefore(background, scene);
     return new XMLSerializer().serializeToString(root);
@@ -847,12 +904,67 @@ const MODEL = {
     const wires = Object.fromEntries((FLOW.wires || []).map(wire => [wireKey(wire), wire]));
     const edgeEntries = step => [ ...(step?.edge && typeof step.edge === "object" ? [step.edge] : []), ...(Array.isArray(step?.edges) ? step.edges : []) ];
     const participants = step => { const result = []; edgeEntries(step).forEach(edge => [edge.from, edge.to].forEach(id => { if (id && !result.includes(id)) result.push(id); })); (Array.isArray(step?.parallel) ? step.parallel : []).forEach(child => participants(child).forEach(id => { if (!result.includes(id)) result.push(id); })); return result; };
-    const wireLabel = (edge, step) => { const type = edge.wireType || "data", wire = wires[`${edge.from}>${edge.to}>${type}`] || (edge.kind === "return" ? wires[`${edge.to}>${edge.from}>${type}`] : null); return String(step.label || wire?.label || `${edge.from} → ${edge.to}`).replace(/[\r\n]+/g, " "); };
-    const emitEdge = (edge, step, indent) => { if (!aliases[edge.from] || !aliases[edge.to]) return; const kind = edge.kind || step.kind || "call", arrow = kind === "async" || kind === "return" ? "-->>" : "->>"; lines.push(`${indent}${aliases[edge.from]}${arrow}${aliases[edge.to]}: ${wireLabel(edge, step)}`); };
+    const wireLabel = (edge, step) => { const type = edge.wireType || "data", wire = wires[`${edge.from}>${edge.to}>${type}`] || (RETURN_KINDS.includes(edge.kind) ? wires[`${edge.to}>${edge.from}>${type}`] : null); return String(step.label || wire?.label || `${edge.from} → ${edge.to}`).replace(/[\r\n]+/g, " "); };
+    const emitEdge = (edge, step, indent) => { if (!aliases[edge.from] || !aliases[edge.to]) return; const kind = edge.kind || step.kind || "call", arrow = kind === "refused" ? "--x" : kind === "async" || kind === "return" ? "-->>" : "->>"; lines.push(`${indent}${aliases[edge.from]}${arrow}${aliases[edge.to]}: ${wireLabel(edge, step)}`); };
     const emitStep = (step, indent = "    ", nested = false) => { const kind = step.kind || "call"; if (kind === "intro") return; const title = String(step.title || step.label || "parallel work").replace(/[\r\n]+/g, " "), named = participants(step).map(id => aliases[id]).filter(Boolean), people = (named.length < 2 ? named : [named[0], named[named.length - 1]]).join(","); if (!nested && step.note && people) lines.push(`${indent}Note over ${people}: ${String(step.note).replace(/[\r\n]+/g, " ")}`); if (step.parallel === true) { lines.push(`${indent}par ${title}`); if (Array.isArray(step.steps) && step.steps.length) step.steps.forEach((child, index) => { if (index) lines.push(`${indent}and ${String(child.title || child.label || "parallel branch").replace(/[\r\n]+/g, " ")}`); emitStep(child, `${indent}    `, true); }); else edgeEntries(step).forEach((edge, index) => { if (index) lines.push(`${indent}and parallel branch`); emitStep({ kind: edge.kind || "call", edges: [edge], repeat: edge.repeat || step.repeat, label: step.label }, `${indent}    `, true); }); lines.push(`${indent}end`); return; } if (Array.isArray(step.parallel)) { lines.push(`${indent}par ${title}`); step.parallel.forEach((child, index) => { if (index) lines.push(`${indent}and ${String(child.title || child.label || "parallel branch").replace(/[\r\n]+/g, " ")}`); emitStep(child, `${indent}    `, true); }); lines.push(`${indent}end`); return; } const edges = edgeEntries(step); if (kind === "loop") { lines.push(`${indent}loop ${String(step.repeat || "repeat").replace(/[\r\n]+/g, " ")}`); edges.forEach(edge => emitEdge(edge, step, `${indent}    `)); lines.push(`${indent}end`); return; } edges.forEach(edge => emitEdge(edge, step, indent)); };
     (FLOW.steps || []).forEach(step => emitStep(step)); return `${lines.join("\n")}\n`;
   }
   const escapeXml = value => String(value || "").replace(/[&<>\"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&apos;" }[char]));
+  // A native sequence view of the flow: one lifeline per flow node in flow.nodes order, one numbered
+  // message per edge in step order. Returns and refusals come back dashed; a refusal ends in a cross.
+  // The drawing carries both palettes (light by default, dark under prefers-color-scheme) and the
+  // embedded font, and has no timestamps or random ids, so the same model writes the same bytes.
+  function serializeSequenceSvg() {
+    if (!FLOW) throw new Error("Sequence view requires a flow document");
+    const palette = documentationPalettes(), font = getComputedStyle(document.documentElement).getPropertyValue("--font").trim() || "sans-serif";
+    const ids = (FLOW.nodes || []).map(entry => typeof entry === "string" ? entry : entry?.id).filter(Boolean);
+    const labelOf = id => String(CATALOG[id]?.label || id), wires = Object.fromEntries((FLOW.wires || []).map(wire => [`${wire.from}>${wire.to}>${wire.type || "data"}`, wire]));
+    const returnLike = kind => kind === "return" || kind === "refused";
+    const messages = [];
+    const visit = (step, phase) => {
+      if (!step || step.kind === "intro") return;
+      if (Array.isArray(step.steps) && step.parallel) { step.steps.forEach(child => visit(child, phase)); return; }
+      (Array.isArray(step.edges) ? step.edges : step.edge && typeof step.edge === "object" ? [step.edge] : []).forEach(edge => {
+        if (!ids.includes(edge.from) || !ids.includes(edge.to)) return;
+        const kind = edge.kind || step.kind || "call", type = edge.wireType || "data", repeat = edge.repeat || step.repeat;
+        const wire = wires[`${edge.from}>${edge.to}>${type}`] || (returnLike(kind) ? wires[`${edge.to}>${edge.from}>${type}`] : null);
+        const label = String(step.label || wire?.label || (kind === "refused" ? "refused" : "")) + (kind === "loop" && repeat ? ` (${repeat})` : "");
+        messages.push({ from: edge.from, to: edge.to, kind, type, label: label.replace(/[\r\n]+/g, " ").trim(), phase });
+      });
+    };
+    FLOW_STEPS.forEach((step, index) => visit(step, step.title || `Step ${index + 1}`));
+    if (!ids.length || !messages.length) throw new Error("Sequence view needs flow nodes and at least one step");
+    const measure = (text, size, weight) => { const probe = document.createElementNS("http://www.w3.org/2000/svg", "text"); probe.setAttribute("style", `font:${weight} ${size}px ${font}`); probe.textContent = text; document.getElementById("diagram").appendChild(probe); const width = probe.getComputedTextLength(); probe.remove(); return width; };
+    const headW = Math.max(120, ...ids.map(id => Math.ceil(measure(labelOf(id), 13, 600)) + 32));
+    const gapW = Math.max(160, ...messages.map(message => Math.ceil(measure(`${messages.indexOf(message) + 1}  ${message.label}`, 11, 500)) + 40));
+    const left = 32, top = 28, headH = 40, rowH = 36, column = Math.max(headW, gapW), x = id => Math.round(left + headW / 2 + ids.indexOf(id) * column);
+    const width = Math.round(left * 2 + headW + (ids.length - 1) * column), bodyTop = top + headH + 24, height = Math.round(bodyTop + messages.length * rowH + 24 + headH + top);
+    const esc = escapeXml, parts = [];
+    ids.forEach(id => {
+      const cx = x(id), label = esc(labelOf(id));
+      parts.push(`<line class="seq-life" x1="${cx}" y1="${top + headH}" x2="${cx}" y2="${height - top - headH}"/>`);
+      [top, height - top - headH].forEach(y => parts.push(`<g class="seq-head"><rect x="${cx - headW / 2}" y="${y}" width="${headW}" height="${headH}" rx="8"/><text x="${cx}" y="${y + headH / 2 + 4.5}" text-anchor="middle">${label}</text></g>`));
+    });
+    let phase = null;
+    messages.forEach((message, index) => {
+      const y = bodyTop + index * rowH + rowH / 2, x1 = x(message.from), x2 = x(message.to), number = index + 1;
+      if (message.phase !== phase) { phase = message.phase; parts.push(`<text class="seq-phase" x="${left}" y="${y - rowH / 2 + 2}">${esc(phase)}</text>`); }
+      const kindClass = `seq-msg seq-${message.kind} type-${message.type}`;
+      if (x1 === x2) {
+        parts.push(`<path class="${kindClass}" d="M${x1} ${y - 8} h36 v16 h-36" marker-end="url(#seq-arrow)"/>`);
+        parts.push(`<text class="seq-label" x="${x1 + 44}" y="${y + 4}">${number}  ${esc(message.label)}</text>`);
+        return;
+      }
+      const direction = Math.sign(x2 - x1), end = x2 - direction * 2;
+      parts.push(`<line class="${kindClass}" x1="${x1}" y1="${y}" x2="${end}" y2="${y}" marker-end="url(#${message.kind === "refused" ? "seq-refused" : "seq-arrow"})"/>`);
+      parts.push(`<text class="seq-label" x="${(x1 + x2) / 2}" y="${y - 7}" text-anchor="middle">${number}  ${esc(message.label)}</text>`);
+    });
+    const css = (vars) => `.seq-life{stroke:${vars.line};stroke-width:1.5;stroke-dasharray:4 4}.seq-head rect{fill:${vars["data-fill"]};stroke:${vars.data};stroke-width:1.5}.seq-head text{fill:${vars.ink};font:600 13px ${font}}.seq-msg{stroke:${vars.data};stroke-width:1.75;fill:none}.seq-msg.type-security{stroke:${vars.security}}.seq-msg.type-control{stroke:${vars.control}}.seq-return,.seq-async{stroke-dasharray:6 4}.seq-refused{stroke:${vars.security};stroke-dasharray:6 4}.seq-label{fill:${vars.ink};font:500 11px ${font}}.seq-phase{fill:${vars.muted};font:650 11px ${font};text-transform:uppercase;letter-spacing:.04em}.seq-bg{fill:${vars.panel}}#seq-arrow path{fill:${vars.ink}}#seq-refused path{stroke:${vars.security};stroke-width:2}`;
+    const style = `${embeddedSvgFontRules()}\n${css(palette.light)}@media (prefers-color-scheme: dark){${css(palette.dark)}}`;
+    const defs = `<defs><marker id="seq-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z"/></marker><marker id="seq-refused" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="10" markerHeight="10" orient="auto"><path d="M1 1L9 9M9 1L1 9"/></marker></defs>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img"><title>${esc(META.title)} — ${esc(FLOW.title || "sequence")}</title><style>${style}</style>${defs}<rect class="seq-bg" x="0" y="0" width="${width}" height="${height}"/>${parts.join("")}</svg>`;
+  }
+  window.serializeSequenceSvg = serializeSequenceSvg;
   const tokenColor = (name, fallback) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
   async function serializeAnimatedSvg() {
     const oldStage = current, oldDur = DUR, oldPerspective = perspective, groups = [], frameCount = IS_FLOW ? FLOW_STEPS.length : STAGES.length, frameTotal = Math.max(1, frameCount), stepMs = Math.max(1200, Number(META.playIntervalMs) || 3200), cycleMs = stepMs * frameTotal, fadePercent = Math.min(8, Math.max(1, 100 / frameTotal * .12));
@@ -879,7 +991,7 @@ ${style}</style>${sharedDefs}${groups.join("")}<g class="animated-legend" aria-l
   async function exportAnimatedSvg() { const button = document.getElementById("btn-export-animated-svg"), oldText = button.textContent; button.disabled = true; try { const svg = await serializeAnimatedSvg(), size = new Blob([svg]).size, warning = size > 2 * 1024 * 1024 ? ` Warning: file is ${(size / 1024 / 1024).toFixed(1)} MB.` : ""; download(`${META.title.replace(/\s+/g, "-").toLowerCase()}-animated.svg`, new Blob([svg], { type: "image/svg+xml" })); document.getElementById("status").textContent = `Animated SVG exported.${warning}`; } catch (error) { document.getElementById("status").textContent = `Animated SVG export failed: ${error.message || error}`; } finally { button.disabled = false; button.textContent = oldText; } }
   const download = (name, blob) => { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }, svgImage = () => new Promise((resolve, reject) => { const img = new Image(); img.onload = () => resolve(img); img.onerror = reject; img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(serializeVisibleSvg()); });
   async function exportRaster(kind) { const img = await svgImage(), scale = Math.max(1, Math.min(2, window.devicePixelRatio || 1)), canvas = document.createElement("canvas"); canvas.width = CANVAS.w * scale; canvas.height = CANVAS.h * scale; const ctx = canvas.getContext("2d"); if (kind === "jpeg") { ctx.fillStyle = getComputedStyle(document.body).getPropertyValue("--panel"); ctx.fillRect(0, 0, canvas.width, canvas.height); } ctx.drawImage(img, 0, 0, canvas.width, canvas.height); canvas.toBlob(blob => download(`${META.title.replace(/\s+/g, "-").toLowerCase()}-stage-${current + 1}.${kind}`, blob), kind === "jpeg" ? "image/jpeg" : "image/png"); }
-  window.serializeAnimatedSvg = serializeAnimatedSvg; document.getElementById("btn-export-documentation-svg").onclick = exportDocumentationSvg; window.serializeArchitectureMermaid = serializeArchitectureMermaid; window.serializeSequenceMermaid = serializeSequenceMermaid; document.getElementById("btn-export-svg").onclick = () => download(`${META.title.replace(/\s+/g, "-").toLowerCase()}-stage-${current + 1}.svg`, new Blob([serializeVisibleSvg()], { type: "image/svg+xml" })); document.getElementById("btn-export-animated-svg").onclick = exportAnimatedSvg; document.getElementById("btn-export-mermaid").onclick = () => download(`${META.title.replace(/\s+/g, "-").toLowerCase()}-stage-${current + 1}.mmd`, new Blob([serializeArchitectureMermaid()], { type: "text/plain;charset=utf-8" })); document.getElementById("btn-export-sequence").onclick = () => download(`${META.title.replace(/\s+/g, "-").toLowerCase()}-sequence.mmd`, new Blob([serializeSequenceMermaid()], { type: "text/plain;charset=utf-8" })); document.getElementById("btn-export-png").onclick = () => exportRaster("png"); document.getElementById("btn-export-jpeg").onclick = () => exportRaster("jpeg");
+  window.serializeAnimatedSvg = serializeAnimatedSvg; document.getElementById("btn-export-documentation-svg").onclick = exportDocumentationSvg; window.serializeArchitectureMermaid = serializeArchitectureMermaid; window.serializeSequenceMermaid = serializeSequenceMermaid; document.getElementById("btn-export-svg").onclick = () => download(`${META.title.replace(/\s+/g, "-").toLowerCase()}-stage-${current + 1}.svg`, new Blob([serializeVisibleSvg()], { type: "image/svg+xml" })); document.getElementById("btn-export-animated-svg").onclick = exportAnimatedSvg; document.getElementById("btn-export-mermaid").onclick = () => download(`${META.title.replace(/\s+/g, "-").toLowerCase()}-stage-${current + 1}.mmd`, new Blob([serializeArchitectureMermaid()], { type: "text/plain;charset=utf-8" })); document.getElementById("btn-export-sequence").onclick = () => download(`${META.title.replace(/\s+/g, "-").toLowerCase()}-sequence.mmd`, new Blob([serializeSequenceMermaid()], { type: "text/plain;charset=utf-8" })); document.getElementById("btn-export-sequence-svg").onclick = () => { try { download(`${META.title.replace(/\s+/g, "-").toLowerCase()}-sequence.svg`, new Blob([serializeSequenceSvg()], { type: "image/svg+xml" })); } catch (error) { document.getElementById("status").textContent = "Sequence SVG export failed: " + (error.message || error); } }; document.getElementById("btn-export-png").onclick = () => exportRaster("png"); document.getElementById("btn-export-jpeg").onclick = () => exportRaster("jpeg");
   const GIF_WORKER_CDN_URL = "https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js";
   const GIF_WORKER_INTEGRITY = "sha384-uL0SwIQSos1DfQU2KzlDbPuSz7Jwo+hmNPIhe86VJ+MWwyj0DvjngnAgWrkNi9eQ";
   let gifWorkerBlobUrl = null;
@@ -948,7 +1060,9 @@ ${style}</style>${sharedDefs}${groups.join("")}<g class="animated-legend" aria-l
   function isActiveFlowWire(wire) { return IS_FLOW && (FLOW_ALL_STEPS ? mappedFlowEdges(wire).length > 0 : (FLOW_STEPS[current]?.edges || []).some(edge => flowEdgeMatchesWire(edge, wire))); }
   function flowLabelForWire(wire) { if (!IS_FLOW || FLOW_ALL_STEPS) return wire.label; const step = FLOW_STEPS[current], hasOverride = Boolean(step?.label) && (step.edges || []).some(edge => flowEdgeMatchesWire(edge, wire)); return hasOverride ? step.label : wire.label; }
   function flowKindsForWire(wire) { return IS_FLOW ? [...new Set((FLOW_ALL_STEPS ? mappedFlowEdges(wire).map(item => item.edge) : (FLOW_STEPS[current]?.edges || []).filter(edge => flowEdgeMatchesWire(edge, wire))).map(edge => edge.kind || FLOW_STEPS[current]?.kind || "call"))] : []; }
-  function flowReturnEdge(edge, step) { return (edge?.kind || step?.kind) === "return" && edge.from && edge.to; }
+  const RETURN_KINDS = ["return", "refused"];
+  function flowReturnEdge(edge, step) { return RETURN_KINDS.includes(edge?.kind || step?.kind) && edge.from && edge.to; }
+  function flowRefusedForWire(wire) { return IS_FLOW && (FLOW_ALL_STEPS ? mappedFlowEdges(wire).map(item => item.edge.kind || item.step.kind) : (FLOW_STEPS[current]?.edges || []).filter(edge => flowEdgeMatchesWire(edge, wire)).map(edge => edge.kind || FLOW_STEPS[current]?.kind)).includes("refused"); }
   function currentFlowReturnForWire(wire) { if (!IS_FLOW || FLOW_ALL_STEPS) return false; const step = FLOW_STEPS[current]; return (step?.edges || []).some(edge => flowEdgeMatchesWire(edge, wire) && flowReturnEdge(edge, step) && edge.from === wire.to && edge.to === wire.from); }
   function anyFlowReturnForWire(wire) { return IS_FLOW && mappedFlowEdges(wire).some(item => flowReturnEdge(item.edge, item.step) && item.edge.from === wire.to && item.edge.to === wire.from); }
   function reverseFlowOverlayForWire(wire) { return FLOW_ALL_STEPS ? anyFlowReturnForWire(wire) : currentFlowReturnForWire(wire); }
@@ -998,7 +1112,7 @@ ${style}</style>${sharedDefs}${groups.join("")}<g class="animated-legend" aria-l
   }
   function renderWires(wires) {
     const visible = wires.filter(wire => wire.visible !== false), sel = gWires.selectAll("g.wire").data(visible, wire => wire.key).join(enter => { const group = enter.append("g").attr("class", "wire").attr("opacity", 0); group.append("path").attr("class", "main"); group.append("path").attr("class", "flow"); settle(group).attr("opacity", 1); return group; }, update => settle(update).attr("opacity", 1), exit => settle(exit, .5).attr("opacity", 0).remove()).attr("data-wire-key", wire => wire.key);
-    sel.attr("class", wire => { const kinds = flowKindsForWire(wire); return `wire type-${wire.type}${wire.secondary ? " secondary" : ""}${wire.bundleRoute ? " bundled" : ""}${kinds.includes("return") ? " flow-return" : ""}${kinds.includes("parallel") ? " flow-parallel" : ""}${kinds.includes("loop") ? " flow-loop" : ""}${isActiveFlowWire(wire) ? " flow-active" : IS_FLOW ? " flow-inactive" : ""}${isHighlightedWire(wire) ? " search-hit" : highlightedId ? " search-dim" : ""}${focusVisibleWire(wire) ? "" : " focus-hidden"}`; }).style("--flow-delay", wire => `${-(wire.order % 5) * .16}s`); settle(sel.select("path.main")).attr("d", wire => wire.geom.path).attr("marker-end", wire => currentFlowReturnForWire(wire) ? null : `url(#arrow-${wire.type})`); settle(sel.select("path.flow")).attr("d", wire => flowPathForWire(wire)).attr("marker-end", wire => reverseFlowOverlayForWire(wire) ? `url(#arrow-${wire.type})` : null).style("display", wire => flowOverlayVisibleForWire(wire) && (!FLOW_ALL_STEPS || reverseFlowOverlayForWire(wire)) ? null : "none");
+    sel.attr("class", wire => { const kinds = flowKindsForWire(wire); return `wire type-${wire.type}${wire.secondary ? " secondary" : ""}${wire.bundleRoute ? " bundled" : ""}${kinds.includes("return") || kinds.includes("refused") ? " flow-return" : ""}${kinds.includes("refused") ? " flow-refused" : ""}${kinds.includes("parallel") ? " flow-parallel" : ""}${kinds.includes("loop") ? " flow-loop" : ""}${isActiveFlowWire(wire) ? " flow-active" : IS_FLOW ? " flow-inactive" : ""}${isHighlightedWire(wire) ? " search-hit" : highlightedId ? " search-dim" : ""}${focusVisibleWire(wire) ? "" : " focus-hidden"}`; }).style("--flow-delay", wire => `${-(wire.order % 5) * .16}s`); settle(sel.select("path.main")).attr("d", wire => wire.geom.path).attr("marker-end", wire => currentFlowReturnForWire(wire) ? (flowRefusedForWire(wire) ? "url(#refused-cross)" : null) : `url(#arrow-${wire.type})`); settle(sel.select("path.flow")).attr("d", wire => flowPathForWire(wire)).attr("marker-end", wire => reverseFlowOverlayForWire(wire) ? (flowRefusedForWire(wire) ? "url(#refused-cross)" : `url(#arrow-${wire.type})`) : null).style("display", wire => flowOverlayVisibleForWire(wire) && (!FLOW_ALL_STEPS || reverseFlowOverlayForWire(wire)) ? null : "none");
   }
 
   function renderLabels(wires) {

@@ -234,7 +234,15 @@ $defs:
       contains: { $ref: "#/$defs/id" }
       navigateTo: { $ref: "#/$defs/id" }
       ops: { type: boolean }
+      variant: { $ref: "#/$defs/variant" }
       source: { $ref: "#/$defs/source" }
+
+  variant:
+    description: >-
+      external: the part is run by someone else (a hosted model, a SaaS API, a managed store),
+      drawn with a dashed outline whatever its type.
+    type: string
+    enum: [external]
 
   source:
     description: >-
@@ -319,6 +327,7 @@ $defs:
         minItems: 2
         maxItems: 2
       navigateTo: { $ref: "#/$defs/id" }
+      variant: { $ref: "#/$defs/variant" }
       source: { $ref: "#/$defs/source" }
 
   nodeRef:
@@ -605,7 +614,7 @@ $defs:
         minItems: 1
       note: { type: string }
       label: { type: string }
-      kind: { type: string, enum: [call, return, async, loop] }
+      kind: { type: string, enum: [call, return, refused, async, loop] }
       repeat: { type: string }
       navigateTo: { $ref: "#/$defs/id" }
       source: { $ref: "#/$defs/source" }

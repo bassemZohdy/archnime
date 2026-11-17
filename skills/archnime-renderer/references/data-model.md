@@ -82,8 +82,8 @@ A renderer model may contain a `flow` sibling alongside a single synthetic
 
 The template lays the synthetic stage once, then changes active wire/marker
 classes, the panel, and the numbered timeline as the step changes. `group`
-and `parallel` are preserved as flags on a normalized step; `return` edges
-point back to the forward wire with `wireFrom`/`wireTo`. Flow layout is fixed
+and `parallel` are preserved as flags on a normalized step; `return` and
+`refused` edges point back to the forward wire with `wireFrom`/`wireTo`. Flow layout is fixed
 for the walkthrough, so step changes must not recompute node positions.
 
 ## Multi-view bundles and deployment
@@ -160,7 +160,7 @@ Each architectural component has one stable key for every stage. The catalog ent
 
 `w`/`h` set a *floor*, not the final box. The renderer grows a leaf node's width to fit its detail line and its longest single label word, up to a 300px cap (the same auto-grow a package block gets for its caption), so a slightly long `detail` widens the node instead of tripping `detail-overflow`. Existing SVG shapes are resized whenever a keyed node's dimensions change, including stage overrides and Presenter mode. Keep the detail line to roughly 30 characters — past the cap the finding stands and the text must be shortened.
 
-Supported semantic types: `actor`, `service`, `gateway`, `agent`, `database`, `cache`, `queue`, `topic`, `external`, `security`, and `package`.
+Supported semantic types: `actor`, `service`, `gateway`, `agent`, `database`, `cache`, `queue`, `topic`, `external`, `security`, `package`, `llm`, `vector-store`, and `tool`. A node with `variant: "external"` carries the class `variant-external` (dashed outline).
 
 Kinds are `existing`, `new`, `mixed`, `security`, or `retired`. A kind explains lifecycle/role; a type explains what the component is. Never mint an ID for a responsibility that moved into an existing component.
 

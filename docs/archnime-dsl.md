@@ -49,13 +49,13 @@ See
 | --- | --- |
 | `meta` | title, layout engine hint, minimum wire length, authoritative perspective dropdown options, C4 breadcrumb levels, focus radius, flow presentation, GIF export caps, and optional comparison criteria |
 | `canvas` | optional logical SVG size |
-| `catalog` | every component: `label`, `type` (semantic, drives the icon), `kind` (lifecycle), `detail`, `size`, `level`, and optional `ops` signal |
+| `catalog` | every component: `label`, `type` (semantic, drives the icon), `kind` (lifecycle), `detail`, `size`, `level`, optional `ops` signal, `variant: external` (someone else runs it) and `source` (the file behind it) |
 | `packages` | optional nesting of catalog/package ids into groups |
 | `system` / `transition.states[]` / `steps` / `scenarios` / `flow` | the actual state(s), cumulative or independent delta-authored states, or fixed flow: `nodes`, `wires`, `boundaries`, optional `disclosure`/`steps` |
 | `views[]` | v2 ordered `system`, `transition`, `steps`, `scenarios`, `flow`, or `deployment` perspectives over shared identity; comparison options use this same structure |
 
-There is no `shape` field -- the icon always comes from `type`. A
-per-state node override may only touch `label`, `detail`, `kind`, `size`, `ops`, and
+There is no `shape` field -- the icon always comes from `type`. Types include `llm`, `vector-store` and `tool` for AI systems. A
+per-state node override may only touch `label`, `detail`, `kind`, `size`, `ops`, `variant`, `source`, and
 v2 `navigateTo` -- never `type`, which is identity and lives in `catalog`
 alone. `contains` targets a package or view for drill-down; a deployment
 placement targets a declared infrastructure leaf.
@@ -116,6 +116,7 @@ For `flow:` documents, pass `--sequence` to emit a Mermaid
 - `assets/examples/steps-refinement.yaml` -- a minimal `steps:` document refining one component's `kind` and `detail` through cumulative `set` deltas.
 - `assets/examples/orders-failover-scenarios.yaml` -- a shared steady-state base with two independent failover variants.
 - `assets/examples/checkout-flow.yaml` -- a fixed-topology request walkthrough.
+- `assets/examples/agent-refusal-flow.yaml` -- an agent flow with a hosted model (`variant: external`), a vector store, a tool, and a `refused` reply.
 - `assets/examples/commerce-views.yaml` -- a v2 context/deployment/flow bundle with replicas and navigation.
 - `assets/examples/comparison-views.yaml` -- a v2 comparison bundle with weighted criteria and per-option trade-offs.
 

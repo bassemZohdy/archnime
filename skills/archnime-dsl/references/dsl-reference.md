@@ -136,11 +136,20 @@ catalog:
     contains: commerce           # optional package or v2 view target
     navigateTo: orders-flow      # optional v2 view target
     source: src/orders/service.py  # optional, the file behind it (see Sources)
+    variant: external            # optional, someone else runs it
 ```
 
 `type` enum: `actor`, `service`, `gateway`, `agent`, `database`, `cache`,
-`queue`, `topic`, `external`, `security`, `package`. There is no `shape`
+`queue`, `topic`, `external`, `security`, `package`, and for AI systems
+`llm` (a model you call), `vector-store` (an embedding index, drawn as a
+store) and `tool` (a function an agent may call). There is no `shape`
 field -- the icon is always derived from `type`.
+
+`variant: external` marks a part that someone else runs (a hosted model, a
+SaaS API, a managed store) without giving up its type: an external `llm`
+keeps the model icon and gets a dashed outline. Use `type: external` only
+for a system whose kind does not matter to the reader. A node override
+(`{id, variant: external}`) sets it for one view or stage.
 
 Projects may register additional catalog types under `meta.icons` without
 changing the built-in set:
@@ -350,11 +359,13 @@ step-level `label` replaces the permanent label on the active wire while that
 step is selected; this is useful when the same wire carries different
 operations at different moments. An `edge`
 references a wire by its endpoint shorthand; `kind: return` may reference the
-reverse direction of an earlier call. `group` activates several edges in one
+reverse direction of an earlier call, and so may `kind: refused`. `group` activates several edges in one
 step, while `parallel` contains child edge steps. `kind` is `call`, `return`,
-`async`, or `loop`; a loop may use a synthetic self-edge such as
+`refused`, `async`, or `loop`; `refused` is a reply that says no (a policy
+check, a rate limit, a guardrail) and needs an earlier call like `return`; a loop may use a synthetic self-edge such as
 `notify -> notify`. Use `label` and `repeat` for compact timeline metadata.
-The renderer draws `return` edges with dashed arrows, marks `parallel` work
+The renderer draws `return` edges with dashed arrows and `refused` edges
+with short dashes ending in a cross (the sequence export writes `--x`), marks `parallel` work
 with fork/join glyphs, and displays a `loop` badge with its `repeat` condition.
 Use `meta.flow.render: all-steps` for a static, printable view with every
 flow-mapped wire numbered; `single` hides walkthrough chrome for slide use.

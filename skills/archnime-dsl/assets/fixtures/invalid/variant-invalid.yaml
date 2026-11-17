@@ -1,0 +1,11 @@
+dsl: transition-diagram/1.0
+meta:
+  title: Unknown variant
+catalog:
+  a: { label: A, type: service }
+  b: { label: B, type: llm, variant: hosted }
+system:
+  title: One state
+  nodes: [a, b]
+  wires:
+    - "a -> b: prompt"

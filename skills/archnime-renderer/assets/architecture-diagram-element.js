@@ -212,6 +212,7 @@
     }
 
     serializeArchitectureMermaid() { return this._runtime?.localWindow.serializeArchitectureMermaid?.() || ""; }
+    serializeDocumentationSvg() { return this._runtime?.localWindow.serializeDocumentationSvg?.() || ""; }
     serializeAnimatedSvg() { return this._runtime?.localWindow.serializeAnimatedSvg?.() || Promise.resolve(""); }
     diagramSelfCheck() {
       if (this.diagramStatus !== "ready") return [{ type: this.diagramStatus === "error" ? "runtime-error" : "runtime-unavailable", detail: this.diagramError || `diagram status is ${this.diagramStatus}` }];

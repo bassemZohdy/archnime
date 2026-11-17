@@ -75,8 +75,10 @@ CLI validation and mapping path.
    settled view/stage (not **SVG (this view)**, which retains presenter zoom),
    and include a static fallback and link to the live viewer. Export every
    relevant migration stage and v2 view explicitly; verify the actual target
-   document rather than assuming animation or controls are preserved. Read
-   `references/documentation-export.md`.
+   document rather than assuming animation or controls are preserved. Without a
+   browser at hand, `archnime-renderer/scripts/export_svg.mjs spec.yaml --out
+   diagram.svg` writes the same SVG headless (add `--sequence` for a flow's
+   sequence view). Read `references/documentation-export.md`.
 9. **Tune ELK when needed.** With the pinned ELK runtime loaded, use **Tune
    layout** to try bounded deterministic layered strategies. The engine
    reroutes wires and rechecks labels/collisions for each candidate, then keeps
@@ -190,7 +192,8 @@ node/boundary straddles) and a collapse → re-expand round trip. Run it after
 any change to `template.html` or `diagram-engine.js`; `diagramSelfCheck()`
 alone does not see what paints.
 The **SVG (documentation)** control emits a single-stage SVG with fitted full
-content bounds, an embedded pinned font, and an opaque background. It is the
+content bounds, an embedded pinned font, and an opaque background. It carries the
+light and the dark palette and follows the reader's `prefers-color-scheme`. It is the
 preferred static documentation artifact; the normal **SVG (this view)** retains
 presenter zoom and must not be used as a docs substitute. See
 `references/documentation-export.md`.

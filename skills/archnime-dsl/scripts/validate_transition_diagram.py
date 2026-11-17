@@ -89,8 +89,9 @@ DEFAULT_SCHEMA_PATH = os.path.join(
     os.path.dirname(SCRIPT_DIR), "assets", "schema", "transition-diagram.schema.yaml"
 )
 
-NODE_OVERRIDE_ALLOWED_FIELDS = {"id", "label", "detail", "kind", "size", "navigateTo", "ops", "source"}
-BUILTIN_NODE_TYPES = {"actor", "service", "gateway", "agent", "database", "cache", "queue", "topic", "external", "security", "package"}
+NODE_OVERRIDE_ALLOWED_FIELDS = {"id", "label", "detail", "kind", "size", "navigateTo", "ops", "variant", "source"}
+RETURN_KINDS = {"return", "refused"}  # a reply travels back along the wire of an earlier call
+BUILTIN_NODE_TYPES = {"actor", "service", "gateway", "agent", "database", "cache", "queue", "topic", "external", "security", "package", "llm", "vector-store", "tool"}
 
 
 class DuplicateKeyError(yaml.constructor.ConstructorError):
@@ -695,7 +696,7 @@ def _lint_flow_step(step: dict, flow_wires: list[dict], flow_node_ids: set, seen
             return
         reverse = (key[1], key[0])
         synthetic_loop = kind == "loop" and key[0] == key[1]
-        pair_known = key in known or (kind == "return" and reverse in known)
+        pair_known = key in known or (kind in RETURN_KINDS and reverse in known)
         if not pair_known and not synthetic_loop:
             findings.append(Finding("flow-step-unknown-edge", f"flow step edge {text!r} is not present in flow.wires", edge_path))
         elif pair_known and not synthetic_loop:
@@ -703,11 +704,11 @@ def _lint_flow_step(step: dict, flow_wires: list[dict], flow_node_ids: set, seen
             # followed by an untyped step (or the reverse) leaves the step unbound.
             step_type = edge.get("type", "data")
             typed = {(w.get("from"), w.get("to"), w.get("type", "data")) for w in flow_wires if isinstance(w.get("from"), str) and isinstance(w.get("to"), str)}
-            if (key[0], key[1], step_type) not in typed and not (kind == "return" and (reverse[0], reverse[1], step_type) in typed):
+            if (key[0], key[1], step_type) not in typed and not (kind in RETURN_KINDS and (reverse[0], reverse[1], step_type) in typed):
                 findings.append(Finding("flow-step-wire-type-mismatch", f"flow step edge {text!r} has type {step_type!r} but the wire between those nodes has a different type; write the step with the wire's type prefix", edge_path))
-        if kind == "return" and reverse not in seen_calls:
-            findings.append(Finding("flow-return-no-forward", f"return edge {text!r} has no earlier forward call", edge_path))
-        elif kind != "return" and key in known:
+        if kind in RETURN_KINDS and reverse not in seen_calls:
+            findings.append(Finding("flow-return-no-forward", f"{kind} edge {text!r} has no earlier forward call", edge_path))
+        elif kind not in RETURN_KINDS and key in known:
             seen_calls.add(key)
 
     if isinstance(step.get("edge"), str):

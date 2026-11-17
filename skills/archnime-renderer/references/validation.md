@@ -41,7 +41,7 @@ Open the HTML directly (`file://`) and run `diagramSelfCheck()` or append `?chec
 | `declared-node-not-rendered` | A leaf declared by the stage is missing from the rendered nodes, or a rendered leaf was never declared | Identity bug in resolution or collapse; fix the engine or translator, not the model |
 | `flow-marker-collision` | A numbered flow marker overlaps a node, a wire label, or another marker | Move a node, shorten the label, or widen spacing so the marker lane clears |
 | `flow-marker-overflow` | A flow marker leaves the logical canvas | Grow the canvas or reduce expanded levels |
-| `flow-return-no-forward` | A `return` step has no earlier forward call on the reverse edge | Add or reorder the forward call; a return must answer a prior call |
+| `flow-return-no-forward` | A `return` or `refused` step has no earlier forward call on the reverse edge | Add or reorder the forward call; a return must answer a prior call |
 | `flow-step-empty` | A flow step has no edge, group, or parallel item | Give the step exactly one of `edge`, `group`, or `parallel` |
 | `flow-step-unknown-edge` | A flow step names an edge that is not in the flow's wires | Add the wire or fix the step's edge |
 | `stage-overflow` | A node, package, boundary, or label leaves the logical canvas *after* the fit-within-canvas pass ran | The renderer already translated/uniformly-scaled the settled layout back inside `canvas`; a surviving finding means the content is genuinely larger than the canvas — grow `canvas.w`/`canvas.h`, or expand fewer levels in that scenario |
