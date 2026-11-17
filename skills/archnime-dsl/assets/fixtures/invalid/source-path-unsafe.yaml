@@ -1,0 +1,10 @@
+# A source that leaves the project root is refused before any file is read.
+dsl: transition-diagram/1.0
+meta:
+  title: Unsafe source
+catalog:
+  api: { label: API, type: service, source: ../outside/api.py }
+system:
+  title: Unsafe source
+  nodes: [api]
+  wires: []

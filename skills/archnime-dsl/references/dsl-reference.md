@@ -135,6 +135,7 @@ catalog:
     level: Component             # optional, advisory only
     contains: commerce           # optional package or v2 view target
     navigateTo: orders-flow      # optional v2 view target
+    source: src/orders/service.py  # optional, the file behind it (see Sources)
 ```
 
 `type` enum: `actor`, `service`, `gateway`, `agent`, `database`, `cache`,
@@ -192,7 +193,7 @@ system:
                 layers: [ { id, label } ], auto: true }
 ```
 
-A node override may only set `label`, `detail`, `kind`, `size`, `ops`, and (in a v2
+A node override may only set `label`, `detail`, `kind`, `size`, `ops`, `source`, and (in a v2
 bundle) `navigateTo` -- never `type`. Type is identity, fixed once in
 `catalog`.
 
@@ -367,6 +368,34 @@ flow-mapped wire numbered; `single` hides walkthrough chrome for slide use.
 
 `type` enum: `data`, `security`, `control`, `compat`, `neutral` (default
 `data`). See `wire-shorthand.md` for the terser string form.
+
+A wire mapping may also carry `source` (see Sources); shorthand strings cannot,
+so write a wire as a mapping when it needs one.
+
+## `source:` -- the code behind a part, line or step
+
+`source` is optional on a catalog entry, a node override, a wire mapping and a
+flow step. It names, relative to the project root, the file that backs it:
+
+| Form | Example |
+| --- | --- |
+| file | `source: src/orders/service.py` |
+| file and line | `source: "src/api.ts:42"` |
+| file and quoted words | `source: "src/api.ts#db.insert(order)"` |
+| all three | `source: "src/api.ts:42#db.insert(order)"` |
+| mapping | `source: { path: src/api.ts, line: 42, quote: db.insert(order) }` |
+
+For a part, name the file that decides what it is, found by following the
+imports. For a wire or step, name the line that makes the call and a few words
+of it, enough to find it again. When drawing from a document instead of code,
+name the document and quote the sentence that states the part or the call:
+`docs/design.md#the worker takes each job from the queue`.
+
+The validator refuses a path that is absolute, a URL, leaves the root, enters
+`.git` or a credentials folder, or names a file that commonly holds secrets
+(`source-path-unsafe`). `scripts/check_sources.py` reads the files and reports a
+source whose file, line or words are gone (see `validation-and-review.md`).
+The translator keeps `source` in the renderer model.
 
 ## Boundaries
 

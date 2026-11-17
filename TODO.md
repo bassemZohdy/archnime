@@ -14,11 +14,11 @@
 - [ ] **FEAT-017** · P1 · high · Add code-backed provenance: optional source on catalog entries and wires, plus a check that reports sources whose file or quoted words are gone and refuses unsafe paths
   - Done when: check flags a missing path and vanished words and rejects absolute, parent-escaping and secret-file sources in both validators; `python -m unittest discover -s skills/archnime-dsl/tests -p test_sources.py`
   - Links: Depends: TASK-022
-  - [ ] **FEAT-017.1** · high · `source` on catalog entries, node overrides and wires in the schema, with a `source-path-unsafe` lint in the Python and browser validators
+  - [x] **FEAT-017.1** · high · `source` on catalog entries, node overrides and wires in the schema, with a `source-path-unsafe` lint in the Python and browser validators
     - Done when: both validators accept a safe source and reject absolute, `..`, `.git` and secret-file paths alike; `python -m unittest discover -s skills/archnime-dsl/tests -p test_sources.py`
-  - [ ] **FEAT-017.2** · mid · `check_sources.py`: report a missing file, vanished quoted words, a line past the end and a link escaping the root
+  - [x] **FEAT-017.2** · mid · `check_sources.py`: report a missing file, vanished quoted words, a line past the end and a link escaping the root
     - Done when: each case is a finding with its path and the exit code is 1; `python -m unittest discover -s skills/archnime-dsl/tests -p test_sources.py`
-  - [ ] **FEAT-017.3** · low · Carry `source` into the renderer model and document the field, the rules and the check
+  - [x] **FEAT-017.3** · low · Carry `source` into the renderer model and document the field, the rules and the check
     - Done when: both translators keep source and the rule list stays documented; `python -m unittest discover -s skills/archnime-dsl/tests -p test_rule_docs.py`; regression: `npm run check-fixtures`
 
 - [ ] **FEAT-018** · P1 · high · Add an agent-first extraction workflow: reader contract, evidence-only drawing from code, a spec brief printer, a density budget warning and a one-command install
