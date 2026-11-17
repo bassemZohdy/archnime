@@ -108,6 +108,9 @@ missing dependency).
 | `comparison-criterion-unknown` | A view's `comparison.tradeoffs` names a criterion that `meta.comparison.criteria` does not declare | Declare the criterion, or correct the key |
 | `comparison-rating-invalid` | A tradeoff `rating` is not a number from 0 to 5 | Use a rating from 0 to 5 |
 | `source-path-unsafe` | A `source` is absolute, a URL, leaves the project root, enters `.git` or a credentials folder (`.ssh`, `.aws`, ...), or names a file that commonly holds secrets (`.env`, `*.pem`, `*.key`, `id_rsa`, `.npmrc`, `credentials`, `secrets.*`) | Name the code file that makes the part or line, relative to the project root; never point a diagram at a secret |
+| `reader-contract-incomplete` | Warning. `meta.reader` has fewer than 3 or more than 5 questions, or no `idea` | Write the 3 to 5 questions the reader must answer from the diagram alone and the one idea it must make obvious |
+| `evidence-source-missing` | Warning. `meta.evidence` is `code` or `document`, yet a catalog entry (other than an `actor` or `external`) or a wire has no `source` | Name the file (or the sentence) behind it; write the wire as a mapping to carry it. What no file backs is a gap for the report, not a box |
+| `density-budget` | Warning. One state, view or flow lists more than 12 nodes or 16 wires (or the budget in `meta.density`) | Merge parts with the same relations, use packages or disclosure, or split into views; raise `meta.density` only when the density is the point |
 | `lint-internal-error` | The lint pass hit an unexpected exception on malformed input | Should not happen on a schema-valid document; report it |
 
 ## Checking sources against the code

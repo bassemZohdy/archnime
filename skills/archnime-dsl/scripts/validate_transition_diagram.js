@@ -394,6 +394,79 @@
     }
   }
 
+  // Agent-first extraction: the reader contract, evidence-only drawing and the density budget.
+  // Mirrors _lint_reader / _lint_evidence / _lint_density in validate_transition_diagram.py.
+  const DENSITY_DEFAULT = { nodes: 12, wires: 16 };
+  const EVIDENCE_EXEMPT_TYPES = new Set(["actor", "external"]);
+  function checkExtractionMeta(meta, path, findings) {
+    if (has(meta, "reader")) {
+      const reader = meta.reader, readerPath = pathKey(path, "reader");
+      if (!isObject(reader)) findings.push(schema("reader must be an object", readerPath));
+      else {
+        checkAdditional(reader, new Set(["audience", "questions", "idea", "omitted"]), readerPath, findings);
+        if (typeof reader.audience !== "string" || !reader.audience.length) findings.push(schema("reader.audience must be a non-empty string", pathKey(readerPath, "audience")));
+        if (!Array.isArray(reader.questions) || !reader.questions.length || !reader.questions.every(item => typeof item === "string" && item.length)) findings.push(schema("reader.questions must be a non-empty string array", pathKey(readerPath, "questions")));
+        if (has(reader, "idea") && (typeof reader.idea !== "string" || !reader.idea.length)) findings.push(schema("reader.idea must be a non-empty string", pathKey(readerPath, "idea")));
+        if (has(reader, "omitted") && (!Array.isArray(reader.omitted) || !reader.omitted.every(item => typeof item === "string" && item.length))) findings.push(schema("reader.omitted must be a string array", pathKey(readerPath, "omitted")));
+      }
+    }
+    if (has(meta, "evidence") && !["code", "document", "interview"].includes(meta.evidence)) findings.push(schema("evidence must be code, document, or interview", pathKey(path, "evidence")));
+    if (has(meta, "density")) {
+      const density = meta.density, densityPath = pathKey(path, "density");
+      if (!isObject(density)) findings.push(schema("density must be an object", densityPath));
+      else {
+        checkAdditional(density, new Set(["nodes", "wires"]), densityPath, findings);
+        ["nodes", "wires"].forEach(key => { if (has(density, key) && (!Number.isInteger(density[key]) || density[key] < 1)) findings.push(schema(`density.${key} must be a positive integer`, pathKey(densityPath, key))); });
+      }
+    }
+  }
+  function lintReader(doc) {
+    const reader = obj(doc.meta).reader;
+    if (!isObject(reader)) return [];
+    const findings = [], path = "$.meta.reader";
+    const questions = arr(reader.questions).filter(item => typeof item === "string" && item.trim());
+    if (questions.length < 3 || questions.length > 5) findings.push(finding("reader-contract-incomplete", `reader has ${questions.length} question(s); write the 3 to 5 questions the reader must answer from the diagram alone`, `${path}.questions`, "warning"));
+    if (!(typeof reader.idea === "string" && reader.idea.trim())) findings.push(finding("reader-contract-incomplete", "reader has no idea: name the one thing the diagram must make obvious", `${path}.idea`, "warning"));
+    return findings;
+  }
+  function wireLists(doc, where = "$", parent = "") {
+    const found = [];
+    if (isObject(doc)) Object.entries(doc).forEach(([key, value]) => {
+      if (key === "wires" && Array.isArray(value) && parent !== "remove") found.push([`${where}.wires`, value]);
+      else if (!ID_KEYED_MAPS.has(key)) found.push(...wireLists(value, `${where}.${key}`, key));
+    });
+    else if (Array.isArray(doc)) doc.forEach((value, index) => found.push(...wireLists(value, `${where}[${index}]`, parent)));
+    return found;
+  }
+  function lintEvidence(doc) {
+    const evidence = obj(doc.meta).evidence;
+    if (evidence !== "code" && evidence !== "document") return [];
+    const backing = evidence === "code" ? "file" : "sentence", findings = [];
+    Object.entries(obj(doc.catalog)).forEach(([id, entry]) => {
+      if (isObject(entry) && !EVIDENCE_EXEMPT_TYPES.has(entry.type) && !has(entry, "source")) findings.push(finding("evidence-source-missing", `part '${id}' has no source: name the ${backing} behind it, or leave it out and report it as a gap`, `$.catalog.${id}`, "warning"));
+    });
+    wireLists(doc).forEach(([where, wires]) => wires.forEach((wire, index) => {
+      if (isObject(wire) && has(wire, "source")) return;
+      const label = typeof wire === "string" ? wire : `${obj(wire).from} -> ${obj(wire).to}`;
+      findings.push(finding("evidence-source-missing", `wire '${label}' has no source: write it as a mapping with the ${backing} that makes it`, `${where}[${index}]`, "warning"));
+    }));
+    return findings;
+  }
+  function lintDensity(doc) {
+    const budget = { ...DENSITY_DEFAULT }, findings = [];
+    Object.entries(obj(obj(doc.meta).density)).forEach(([key, value]) => { if (key in budget && Number.isInteger(value)) budget[key] = value; });
+    const visit = (value, where) => {
+      if (isObject(value)) {
+        const nodes = value.nodes, wires = value.wires;
+        if (Array.isArray(nodes) && nodes.length > budget.nodes) findings.push(finding("density-budget", `${nodes.length} nodes is past the budget of ${budget.nodes}: merge parts with the same relations, use packages or split into views (or raise meta.density.nodes)`, `${where}.nodes`, "warning"));
+        if (Array.isArray(nodes) && Array.isArray(wires) && wires.length > budget.wires) findings.push(finding("density-budget", `${wires.length} wires is past the budget of ${budget.wires}: merge lines with the same meaning or split into views (or raise meta.density.wires)`, `${where}.wires`, "warning"));
+        Object.entries(value).forEach(([key, child]) => { if (!ID_KEYED_MAPS.has(key) && key !== "add" && key !== "remove") visit(child, `${where}.${key}`); });
+      } else if (Array.isArray(value)) value.forEach((child, index) => visit(child, `${where}[${index}]`));
+    };
+    ["system", "transition", "steps", "scenarios", "flow", "views"].forEach(key => { if (has(doc, key)) visit(doc[key], `$.${key}`); });
+    return findings;
+  }
+
   function schemaPass(doc) {
     const findings = [];
     if (!isObject(doc)) return [schema("must be an object")];
@@ -402,7 +475,7 @@
     if (!["transition-diagram/1.0", "transition-diagram/2.0"].includes(doc.dsl)) findings.push(schema("dsl must equal transition-diagram/1.0 or transition-diagram/2.0", pathKey("$", "dsl")));
     if (!isObject(doc.meta)) findings.push(schema("meta is required and must be an object", pathKey("$", "meta")));
     else {
-      const allowed = new Set(["title", "subtitle", "layout", "minWireLen", "perspectives", "routing", "wireJumps", "composition", "comparison", "direction", "focusHops", "levels", "icons", "flow", "gif"]);
+      const allowed = new Set(["title", "subtitle", "layout", "minWireLen", "perspectives", "routing", "wireJumps", "composition", "comparison", "direction", "focusHops", "levels", "icons", "flow", "gif", "reader", "evidence", "density"]);
       checkAdditional(doc.meta, allowed, pathKey("$", "meta"), findings);
       if (typeof doc.meta.title !== "string" || !doc.meta.title.length) findings.push(schema("meta.title must be a non-empty string", pathKey(pathKey("$", "meta"), "title")));
       if (has(doc.meta, "subtitle") && typeof doc.meta.subtitle !== "string") findings.push(schema("subtitle must be a string", pathKey(pathKey("$", "meta"), "subtitle")));
@@ -419,6 +492,7 @@
       if (has(doc.meta, "direction") && !["LR", "TB"].includes(doc.meta.direction)) findings.push(schema("direction must be LR or TB", pathKey(pathKey("$", "meta"), "direction")));
       if (has(doc.meta, "focusHops") && (!Number.isInteger(doc.meta.focusHops) || doc.meta.focusHops < 0)) findings.push(schema("focusHops must be a non-negative integer", pathKey(pathKey("$", "meta"), "focusHops")));
       if (has(doc.meta, "levels") && (!Array.isArray(doc.meta.levels) || doc.meta.levels.length < 1 || !doc.meta.levels.every(item => typeof item === "string"))) findings.push(schema("levels must be a non-empty string array", pathKey(pathKey("$", "meta"), "levels")));
+      checkExtractionMeta(doc.meta, pathKey("$", "meta"), findings);
       if (has(doc.meta, "icons")) checkIcons(doc.meta.icons, pathKey(pathKey("$", "meta"), "icons"), findings);
       if (has(doc.meta, "comparison")) checkComparison(doc.meta.comparison, pathKey(pathKey("$", "meta"), "comparison"), findings);
       if (has(doc.meta, "flow")) {
@@ -923,7 +997,7 @@
   function lintPass(doc) {
     const findings = [], hasSystem = has(doc, "system"), hasTransition = has(doc, "transition"), hasSteps = has(doc, "steps"), hasScenarios = has(doc, "scenarios"), hasFlow = has(doc, "flow"), hasViews = has(doc, "views");
     if (!hasSystem && !hasTransition && !hasSteps && !hasScenarios && !hasFlow && !hasViews) findings.push(finding("mode-required", "document has neither system:, transition:, steps:, scenarios:, flow:, nor views:", "$"));
-    findings.push(...lintDuplicateIds(doc), ...lintPackageGraph(doc), ...lintSources(doc));
+    findings.push(...lintDuplicateIds(doc), ...lintPackageGraph(doc), ...lintSources(doc), ...lintReader(doc), ...lintEvidence(doc), ...lintDensity(doc));
     const knownIds = collectKnownIds(doc), packageIds = new Set(Object.keys(obj(doc.packages)));
     Object.entries(obj(doc.packages)).forEach(([packageId, pkg]) => (isObject(pkg) ? strs(pkg.children) : []).forEach(child => { if (!knownIds.has(child)) findings.push(finding("unknown-catalog-ref", `package '${packageId}' child '${child}' is not a catalog or package id`, `$.packages.${packageId}.children`)); }));
     if (hasViews) {

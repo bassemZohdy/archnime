@@ -7,6 +7,8 @@ meta:
   direction: LR
   levels: [Context, Container, Component]
   perspectives: [all, data, security, devops]
+  # A deliberately dense layout fixture: the budget is raised knowingly.
+  density: {nodes: 14, wires: 24}
 
 catalog:
   users: {label: Users, type: actor, kind: existing}

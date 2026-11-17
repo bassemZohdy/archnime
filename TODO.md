@@ -24,15 +24,15 @@
 - [ ] **FEAT-018** · P1 · high · Add an agent-first extraction workflow: reader contract, evidence-only drawing from code, a spec brief printer, a density budget warning and a one-command install
   - Done when: the extraction contract, density warning and spec brief are enforced by tests and the README documents the install; `python -m unittest discover -s skills/archnime-interview/tests -p test_extraction_contract.py`
   - Links: Depends: FEAT-017
-  - [ ] **FEAT-018.1** · mid · `meta.reader` and `meta.evidence` with `reader-contract-incomplete` and `evidence-source-missing` lints in both validators
+  - [x] **FEAT-018.1** · mid · `meta.reader` and `meta.evidence` with `reader-contract-incomplete` and `evidence-source-missing` lints in both validators
     - Done when: a code-evidence document without sources warns and a reader with under 3 questions warns in both; `python -m unittest discover -s skills/archnime-dsl/tests -p test_extraction_lint.py`
-  - [ ] **FEAT-018.2** · mid · `density-budget` warning past 12 nodes or 16 wires in one state, view or flow, in both validators
+  - [x] **FEAT-018.2** · mid · `density-budget` warning past 12 nodes or 16 wires in one state, view or flow, in both validators
     - Done when: a 13-node state warns and every shipped example stays clean; `python -m unittest discover -s skills/archnime-dsl/tests -p test_extraction_lint.py`
-  - [ ] **FEAT-018.3** · low · `spec_brief.py` prints one complete small spec and one line per other section, or one section by name
+  - [x] **FEAT-018.3** · low · `spec_brief.py` prints one complete small spec and one line per other section, or one section by name
     - Done when: the brief validates clean and each listed section prints; `python -m unittest discover -s skills/archnime-dsl/tests -p test_spec_brief.py`
-  - [ ] **FEAT-018.4** · mid · Extraction reference and SKILL.md steps: reader contract, evidence-only facts, brief, check, critique, report
+  - [x] **FEAT-018.4** · mid · Extraction reference and SKILL.md steps: reader contract, evidence-only facts, brief, check, critique, report
     - Done when: the contract test finds every step and rule; `python -m unittest discover -s skills/archnime-interview/tests -p test_extraction_contract.py`
-  - [ ] **FEAT-018.5** · mid · One-command install script for Claude, Codex, Gemini and plain skill folders, documented in the README
+  - [x] **FEAT-018.5** · mid · One-command install script for Claude, Codex, Gemini and plain skill folders, documented in the README
     - Done when: a dry run and a real install into a temp folder copy the five skills without tests; `node --test scripts/install.test.mjs`
 
 - [ ] **FEAT-019** · P1 · high · Reach static-SVG parity: headless CLI export, one SVG for light and dark, byte-stable output, refused flows, node variants and AI kinds, and a native sequence view

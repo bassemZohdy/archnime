@@ -1,6 +1,6 @@
 ---
 name: archnime-interview
-description: Elicit the minimum architecture facts needed to produce a validated transition-diagram YAML; use when the user says “help me diagram my architecture,” has an incomplete architecture brief, or needs to choose among system, transition, flow, deployment, or comparison views.
+description: Elicit the minimum architecture facts needed to produce a validated transition-diagram YAML; use when the user says “help me diagram my architecture,” has an incomplete architecture brief, or needs to choose among system, transition, flow, deployment, or comparison views. Also use it to draw an architecture from the code or a named document ("draw how this works", "diagram this repo"): it writes the reader contract and an evidence-only spec where every part and wire names the file or sentence behind it.
 license: Apache-2.0
 ---
 
@@ -11,6 +11,27 @@ brief into a plain-language architecture summary, an explicit assumptions and
 gaps report, and—only after confirmation—a `transition-diagram/1.0` or `2.0`
 YAML source. Do not reimplement schema validation, translation, layout, or
 rendering here; hand those jobs to the paired skills.
+
+## Drawing from code or a document
+
+When the facts are already written down (the user asks to "draw how this
+works", diagram a repository, or names a design doc to draw from), do not
+interview for them: follow `references/extraction.md`. In short:
+
+1. Write the reader contract into `meta.reader`: audience, 3 to 5 questions,
+   the one idea, what is left out.
+2. Set `meta.evidence: code` (or `document`) and draw only what a file or a
+   sentence backs, each part and wire with its `source`; what only the docs
+   claim is a gap for the report.
+3. Print the format with `archnime-dsl/scripts/spec_brief.py` instead of
+   writing from memory.
+4. Validate with `--strict`, then run `archnime-dsl/scripts/check_sources.py`
+   until both pass; keep within the density budget.
+5. Critique the spec against the contract, then report each part and wire
+   with its evidence.
+
+Ask the user only when the code and the docs disagree or the request names
+something you cannot find.
 
 ## Interview loop
 
@@ -61,6 +82,7 @@ draft after the diagram source is confirmed. See
 - Read `references/best-practice-nudges.md` when reviewing or filling gaps.
 - Read `references/output-contract.md` before the confirmation and handoff.
 - Read `references/comparison.md` for option branches and ADR handoff.
+- Read `references/extraction.md` to draw from code or a named document.
 
 Pairs with `archnime-dsl` for semantic YAML and validation, then
 `archnime-renderer` for interactive HTML/SVG. When available,

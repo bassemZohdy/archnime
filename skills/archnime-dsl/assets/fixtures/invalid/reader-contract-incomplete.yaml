@@ -1,0 +1,13 @@
+# A reader contract with two questions and no idea: the drawing has nothing to be checked against.
+dsl: transition-diagram/1.0
+meta:
+  title: Thin reader contract
+  reader:
+    audience: new engineers
+    questions: ["Where does an order enter?", "Who writes it?"]
+catalog:
+  api: { label: API, type: service }
+system:
+  title: Thin reader contract
+  nodes: [api]
+  wires: []
