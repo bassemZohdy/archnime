@@ -20,7 +20,7 @@ one fits so you can pick, or use two together.
 | | archnime | Mermaid | archgram |
 | --- | --- | --- | --- |
 | Source | YAML with a JSON Schema, two validators (Python and browser) kept in step | Mermaid text, one syntax per diagram kind | YAML spec, checked by `archgram check` |
-| Architecture diagram | yes, typed nodes and wires, packages, trust boundaries | `architecture-beta` (services, groups, junctions, icons; no edge labels) and C4 | yes |
+| Architecture diagram | yes, typed nodes and wires, packages, trust boundaries | `architecture-beta` (services, groups, junctions, icons; its documented edge syntax has no label) and C4 | yes |
 | Request sequence | `flow:` with returns, refusals, async, `parallel`, `alt`/`opt`/`loop`, phases | `sequenceDiagram`, the richest of the three: also `critical`, `break`, activations, participant boxes, create and destroy | yes, with fragments and phases |
 | Migration over several states | `transition:`, `steps:`, same ids across states | no | no |
 | Named what-if variants | `scenarios:` | no | no |

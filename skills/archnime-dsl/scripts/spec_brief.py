@@ -90,6 +90,9 @@ def main(argv: list | None = None) -> int:
     group.add_argument("--section", help="print one section of the DSL reference by name")
     group.add_argument("--list", action="store_true", help="print the section names")
     args = parser.parse_args(argv)
+    # The reference holds arrows and dashes a Windows console's code page cannot print.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     if args.list:
         print("\n".join(name for name, _, _ in sections()))
         return 0
