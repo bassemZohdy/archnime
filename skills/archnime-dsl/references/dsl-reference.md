@@ -274,9 +274,11 @@ continuity review.
 
 For a `flow:` document, `translate_transition_diagram.py --sequence` emits a
 companion Mermaid `sequenceDiagram` to stdout. Participant order follows
-`flow.nodes`; async edges use `-->>`, parallel work uses `par`/`and`, and a
-loop with `repeat` becomes a Mermaid `loop` block. The normal `--output`
-renderer-model path remains available separately.
+`flow.nodes`; messages are numbered (`autonumber`); async edges use `-->>`,
+parallel work uses `par`/`and`, a loop with `repeat` becomes a Mermaid `loop`
+block, `alt`/`opt`/`loop` fragments become `alt`/`else`/`opt`/`loop` blocks with
+their guards, and each `phase` is a note across every participant. The normal
+`--output` renderer-model path remains available separately.
 
 For a static architecture snapshot, `translate_transition_diagram.py --mermaid`
 emits Mermaid `architecture-beta` syntax to stdout. It uses the first translated
@@ -354,7 +356,8 @@ flow:
 Each step may set a short `title` for the timeline and introductory summary.
 Flow-level and step-level `docs` / `adr` links are carried into the renderer
 panel for the active view.
-It contains exactly one of `edge`, `group`, or `parallel`. An optional
+It contains exactly one of `edge`, `group`, `parallel`, `alt`, `opt`, or
+`loop`. An optional
 step-level `label` replaces the permanent label on the active wire while that
 step is selected; this is useful when the same wire carries different
 operations at different moments. An `edge`
@@ -369,6 +372,63 @@ with short dashes ending in a cross (the sequence export writes `--x`), marks `p
 with fork/join glyphs, and displays a `loop` badge with its `repeat` condition.
 Use `meta.flow.render: all-steps` for a static, printable view with every
 flow-mapped wire numbered; `single` hides walkthrough chrome for slide use.
+
+### Branches, options, loops and phases
+
+A step can hold a fragment instead of an edge: the branches of a choice, steps
+that run only sometimes, or steps that repeat. Each branch has a guard,
+`when`, in the reader's words, and its own `steps`, which may hold fragments
+of their own:
+
+```yaml
+steps:
+  - phase: Check the password
+    title: Find the user
+    edge: "api => users"
+  - title: User row
+    edge: "users => api"
+    kind: return
+  - title: Second factor
+    opt:
+      when: account has MFA
+      steps:
+        - title: Send the code
+          loop:
+            when: up to 3 tries
+            steps:
+              - { title: Send, edge: "api => mfa" }
+        - { title: Code accepted, edge: "mfa => api", kind: return }
+  - title: Answer
+    alt:
+      - when: password matches
+        steps:
+          - { title: Session, edge: "api => browser", kind: return, label: 200 · session }
+      - when: else
+        steps:
+          - { title: Refused, edge: "api => browser", kind: refused, label: "401" }
+```
+
+| Key | Means | Branches |
+|---|---|---|
+| `alt` | one of the branches runs | a list of two or more; only the last may be `when: else` |
+| `opt` | the steps run only when the guard holds | one |
+| `loop` | the steps repeat; the guard says over what (`for each page`) | one |
+
+Each branch of an `alt` starts from the calls made before it, so a reply in
+the `else` branch cannot answer a call only the first branch made; after the
+fragment, a call made in any branch may be answered. `phase` names a part of
+the conversation, `Check the password`, and lasts until the next `phase`; it
+goes on a top-level step only. A single step with `kind: loop` and `repeat`
+remains the short form of a one-step loop.
+
+The translator plays every branch in turn, in the order written: each step
+inside a fragment carries `fragments`, its enclosing frames (id, kind, guard,
+branch), and a step after a `phase` carries it. The presenter puts the guards
+before the step title and the phase in the eyebrow; the sequence SVG
+(`export_svg.mjs --sequence`) draws each fragment as a frame with its guard,
+an `else` branch below a dashed divider, and each phase as a heading; the
+Mermaid sequence writes `alt`/`else`/`opt`/`loop` blocks. Example:
+`assets/examples/sign-in-sequence.yaml`.
 
 ## Wires -- full form
 

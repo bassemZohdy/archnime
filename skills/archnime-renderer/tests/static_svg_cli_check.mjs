@@ -20,6 +20,7 @@ const CLI = join(SKILLS, "archnime-renderer", "scripts", "export_svg.mjs");
 const AGENT = join(SKILLS, "archnime-dsl", "assets", "examples", "agent-refusal-flow.yaml");
 const CHECKOUT = join(SKILLS, "archnime-dsl", "assets", "examples", "checkout-flow.yaml");
 const SYSTEM = join(SKILLS, "archnime-dsl", "assets", "examples", "one-shot-checkout.yaml");
+const SIGN_IN = join(SKILLS, "archnime-dsl", "assets", "examples", "sign-in-sequence.yaml");
 const failures = [];
 const check = (ok, message) => { console.log(`${ok ? "✓" : "✗"} ${message}`); if (!ok) failures.push(message); };
 
@@ -91,6 +92,19 @@ try {
   check(sequence.includes("@media (prefers-color-scheme: dark)"), "the sequence view carries the dark palette");
   const checkout = await exportSvg({ source: CHECKOUT, sequence: true, chromium });
   check(count(checkout, /class="seq-msg /g) === 8 && /seq-loop/.test(checkout) && /seq-async/.test(checkout), "grouped, parallel, async and loop steps each become messages");
+  check(/class="seq-frame seq-frame-par"/.test(checkout) && /class="seq-frame seq-frame-loop"[\s\S]*?\[until delivered\]/.test(checkout), "a parallel step and a looped step are drawn as par and loop frames");
+
+  // FEAT-024: alt, opt and loop fragments and named phases, byte-stable.
+  const signA = join(work, "sign-1.svg"), signB = join(work, "sign-2.svg");
+  const g1 = run(SIGN_IN, "--sequence", "--out", signA), g2 = run(SIGN_IN, "--sequence", "--out", signB);
+  check(g1.status === 0 && g2.status === 0, `a flow with fragments exports (${(g1.stderr || g2.stderr).trim() || "ok"})`);
+  const fragments = readFileSync(signA, "utf8");
+  check(fragments === readFileSync(signB, "utf8"), "a flow with fragments writes identical bytes twice");
+  check(["opt", "loop", "alt"].every(kind => count(fragments, new RegExp(`class="seq-frame seq-frame-${kind}"`, "g")) === 1), "opt, loop and alt each draw one frame");
+  check(/\[account has MFA\]/.test(fragments) && /\[up to 3 tries\]/.test(fragments) && /\[password matches\]/.test(fragments) && /\[else\]/.test(fragments), "every guard is written on its frame or branch");
+  check(count(fragments, /class="seq-frame-divider"/g) === 1, "the alt's else branch is set off by one divider");
+  check(count(fragments, /class="seq-phase"/g) === 3 && />Check the password</.test(fragments), "each named phase is headed once");
+  check(count(fragments, /class="seq-msg /g) === 8, `every message is drawn once (${count(fragments, /class="seq-msg /g)} of 8)`);
   const refusedFlowOnly = run(SYSTEM, "--sequence", "--out", join(work, "none.svg"));
   check(refusedFlowOnly.status === 1 && /needs a flow/.test(refusedFlowOnly.stderr), "--sequence on a spec without a flow is refused");
 } finally {

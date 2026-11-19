@@ -99,8 +99,10 @@ missing dependency).
 | `view-mode-required` | A view's `mode` is missing or not one of `system`, `transition`, `steps`, `scenarios`, `flow`, `deployment` | Use one of the six modes |
 | `flow-step-unknown-edge` | A flow step's edge is not valid wire shorthand, names a node outside `flow.nodes`, or matches no wire in `flow.wires` (a `return` or `refused` step may reverse a wire) | Fix the edge, or add the wire it follows |
 | `flow-step-wire-type-mismatch` | A flow step's edge has endpoints that match a flow wire but a different wire type (a `security:` wire followed by an untyped step), so the step binds to nothing | Write the step with the wire's type prefix, e.g. `security: a -> b` |
-| `flow-step-empty` | A flow step has none of `edge`, `group` or `parallel` | Give the step exactly one of them |
-| `flow-return-no-forward` | A `kind: return` or `kind: refused` step has no earlier forward call over the same wire | Add the call step first, or change the step's `kind` |
+| `flow-step-empty` | A flow step has none of `edge`, `group`, `parallel`, `alt`, `opt` or `loop` | Give the step exactly one of them |
+| `flow-return-no-forward` | A `kind: return` or `kind: refused` step has no earlier forward call over the same wire; inside an `alt`, each branch starts from the calls made before the `alt`, so a reply cannot answer a call only another branch made | Add the call step first, or change the step's `kind` |
+| `flow-guard-else` | `when: else` is used on an `opt`, a `loop`, or an `alt` branch that is not the last | Name the condition, or move the `else` branch last |
+| `flow-phase-nested` | A step inside `parallel` or a fragment (`alt`, `opt`, `loop`) sets `phase` | Put `phase` on the top-level step that starts it |
 | `deployment-duplicate-placement` | The same `(component, target)` pair is placed more than once | Combine the placements into one and use `replicas` |
 | `comparison-requires-views` | `meta.comparison` is set on a document without a `views:` bundle | Use `transition-diagram/2.0` with `views:` |
 | `comparison-duplicate-criterion` | Two comparison criteria share an `id` | Give each criterion a unique id |

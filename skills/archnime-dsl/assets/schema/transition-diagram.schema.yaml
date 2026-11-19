@@ -612,6 +612,21 @@ $defs:
         type: array
         items: { $ref: "#/$defs/flowStep" }
         minItems: 1
+      alt:
+        description: Branches of which one runs, each with its guard; the last guard is usually `else`.
+        type: array
+        items: { $ref: "#/$defs/flowOperand" }
+        minItems: 2
+      opt:
+        description: Steps that run only when the guard holds.
+        $ref: "#/$defs/flowOperand"
+      loop:
+        description: Steps that repeat; the guard says over what, such as `for each page`.
+        $ref: "#/$defs/flowOperand"
+      phase:
+        description: Starts a named phase of the conversation that lasts until the next phase; only on top-level steps.
+        type: string
+        minLength: 1
       note: { type: string }
       label: { type: string }
       kind: { type: string, enum: [call, return, refused, async, loop] }
@@ -622,6 +637,22 @@ $defs:
       - required: [edge]
       - required: [group]
       - required: [parallel]
+      - required: [alt]
+      - required: [opt]
+      - required: [loop]
+
+  flowOperand:
+    description: One branch of an alt, opt or loop fragment, with the steps it holds; each branch starts from the calls waiting before the fragment.
+    type: object
+    required: [when, steps]
+    additionalProperties: false
+    properties:
+      when: { type: string, minLength: 1 }
+      steps:
+        type: array
+        items: { $ref: "#/$defs/flowStep" }
+        minItems: 1
+      source: { $ref: "#/$defs/source" }
 
   flow:
     type: object

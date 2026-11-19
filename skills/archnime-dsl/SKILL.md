@@ -17,7 +17,7 @@ is independent of any renderer.
 ## Workflow
 
 1. **Gather the architecture.** Identify every catalog component, semantic type, lifecycle kind (`existing`, `new`, `mixed`, or `retired`), useful packages, and ownership/trust/compliance boundaries.
-2. **Choose the mode.** Use `system:` for one state, `transition:` with two or more full states for a current-to-target sequence or migration, `steps:` when that sequence is clearer as cumulative deltas, `scenarios:` for named non-sequential variants of one base, or `flow:` when one topology should be followed through ordered calls, returns, groups, and parallel work. Use v2 `views:` when several perspectives share the same catalog, and `mode: deployment` for physical placement across infrastructure.
+2. **Choose the mode.** Use `system:` for one state, `transition:` with two or more full states for a current-to-target sequence or migration, `steps:` when that sequence is clearer as cumulative deltas, `scenarios:` for named non-sequential variants of one base, or `flow:` when one topology should be followed through ordered calls, returns, groups, parallel work, and guarded `alt`/`opt`/`loop` fragments in named phases. Use v2 `views:` when several perspectives share the same catalog, and `mode: deployment` for physical placement across infrastructure.
 3. **Write the wires.** Use shorthand from `references/wire-shorthand.md` when possible; use full mappings when a wire needs `layer`, `bundle`, `offset`, or `priority`.
 4. **Write the YAML.** Start from `assets/templates/diagram-skeleton.yaml` and keep semantic identity in `catalog`, packages, boundaries, states, and wires.
 5. **Validate.** Run the bundled schema and referential validator and fix every finding:

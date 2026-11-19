@@ -126,8 +126,31 @@
       }
       return result;
     };
-    const copyStep = (step, index) => ({ ...normalizeNode(step, step.kind || "call"), id: `step-${index + 1}` });
-    const steps = (source.steps || []).map(copyStep);
+    // Flatten alt, opt and loop fragments into the played order of steps. A step inside a
+    // fragment carries `fragments`, its enclosing frames from the outermost in; a step after a
+    // `phase:` carries that phase until the next one.
+    const steps = [], operandsOf = step => { const fragment = ["alt", "opt", "loop"].find(key => key in step); if (!fragment) return []; return (fragment === "alt" ? (Array.isArray(step.alt) ? step.alt : []) : [step[fragment]]).map((operand, index) => ({ fragment, index, operand })).filter(item => item.operand && typeof item.operand === "object" && !Array.isArray(item.operand)); };
+    let counter = 0;
+    const walk = (step, frames, inheritedKind, phase) => {
+      if (!step || typeof step !== "object") return;
+      const operands = operandsOf(step);
+      if (operands.length) {
+        counter += 1; const frameId = `fragment-${counter}`;
+        operands.forEach(({ fragment, index, operand }) => {
+          const frame = { id: frameId, kind: fragment, when: String(operand.when ?? ""), branch: index };
+          ["title", "note"].forEach(key => { if (key in step) frame[key] = copy(step[key]); });
+          if ("source" in operand) frame.source = copy(operand.source);
+          (operand.steps || []).forEach(child => walk(child, [...frames, frame], step.kind || inheritedKind, phase));
+        });
+        return;
+      }
+      const copied = { ...normalizeNode(step, step.kind || inheritedKind || "call"), id: `step-${steps.length + 1}` };
+      if (frames.length) copied.fragments = copy(frames);
+      if (phase) copied.phase = phase;
+      steps.push(copied);
+    };
+    let phase = null;
+    (source.steps || []).forEach(step => { if (step && typeof step.phase === "string") phase = step.phase; walk(step, [], null, phase); });
     if (intro) {
       const titles = steps.map((step, index) => step.title || step.label || `Step ${index + 1}`);
       steps.unshift({ id: "flow-intro", title: "Flow overview", kind: "intro", edges: [], note: `Steps: ${titles.join(" → ")}` });
@@ -260,7 +283,7 @@
   function sequenceMermaid(model) {
     const flow = model && model.flow;
     if (!flow) throw new Error("--sequence requires a flow: document");
-    const catalog = model.catalog || {}, participantIds = (flow.nodes || []).map(entry => typeof entry === "string" ? entry : entry && entry.id).filter(Boolean), used = new Set(), aliases = Object.fromEntries(participantIds.map(id => [id, mermaidIdentifier(id, used)])), lines = ["sequenceDiagram"];
+    const catalog = model.catalog || {}, participantIds = (flow.nodes || []).map(entry => typeof entry === "string" ? entry : entry && entry.id).filter(Boolean), used = new Set(), aliases = Object.fromEntries(participantIds.map(id => [id, mermaidIdentifier(id, used)])), lines = ["sequenceDiagram", "    autonumber"];
     participantIds.forEach(id => lines.push(`    participant ${aliases[id]} as ${String(catalog[id]?.label || id).replace(/\n/g, " ")}`));
     const wires = Object.fromEntries((flow.wires || []).map(wire => [`${wire.from}>${wire.to}>${wire.type || "data"}`, wire]));
     const edgeEntries = step => [ ...(step?.edge && typeof step.edge === "object" ? [step.edge] : []), ...(Array.isArray(step?.edges) ? step.edges : []) ];
@@ -280,7 +303,30 @@
       if (Array.isArray(step.parallel)) { lines.push(`${indent}par ${title}`); step.parallel.forEach((child, index) => { if (index) lines.push(`${indent}and ${String(child.title || child.label || "parallel branch").replace(/\n/g, " ")}`); emitStep(child, `${indent}    `, true); }); lines.push(`${indent}end`); return; }
       const edges = edgeEntries(step); if (kind === "loop") { lines.push(`${indent}loop ${String(step.repeat || "repeat").replace(/\n/g, " ")}`); edges.forEach(edge => emitEdge(edge, step, `${indent}    `)); lines.push(`${indent}end`); return; } edges.forEach(edge => emitEdge(edge, step, indent));
     };
-    (flow.steps || []).forEach(step => emitStep(step)); return `${lines.join("\n")}\n`;
+    const namedIds = participantIds.filter(id => aliases[id]).map(id => aliases[id]), span = (namedIds.length < 2 ? namedIds : [namedIds[0], namedIds[namedIds.length - 1]]).join(","), oneLine = value => String(value).replace(/\n/g, " ");
+    const openFrames = []; let phase = null; // [frame id, branch], from the outermost in
+    const closeTo = depth => { while (openFrames.length > depth) { openFrames.pop(); lines.push(`${"    ".repeat(openFrames.length + 1)}end`); } };
+    (flow.steps || []).forEach(step => {
+      if (step.kind === "intro") return;
+      const frames = Array.isArray(step.fragments) ? step.fragments : [];
+      if (step.phase && step.phase !== phase) { closeTo(0); phase = step.phase; if (span) lines.push(`    Note over ${span}: ${oneLine(phase)}`); }
+      let depth = 0;
+      while (depth < openFrames.length && depth < frames.length && openFrames[depth][0] === frames[depth].id && openFrames[depth][1] === frames[depth].branch) depth += 1;
+      if (depth < openFrames.length && depth < frames.length && openFrames[depth][0] === frames[depth].id) {
+        // The next branch of an open alt: close what the last branch held and write `else`.
+        closeTo(depth + 1); openFrames[depth][1] = frames[depth].branch; const guard = oneLine(frames[depth].when ?? "").trim(); lines.push(`${"    ".repeat(depth + 1)}else${["", "else"].includes(guard.toLowerCase()) ? "" : ` ${guard}`}`); depth += 1;
+      }
+      closeTo(depth);
+      frames.slice(depth).forEach(frame => {
+        const indent = "    ".repeat(openFrames.length + 1);
+        if (frame.note && span) lines.push(`${indent}Note over ${span}: ${oneLine(frame.note)}`);
+        lines.push(`${indent}${frame.kind || "opt"} ${oneLine(frame.when ?? "")}`);
+        openFrames.push([frame.id, frame.branch]);
+      });
+      emitStep(step, "    ".repeat(openFrames.length + 1));
+    });
+    closeTo(0);
+    return `${lines.join("\n")}\n`;
   }
 
   global.TransitionDiagramTranslator = { translateDocument, sequenceMermaid, DEFAULT_CANVAS, SHAPE_BY_TYPE };

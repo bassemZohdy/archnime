@@ -107,6 +107,10 @@ derives renderer shapes from DSL types, maps `size` to `w`/`h`, and supplies a
 deterministic `1600×900` canvas when the optional DSL canvas is omitted.
 For `flow:` documents, pass `--sequence` to emit a Mermaid
 `sequenceDiagram` companion alongside the normal architecture projection.
+A flow step can also hold an `alt` (one of two or more guarded branches), an
+`opt` (steps that run only when a guard holds) or a `loop` (steps that
+repeat), and a top-level step can open a named `phase`; the presenter, the
+sequence SVG and the Mermaid companion all show the guards and phases.
 
 ## 6. Examples
 
@@ -116,6 +120,7 @@ For `flow:` documents, pass `--sequence` to emit a Mermaid
 - `assets/examples/steps-refinement.yaml` -- a minimal `steps:` document refining one component's `kind` and `detail` through cumulative `set` deltas.
 - `assets/examples/orders-failover-scenarios.yaml` -- a shared steady-state base with two independent failover variants.
 - `assets/examples/checkout-flow.yaml` -- a fixed-topology request walkthrough.
+- `assets/examples/sign-in-sequence.yaml` -- a sign-in flow in three phases with an `opt`, a nested `loop` and an `alt` whose `else` branch is refused.
 - `assets/examples/agent-refusal-flow.yaml` -- an agent flow with a hosted model (`variant: external`), a vector store, a tool, and a `refused` reply.
 - `assets/examples/commerce-views.yaml` -- a v2 context/deployment/flow bundle with replicas and navigation.
 - `assets/examples/comparison-views.yaml` -- a v2 comparison bundle with weighted criteria and per-option trade-offs.

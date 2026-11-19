@@ -1,0 +1,94 @@
+dsl: transition-diagram/1.0
+
+meta:
+  title: Sign in with a password
+  subtitle: The API finds the user, asks for a second factor when the account has one, and answers with a session or a refusal
+  layout: auto
+  direction: LR
+  levels: [Container]
+  flow:
+    intro: false
+    autoAdvanceMs: 1400
+    loop: false
+
+catalog:
+  browser:
+    label: Browser
+    type: actor
+    kind: existing
+  api:
+    label: Sign-in API
+    type: service
+    kind: existing
+    detail: checks the password
+  users:
+    label: Users table
+    type: database
+    kind: existing
+  mfa:
+    label: MFA provider
+    type: external
+    kind: existing
+    variant: external
+    detail: sends one-time codes
+  audit:
+    label: Audit log
+    type: queue
+    kind: new
+
+flow:
+  title: One sign-in
+  summary: The browser posts the form; the API checks the password, asks for a code when the account has a second factor, answers, and records the attempt.
+  callout: The alt shows both answers; only one of them is sent.
+  nodes: [browser, api, users, mfa, audit]
+  wires:
+    - "browser => api: POST /login"
+    - "api => users: find user"
+    - "api => mfa: send code"
+    - "api => audit: sign-in event"
+  steps:
+    - phase: Sign in
+      title: Post the form
+      edge: "browser => api"
+      note: The browser sends the email and the password.
+    - phase: Check the password
+      title: Find the user
+      edge: "api => users"
+    - title: User row
+      edge: "users => api"
+      kind: return
+      label: user row
+    - title: Second factor
+      note: Only accounts with a second factor get a code.
+      opt:
+        when: account has MFA
+        steps:
+          - title: Send the code
+            loop:
+              when: up to 3 tries
+              steps:
+                - title: Send
+                  edge: "api => mfa"
+          - title: Code accepted
+            edge: "mfa => api"
+            kind: return
+            label: accepted
+    - title: Answer
+      alt:
+        - when: password matches
+          steps:
+            - title: Session
+              edge: "api => browser"
+              kind: return
+              label: 200 · session
+        - when: else
+          steps:
+            - title: Refused
+              edge: "api => browser"
+              kind: refused
+              label: "401"
+    - phase: Record it
+      title: Audit
+      edge: "api => audit"
+      kind: async
+      note: The attempt is recorded whatever the answer.

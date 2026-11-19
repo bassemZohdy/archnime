@@ -9,4 +9,9 @@ component identity or wire endpoints. Run the canonical DSL validator before
 emitting it; the renderer's browser checks cover its header and representative
 flow constructs. A `note` spans the first and last participant of its step
 (Mermaid allows at most two), and each titled `parallel` branch keeps its title
-after `and`. A v2 bundle emits the companion for one view: pass `--view <id>`.
+after `and`. Messages are numbered with `autonumber`, matching the sequence
+SVG. An `alt`, `opt` or `loop` fragment becomes the Mermaid block of the same
+name with its guard, each later `alt` branch an `else` (a bare `else` for the
+guard `else`), and a `phase` a note across the first and last participant. The
+Python translator, the browser translator and the presenter's export write the
+same text. A v2 bundle emits the companion for one view: pass `--view <id>`.

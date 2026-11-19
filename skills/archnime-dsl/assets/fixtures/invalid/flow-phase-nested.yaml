@@ -1,0 +1,17 @@
+dsl: transition-diagram/1.0
+meta:
+  title: A phase inside a fragment
+catalog:
+  api: { label: API, type: service }
+  db: { label: Users, type: database }
+flow:
+  title: A phase starts only at the top
+  nodes: [api, db]
+  wires:
+    - "api -> db: find user"
+  steps:
+    - title: Maybe look up
+      opt:
+        when: cache missed
+        steps:
+          - { title: Find, phase: Look up, edge: "api -> db" }

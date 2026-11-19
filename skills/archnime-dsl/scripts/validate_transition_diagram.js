@@ -11,6 +11,15 @@
   const ID_RE = /^[A-Za-z][A-Za-z0-9_-]*$/;
   let NODE_TYPES = ["actor", "service", "gateway", "agent", "database", "cache", "queue", "topic", "external", "security", "package", "llm", "vector-store", "tool"];
   const RETURN_KINDS = ["return", "refused"]; // a reply travels back along the wire of an earlier call
+  const FLOW_FRAGMENTS = ["alt", "opt", "loop"];
+  // The operands of an alt, opt or loop step: { fragment, index within an alt (or null), operand }.
+  const flowOperands = step => {
+    const fragment = FLOW_FRAGMENTS.find(key => step && Object.prototype.hasOwnProperty.call(step, key));
+    if (!fragment) return [];
+    if (fragment === "alt") return (Array.isArray(step.alt) ? step.alt : []).map((operand, index) => ({ fragment, index, operand })).filter(item => item.operand && typeof item.operand === "object" && !Array.isArray(item.operand));
+    const operand = step[fragment];
+    return operand && typeof operand === "object" && !Array.isArray(operand) ? [{ fragment, index: null, operand }] : [];
+  };
   let WIRE_TYPES = ["data", "security", "control", "compat", "neutral"];
   let KINDS = ["existing", "new", "mixed", "security", "retired"];
   const PERSPECTIVES = ["all", "data", "security", "migration", "devops", "control", "compat", "neutral", "zones"];
@@ -197,11 +206,25 @@
   }
 
   function checkFlowStep(value, path, findings) {
-    const allowed = new Set(["title", "edge", "group", "parallel", "note", "label", "kind", "repeat", "navigateTo", "source"]);
+    const allowed = new Set(["title", "edge", "group", "parallel", "alt", "opt", "loop", "phase", "note", "label", "kind", "repeat", "navigateTo", "source"]);
     if (!isObject(value)) { findings.push(schema("flow step must be an object", path)); return; }
     checkAdditional(value, allowed, path, findings);
-    const branches = ["edge", "group", "parallel"].filter(key => has(value, key));
-    if (branches.length !== 1) findings.push(schema("flow step requires exactly one of edge, group, or parallel", path));
+    const branches = ["edge", "group", "parallel", "alt", "opt", "loop"].filter(key => has(value, key));
+    if (branches.length !== 1) findings.push(schema("flow step requires exactly one of edge, group, parallel, alt, opt, or loop", path));
+    const checkOperand = (operand, operandPath) => {
+      if (!isObject(operand)) { findings.push(schema("flow fragment branch must be an object", operandPath)); return; }
+      checkAdditional(operand, new Set(["when", "steps", "source"]), operandPath, findings);
+      if (typeof operand.when !== "string" || !operand.when.length) findings.push(schema("flow fragment branch requires a non-empty when", pathKey(operandPath, "when")));
+      if (!Array.isArray(operand.steps) || operand.steps.length < 1) findings.push(schema("flow fragment branch requires a non-empty steps array", pathKey(operandPath, "steps")));
+      else operand.steps.forEach((step, index) => checkFlowStep(step, pathIndex(pathKey(operandPath, "steps"), index), findings));
+      if (has(operand, "source")) checkSource(operand.source, pathKey(operandPath, "source"), findings);
+    };
+    if (has(value, "alt")) {
+      if (!Array.isArray(value.alt) || value.alt.length < 2) findings.push(schema("flow step alt must be an array of at least two branches", pathKey(path, "alt")));
+      else value.alt.forEach((operand, index) => checkOperand(operand, pathIndex(pathKey(path, "alt"), index)));
+    }
+    ["opt", "loop"].forEach(key => { if (has(value, key)) checkOperand(value[key], pathKey(path, key)); });
+    if (has(value, "phase") && (typeof value.phase !== "string" || !value.phase.length)) findings.push(schema("flow step phase must be a non-empty string", pathKey(path, "phase")));
     if (has(value, "edge") && (typeof value.edge !== "string" || !value.edge.trim())) findings.push(schema("flow step edge must be a non-empty string", pathKey(path, "edge")));
     if (has(value, "group") && (!Array.isArray(value.group) || value.group.length < 1 || !value.group.every(item => typeof item === "string" && item.trim()))) findings.push(schema("flow step group must be a non-empty string array", pathKey(path, "group")));
     if (has(value, "parallel")) {
@@ -792,13 +815,26 @@
       if (RETURN_KINDS.includes(kind) && !seenCalls.has(reverse)) findings.push(finding("flow-return-no-forward", `${kind} edge '${text}' has no earlier forward call`, edgePath));
       else if (!RETURN_KINDS.includes(kind) && known.has(key)) seenCalls.add(key);
     };
-    const checkStep = (step, path) => {
+    const checkStep = (step, path, top = true) => {
       if (!isObject(step)) return;
       const kind = step.kind || "call";
+      if (!top && has(step, "phase")) findings.push(finding("flow-phase-nested", "a phase starts only on a top-level step, never inside parallel branches or a fragment", `${path}.phase`));
       if (typeof step.edge === "string") checkEdge(step.edge, kind, `${path}.edge`);
       else if (Array.isArray(step.group)) step.group.forEach((edge, index) => { if (typeof edge === "string") checkEdge(edge, kind, `${path}.group[${index}]`); });
-      else if (Array.isArray(step.parallel)) step.parallel.forEach((child, index) => checkStep(child, `${path}.parallel[${index}]`));
-      else findings.push(finding("flow-step-empty", "flow step must contain edge, group, or parallel", path));
+      else if (Array.isArray(step.parallel)) step.parallel.forEach((child, index) => checkStep(child, `${path}.parallel[${index}]`, false));
+      else if (FLOW_FRAGMENTS.some(fragment => has(step, fragment))) {
+        // Each operand starts from the calls waiting before the fragment; afterwards a call made in any branch may be answered.
+        const before = new Set(seenCalls), made = new Set(), operands = flowOperands(step);
+        operands.forEach(({ fragment, index, operand }) => {
+          const operandPath = `${path}.${fragment}${index === null ? "" : `[${index}]`}`;
+          if (typeof operand.when === "string" && operand.when.trim().toLowerCase() === "else" && (fragment !== "alt" || index !== operands.length - 1)) findings.push(finding("flow-guard-else", "`else` is the guard of an alt's last branch only", `${operandPath}.when`));
+          seenCalls.clear(); before.forEach(call => seenCalls.add(call));
+          arr(operand.steps).forEach((child, childIndex) => checkStep(child, `${operandPath}.steps[${childIndex}]`, false));
+          seenCalls.forEach(call => made.add(call));
+        });
+        seenCalls.clear(); before.forEach(call => seenCalls.add(call)); made.forEach(call => seenCalls.add(call));
+      }
+      else findings.push(finding("flow-step-empty", "flow step must contain edge, group, parallel, alt, opt, or loop", path));
     };
     arr(flow.steps).forEach((step, index) => checkStep(step, `${pathPrefix}.steps[${index}]`));
     arr(flow.boundaries).forEach(boundary => strs(obj(boundary).contains).forEach(member => { if (!knownIds.has(member)) findings.push(finding("unknown-catalog-ref", `boundary '${obj(boundary).id}' contains unknown id '${member}'`, `${pathPrefix}.boundaries`)); }));
@@ -875,6 +911,7 @@
       if (!isObject(step)) return;
       if (typeof step.navigateTo === "string" && !viewIds.has(step.navigateTo)) findings.push(finding("navigation-target-unknown", `step navigates to unknown view '${step.navigateTo}'`, `${path}.navigateTo`));
       arr(step.parallel).forEach((child, index) => checkStep(child, `${path}.parallel[${index}]`));
+      flowOperands(step).forEach(({ fragment, index, operand }) => arr(operand.steps).forEach((child, childIndex) => checkStep(child, `${path}.${fragment}${index === null ? "" : `[${index}]`}.steps[${childIndex}]`)));
     };
     const checkState = (state, path) => { if (!isObject(state)) return; if (typeof state.navigateTo === "string" && !viewIds.has(state.navigateTo)) findings.push(finding("navigation-target-unknown", `state navigates to unknown view '${state.navigateTo}'`, `${path}.navigateTo`)); checkNodeEntries(state.nodes, `${path}.nodes`); };
     Object.entries(obj(doc.catalog)).forEach(([id, entry]) => checkCatalogEntry(id, entry));
