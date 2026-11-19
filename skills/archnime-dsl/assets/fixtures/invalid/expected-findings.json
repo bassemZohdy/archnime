@@ -56,6 +56,7 @@
   "view-invalid": {"rules": ["schema", "view-invalid"], "paths": ["$.views[0]", "$['views'][0]"]},
   "view-mode-required": {"rules": ["schema", "view-mode-required"], "paths": ["$.views[0].mode", "$['views'][0]['mode']"]},
   "variant-invalid": {"rules": ["schema"], "paths": ["$.catalog['b'].variant", "$['catalog']['b']['variant']"]},
+  "theme-contrast": {"rules": ["theme-contrast"], "paths": ["$['meta']['theme']['light']['data-label']"]},
   "views-required": {"rules": ["schema", "views-required"], "paths": ["$.views", "$['views']"]},
   "wire-endpoint-not-in-state": {"rules": ["wire-endpoint-not-in-state"], "paths": ["$.system.wires"]},
   "yaml-parse-error": {"rules": ["yaml-parse-error"], "paths": ["$"]}

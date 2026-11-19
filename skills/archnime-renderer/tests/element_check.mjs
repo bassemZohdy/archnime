@@ -94,6 +94,7 @@ try {
     inline.id = "from-inline";
     inline.setAttribute("controls", "minimal");
     const customModel = JSON.parse(model);
+    customModel.meta.theme = { light: { data: "#0b6e4f" } };
     customModel.meta.icons = { worker: "agent", mobile: { viewBox: "0 0 24 24", markup: '<path d="M12 2v20"/>' } };
     customModel.catalog.worker = { label: "Worker", type: "worker", kind: "new" };
     customModel.catalog.mobile = { label: "Mobile client", type: "mobile", kind: "existing" };
@@ -140,6 +141,9 @@ try {
         customAlias: !!root.querySelector('use[href="#icon-agent"]'),
         customInline: !!root.querySelector('use[href="#icon-mobile"]'),
         bodyClasses: body?.className || "",
+        themeData: body ? getComputedStyle(body).getPropertyValue("--data").trim() : "",
+        nodeFill: getComputedStyle(root.querySelector("g.node .shape")).fill,
+        themeInExport: /rgb\(11, 110, 79\)/.test(documentation),
       };
     };
     return { src: inspect(document.getElementById("from-src")), inline: inspect(document.getElementById("from-inline")), broken: { status: document.getElementById("broken-src").diagramStatus, selfcheck: document.getElementById("broken-src").diagramSelfCheck() }, hostDiagram: !!document.querySelector("#diagram") };
@@ -155,6 +159,9 @@ try {
     if (!item.mermaid.header || !item.mermaid.service || !item.mermaid.edge) problems.push(`${name} Mermaid projection is incomplete`);
     if (item.nodeCount < 1) problems.push(`${name} rendered no nodes`);
   }
+  if (result.inline.themeData !== "#0b6e4f" || !result.inline.themeInExport) problems.push(`meta.theme was not applied inside the shadow root (${result.inline.themeData}, export ${result.inline.themeInExport})`);
+  for (const key of ["src", "inline"]) if (result[key].nodeFill === "rgb(0, 0, 0)" || result[key].nodeFill === "none") problems.push(`${key}: the palette did not reach the shadow root (node fill ${result[key].nodeFill})`);
+  if (result.src.themeData !== "#0f9bb5" || result.src.themeInExport) problems.push(`one element's theme leaked into another (${result.src.themeData})`);
   if (!result.inline.customAlias || !result.inline.customInline) problems.push("registered alias or inline SVG icon was not merged into the renderer library");
   if (result.hostDiagram) problems.push("shadow-root renderer leaked #diagram into the host document");
   if (result.broken.status !== "error" || result.broken.selfcheck[0]?.type !== "runtime-error") problems.push(`failed model did not expose explicit runtime error state: ${JSON.stringify(result.broken)}`);

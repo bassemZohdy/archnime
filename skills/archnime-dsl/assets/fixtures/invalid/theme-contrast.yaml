@@ -1,0 +1,14 @@
+dsl: transition-diagram/1.0
+meta:
+  title: Labels too pale to read
+  theme:
+    light:
+      data-label: "#8fd3df"
+catalog:
+  api: { label: API, type: service }
+  db: { label: Orders, type: database }
+system:
+  title: A pale label
+  nodes: [api, db]
+  wires:
+    - "api -> db: writes"

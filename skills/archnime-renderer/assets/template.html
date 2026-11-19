@@ -305,6 +305,26 @@ const MODEL = {
 (function () {
   if (typeof d3 === "undefined") { document.body.classList.add("no-d3"); return; }
   const VIEW_BUNDLE = Array.isArray(MODEL.views) ? MODEL.views : [];
+  // meta.theme: the project's own colours. Each scheme's roles go in a media rule of that scheme, after the
+  // template's stylesheet, so the presenter, the documentation SVG and the sequence SVG all read them as the
+  // palette (documentationPalettes) and a light-only theme leaves the dark defaults alone. Only known roles
+  // and hex colours are written: the value lands in CSS text.
+  (function applyTheme(theme) {
+    const ROLES = ["bg", "panel", "ink", "muted", "line", "data", "data-fill", "data-label", "security", "security-fill", "security-label", "control", "control-fill", "control-label", "existing", "existing-fill", "existing-label", "retired", "retired-fill", "neutral", "neutral-label", "boundary"];
+    const HEX = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+    if (!theme || typeof theme !== "object") return;
+    const rules = ["light", "dark"].map(scheme => {
+      const palette = theme[scheme] && typeof theme[scheme] === "object" ? theme[scheme] : {};
+      const declarations = ROLES.filter(role => typeof palette[role] === "string" && HEX.test(palette[role])).map(role => `--${role}:${palette[role]}`).join(";");
+      return declarations ? `@media (prefers-color-scheme: ${scheme}){:root{${declarations}}:host{${declarations}}}` : "";
+    }).join("");
+    if (!rules) return;
+    const diagramElement = document.getElementById("diagram"), diagramRoot = diagramElement?.getRootNode?.(), owner = diagramElement?.ownerDocument || document;
+    const style = owner.createElement("style");
+    style.id = "diagram-theme";
+    style.textContent = rules;
+    (diagramRoot && diagramRoot.nodeType === 11 ? diagramRoot : owner.head || owner.documentElement).appendChild(style);
+  })(MODEL.meta?.theme);
   const requestedView = (() => { try { return new URL(location.href).searchParams.get("view"); } catch (error) { return null; } })();
   function mergedBundleView(view) {
     const shared = MODEL.shared || {};
@@ -721,7 +741,7 @@ const MODEL = {
     const light = {}, dark = {};
     const take = (rule, into) => { for (let i = 0; i < rule.style.length; i++) { const name = rule.style[i]; if (name.startsWith("--")) into[name.slice(2)] = rule.style.getPropertyValue(name).trim(); } };
     const visit = (rules, target) => [...rules].forEach(rule => {
-      if (rule.type === CSSRule.MEDIA_RULE) { if (/prefers-color-scheme:\s*dark/.test(rule.conditionText || rule.media?.mediaText || "")) visit(rule.cssRules, dark); }
+      if (rule.type === CSSRule.MEDIA_RULE) { const condition = rule.conditionText || rule.media?.mediaText || ""; if (/prefers-color-scheme:\s*dark/.test(condition)) visit(rule.cssRules, dark); else if (/prefers-color-scheme:\s*light/.test(condition)) visit(rule.cssRules, light); }
       else if (rule.type === CSSRule.STYLE_RULE && (rule.selectorText === ":root" || rule.selectorText === ":host")) take(rule, target);
     });
     // Inside <architecture-diagram> the template's stylesheet lives in the shadow root, not the page.

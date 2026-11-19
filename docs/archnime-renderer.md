@@ -64,6 +64,14 @@ with `viewBox` and `markup`. The validator keeps the 11 built-in types intact;
 `kind` continues to determine node fill and stroke. The shared library merges
 registrations per model, so one diagram cannot mutate another diagram's icons.
 
+`meta.theme` recolours a diagram in the project's own colours: a `light` and a
+`dark` map from a colour role (`panel`, `ink`, `data`, `data-fill`, ...) to a
+hex colour. The presenter adds the colours after its own stylesheet, each
+scheme in its own `prefers-color-scheme` rule, so the documentation SVG and the
+sequence SVG export them as well, and an `<architecture-diagram>` element keeps
+them inside its shadow root. The validators check contrast first
+(`theme-contrast`).
+
 ### Multi-view bundles and deployment
 
 The renderer accepts the DSL translator's compact v2 bundle shape: shared
