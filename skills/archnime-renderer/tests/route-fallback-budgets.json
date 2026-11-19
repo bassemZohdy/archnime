@@ -19,17 +19,17 @@
     "examples/dense-mesh-model": {
       "curved": 0,
       "orthogonal": 0,
-      "direct": 2
+      "direct": 0
     },
     "examples/nested-sibling-packages-model": {
       "curved": 0,
       "orthogonal": 0,
-      "direct": 12
+      "direct": 0
     },
     "examples/portable-transition-model": {
       "curved": 0,
       "orthogonal": 0,
-      "direct": 2
+      "direct": 0
     },
     "examples/wire-merge-model": {
       "curved": 0,
@@ -49,12 +49,12 @@
     "fixtures/collapse-boundary-chip": {
       "curved": 0,
       "orthogonal": 0,
-      "direct": 4
+      "direct": 0
     },
     "fixtures/collapse-boundary-venn": {
       "curved": 0,
       "orthogonal": 0,
-      "direct": 2
+      "direct": 0
     },
     "fixtures/commerce-views": {
       "curved": 0,
@@ -69,7 +69,7 @@
     "fixtures/deep-nested-crosscut": {
       "curved": 0,
       "orthogonal": 0,
-      "direct": 4
+      "direct": 0
     },
     "fixtures/flow-single": {
       "curved": 0,
@@ -79,7 +79,7 @@
     "fixtures/force-mesh-packages": {
       "curved": 0,
       "orthogonal": 0,
-      "direct": 4
+      "direct": 0
     },
     "fixtures/min-wire-length": {
       "curved": 0,
@@ -94,7 +94,7 @@
     "fixtures/orthogonal-routing": {
       "curved": 0,
       "orthogonal": 0,
-      "direct": 2
+      "direct": 0
     },
     "fixtures/perspectives": {
       "curved": 0,
@@ -133,26 +133,18 @@
     },
     "dsl/strangler-migration-steps": {
       "curved": 0,
-      "orthogonal": 2,
-      "direct": 12,
-      "crossings": {
-        "orthogonal": 2,
-        "direct": 2
-      }
+      "orthogonal": 0,
+      "direct": 0
     },
     "dsl/strangler-migration": {
       "curved": 0,
-      "orthogonal": 2,
-      "direct": 12,
-      "crossings": {
-        "orthogonal": 2,
-        "direct": 2
-      }
+      "orthogonal": 0,
+      "direct": 0
     },
     "dsl/test-system": {
-      "curved": 2,
+      "curved": 0,
       "orthogonal": 0,
-      "direct": 10
+      "direct": 0
     }
   }
 }

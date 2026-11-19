@@ -224,6 +224,16 @@ deferred transition cannot leave the previous route on screen. Each wire's
 curved, diagonal polylines are direct, and axis-aligned polylines may be
 either. Covers TODO CASE-21 and guards CASE-22.
 
+## `routing_family_check.mjs` — every wire follows the Wires control
+
+Opens every example, fixture, and DSL-example bundle and switches the Wires
+control to Curved, Orthogonal, and Direct. For every view, stage, and the
+default and fully expanded states, each visible wire must be laid out, and on
+the painted page drawn while stepping through every stage or flow step, in
+the selected family: Béziers for Curved, axis-aligned runs for Orthogonal,
+straight runs that are not a Manhattan elbow for Direct. Covers FIX-023: a
+blocked wire used to borrow another style's route.
+
 ## `route_fallback_check.mjs` — bounded route fallbacks
 
 `render_check.mjs` treats `edge-route-fallback` as advisory, so on its own a
