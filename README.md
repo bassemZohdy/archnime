@@ -76,6 +76,8 @@ Use **interactive HTML** for live demonstrations and drill-down. In the HTML exp
 
 See [documentation-export.md](skills/archnime-renderer/references/documentation-export.md) and [the renderer guide](docs/archnime-renderer.md).
 
+How archnime compares with Mermaid and archgram, and when to use each: [docs/comparison.md](docs/comparison.md).
+
 ## Work tracking
 
 This repository follows the [todo-skills task-tree convention](https://github.com/bassemZohdy/todo-skills) for planned improvements: see [TODO.md](TODO.md). Each task has an executable acceptance check; completed work is archived in [CHANGELOG.md](CHANGELOG.md). The former roadmap is consolidated into this single backlog.

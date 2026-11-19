@@ -32,6 +32,25 @@ interview -> DSL source -> renderer model -> HTML bundle -> documentation snapsh
    until `next.state` is `complete`, the user stops you, or a step needs a decision from them.
 5. **Report.** Say what changed, the artifacts now current, and what the last scan reports. Never
    call a step finished from the scanner alone: the validation skill's report is the evidence.
+   For a diagram drawn from code or a document, follow the report in
+   `archnime-interview/references/extraction.md`: it ends with the README lines (the SVG with alt
+   text that tells the flow in one sentence, and the presenter link).
+
+## Updating after the code changed
+
+When the user asks to bring a diagram up to date ("the code moved", "refresh the diagram"), start
+from what the spec claims, not from the drawing:
+
+1. Run the source check on the spec as it is, from the project root. It names every part and wire
+   whose file or quoted words are gone:
+   ```bash
+   python archnime-dsl/scripts/check_sources.py docs/diagrams/<name>.yaml --root .
+   ```
+2. For each finding, find where that code went, if anywhere, and move or remove the part or wire.
+   Never delete a `source` to make the check pass.
+3. Walk the code again from the reader's entry points for what is new; the check cannot see it.
+4. Change what the check and the walk found, and nothing more, then scan again and let the routing
+   table regenerate the model, bundle and snapshots.
 
 ## Routing table
 
