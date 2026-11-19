@@ -419,10 +419,14 @@ re-renders reuse it; only stage nav and package expand/collapse re-solve.
 - **Requested versus actual routing is recorded per wire.** `requestedRouting`
   is the selected style; `actualRouting` is the geometry family painted
   (curved Béziers, orthogonal polylines, or direct polylines with a diagonal
-  run); `routeFallback` and `routeFallbackReason` say when they differ. A
-  Direct request may be painted as an obstacle-safe orthogonal detour and is
-  then reported as such. `tests/route_fallback_check.mjs` bounds the number of
-  fallbacks per model and style against a recorded budget.
+  run); `routeFallback` and `routeFallbackReason` say when they differ.
+  Every wire stays in the selected style: a blocked Curved wire follows a
+  searched clear route with rounded corners, and a blocked Direct wire is that
+  route pulled taut into straight runs. Only a wire with no clear route at all
+  is reported, as `<style>-blocked`, still drawn in its style.
+  `tests/routing_family_check.mjs` checks every wire of every model in every
+  style, and `tests/route_fallback_check.mjs` bounds the fallbacks per model
+  and style against a recorded budget.
 - **Text is measured from a pinned table, not the host.** The engine sums
   per-character advances for Inter Variable (a table of 220 characters at
   five weights, in font units) and the template embeds the same font, so

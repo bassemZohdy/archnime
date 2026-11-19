@@ -604,6 +604,105 @@
       const pts = [...first.points.slice(0, -1), wp, ...second.points.slice(1)];
       return finishGeometry(pts);
     }
+    // FIX-023: every wire keeps the style the viewer selected. When the fixed
+    // face plans and lane shifts all hit something, search the grid formed by
+    // the obstacles' padded edges for the cheapest Manhattan path (length plus
+    // a penalty per bend). The search is deterministic: ties break by the
+    // order states were queued, so a scene always yields the same route.
+    function searchOrthogonal(a, b, wire, obstacles, spacing) {
+      const gap = Math.max(10, Math.round(spacing.margin * .5)), lead = 18, bendCost = 24 + gap;
+      const sides = ["right", "left", "bottom", "top"], unit = { right: { x: 1, y: 0 }, left: { x: -1, y: 0 }, bottom: { x: 0, y: 1 }, top: { x: 0, y: -1 } };
+      const slide = (node, side, offset) => (Number(offset) || 0) / Math.max(1, side === "left" || side === "right" ? node.h : node.w);
+      const ends = (node, offset) => sides.map(side => { const p = facePoint(node, side, slide(node, side, offset)); return { side, p, q: { x: p.x + unit[side].x * lead, y: p.y + unit[side].y * lead } }; });
+      const blockers = obstacles.concat([a, b].map(node => pad(rectOf(node), 2)));
+      const clearSegment = (p, q, rects) => !rects.some(rect => segmentHitsRect(p, q, rect));
+      const starts = ends(a, wire.portOffsetFrom).filter(end => clearSegment(end.p, end.q, obstacles) && !blockers.some(rect => segmentHitsRect(end.q, end.q, rect)));
+      const goals = ends(b, wire.portOffsetTo).filter(end => clearSegment(end.p, end.q, obstacles) && !blockers.some(rect => segmentHitsRect(end.q, end.q, rect)));
+      if (!starts.length || !goals.length) return null;
+      const key = value => Math.round(value * 100) / 100, xs = new Set(), ys = new Set();
+      [...starts, ...goals].forEach(end => { xs.add(key(end.q.x)); ys.add(key(end.q.y)); });
+      blockers.forEach(rect => { xs.add(key(rect.x - gap)); xs.add(key(rect.x + rect.w + gap)); ys.add(key(rect.y - gap)); ys.add(key(rect.y + rect.h + gap)); });
+      const X = [...xs].sort((p, q) => p - q), Y = [...ys].sort((p, q) => p - q), at = (i, j) => ({ x: X[i], y: Y[j] });
+      const free = new Map(), isFree = (i, j) => { const id = i * Y.length + j; if (!free.has(id)) { const point = at(i, j); free.set(id, !blockers.some(rect => point.x >= rect.x && point.x <= rect.x + rect.w && point.y >= rect.y && point.y <= rect.y + rect.h)); } return free.get(id); };
+      const steps = [[1, 0], [-1, 0], [0, 1], [0, -1]], dirOf = side => side === "right" ? 0 : side === "left" ? 1 : side === "bottom" ? 2 : 3;
+      // A small binary heap ordered by cost, then by queue order.
+      const heap = [], less = (p, q) => p.cost < q.cost || (p.cost === q.cost && p.seq < q.seq);
+      const push = item => { heap.push(item); for (let n = heap.length - 1; n > 0;) { const parent = (n - 1) >> 1; if (!less(heap[n], heap[parent])) break; [heap[n], heap[parent]] = [heap[parent], heap[n]]; n = parent; } };
+      const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; for (let n = 0; ;) { const l = n * 2 + 1, r = l + 1; let m = n; if (l < heap.length && less(heap[l], heap[m])) m = l; if (r < heap.length && less(heap[r], heap[m])) m = r; if (m === n) break; [heap[n], heap[m]] = [heap[m], heap[n]]; n = m; } } return top; };
+      const best = new Map(), prev = new Map(), goalAt = new Map();
+      goals.forEach(goal => goalAt.set(`${X.indexOf(key(goal.q.x))},${Y.indexOf(key(goal.q.y))}`, (goalAt.get(`${X.indexOf(key(goal.q.x))},${Y.indexOf(key(goal.q.y))}`) || []).concat([goal])));
+      let seq = 0, found = null;
+      starts.forEach(start => { const i = X.indexOf(key(start.q.x)), j = Y.indexOf(key(start.q.y)), state = `${i},${j},${dirOf(start.side)}`; best.set(state, lead); prev.set(state, { start }); push({ cost: lead, seq: seq++, i, j, dir: dirOf(start.side), state }); });
+      while (heap.length) {
+        const current = pop();
+        if (current.cost > (best.get(current.state) ?? Infinity)) continue;
+        if (found && current.cost >= found.cost) break;
+        (goalAt.get(`${current.i},${current.j}`) || []).forEach(goal => {
+          const inward = dirOf(goal.side) ^ 1, total = current.cost + lead + (current.dir === inward ? 0 : bendCost);
+          if (!found || total < found.cost) found = { cost: total, state: current.state, goal };
+        });
+        steps.forEach(([di, dj], dir) => {
+          if ((dir ^ 1) === current.dir) return;
+          const i = current.i + di, j = current.j + dj;
+          if (i < 0 || j < 0 || i >= X.length || j >= Y.length || !isFree(i, j) || !clearSegment(at(current.i, current.j), at(i, j), blockers)) return;
+          const cost = current.cost + Math.abs(X[i] - X[current.i]) + Math.abs(Y[j] - Y[current.j]) + (dir === current.dir ? 0 : bendCost), state = `${i},${j},${dir}`;
+          if (cost >= (best.get(state) ?? Infinity)) return;
+          best.set(state, cost); prev.set(state, { state: current.state, i: current.i, j: current.j }); push({ cost, seq: seq++, i, j, dir, state });
+        });
+      }
+      if (!found) return null;
+      const points = [found.goal.p, found.goal.q];
+      for (let state = found.state; ;) { const [i, j] = state.split(",").map(Number), from = prev.get(state); points.push(at(i, j)); if (from.start) { points.push(from.start.p); break; } state = from.state; }
+      return finishGeometry(points.reverse());
+    }
+    // Round a clear Manhattan route into curves for the Curved style. The
+    // first and last runs may be used whole; an inner run is shared by its two
+    // corners. A rounding that touches a rectangle the route itself clears is
+    // tightened, and refused when even a tight one does.
+    function roundedCurve(route, rects) {
+      const points = route?.points;
+      if (!points || points.length < 2) return null;
+      const hitsBefore = rects.filter(rect => pathHitsRect(route, rect));
+      for (const scale of [1, .5, .25]) {
+        const corners = points.slice(1, -1).map((corner, index) => {
+          const before = points[index], after = points[index + 2], inLength = Math.hypot(corner.x - before.x, corner.y - before.y), outLength = Math.hypot(after.x - corner.x, after.y - corner.y);
+          const radius = scale * Math.min(index === 0 ? inLength : inLength / 2, index === points.length - 3 ? outLength : outLength / 2, 140);
+          const u = { x: (corner.x - before.x) / (inLength || 1), y: (corner.y - before.y) / (inLength || 1) }, v = { x: (after.x - corner.x) / (outLength || 1), y: (after.y - corner.y) / (outLength || 1) };
+          return { corner, radius, s: { x: corner.x - u.x * radius, y: corner.y - u.y * radius }, e: { x: corner.x + v.x * radius, y: corner.y + v.y * radius } };
+        });
+        const line = (p, q) => ({ x1: p.x, y1: p.y, c1: { x: p.x + (q.x - p.x) / 3, y: p.y + (q.y - p.y) / 3 }, c2: { x: p.x + (q.x - p.x) * 2 / 3, y: p.y + (q.y - p.y) * 2 / 3 }, x2: q.x, y2: q.y });
+        const k = .5523, segments = [];
+        let cursor = points[0];
+        corners.forEach(({ corner, s, e }) => {
+          if (Math.hypot(s.x - cursor.x, s.y - cursor.y) > .5) segments.push(line(cursor, s));
+          segments.push({ x1: s.x, y1: s.y, c1: { x: s.x + (corner.x - s.x) * k, y: s.y + (corner.y - s.y) * k }, c2: { x: e.x + (corner.x - e.x) * k, y: e.y + (corner.y - e.y) * k }, x2: e.x, y2: e.y });
+          cursor = e;
+        });
+        const last = points[points.length - 1], end = { x: route.x2, y: route.y2 };
+        if (Math.hypot(last.x - cursor.x, last.y - cursor.y) > .5) segments.push(line(cursor, end));
+        else { segments[segments.length - 1].x2 = end.x; segments[segments.length - 1].y2 = end.y; }
+        const first = segments[0], final = segments[segments.length - 1], mid = quadPoint({ segments }, .5), tangent = quadTangent({ segments }, .5), tl = Math.hypot(tangent.x, tangent.y) || 1;
+        const path = `M${first.x1},${first.y1} ` + segments.map(segment => `C${segment.c1.x},${segment.c1.y} ${segment.c2.x},${segment.c2.y} ${segment.x2},${segment.y2}`).join(" ");
+        const geometry = { x1: first.x1, y1: first.y1, x2: final.x2, y2: final.y2, cx: mid.x, cy: mid.y, c1: { ...first.c1 }, c2: { ...final.c2 }, segments, nx: -tangent.y / tl, ny: tangent.x / tl, mode: "curved", path };
+        if (!rects.some(rect => !hitsBefore.includes(rect) && pathHitsRect(geometry, rect))) return geometry;
+      }
+      return null;
+    }
+    // Pull a clear route taut into straight runs for the Direct style: from
+    // each kept point, jump to the farthest later point in clear sight.
+    function pulledStraight(route, rects) {
+      const points = route?.points;
+      if (!points || points.length < 2) return null;
+      const out = [points[0]];
+      for (let i = 0; i < points.length - 1;) {
+        let next = i + 1;
+        for (let j = points.length - 1; j > i + 1; j -= 1) if (!rects.some(rect => segmentHitsRect(points[i], points[j], rect))) { next = j; break; }
+        out.push(points[next]); i = next;
+      }
+      const geometry = finishGeometry(out);
+      geometry.mode = "direct";
+      return geometry;
+    }
     function routeOrthogonal(wire, nodeMap, nodes, spacing, ctx) {
       const a = nodeMap[wire.from], b = nodeMap[wire.to], baseOffset = Number(wire.offset) || 0;
       const nodeObstacles = nodes.filter(node => node.id !== wire.from && node.id !== wire.to).map(node => pad(rectOf(node), 4));
@@ -636,8 +735,15 @@
           if (nodesOnly(geometry)) { wire.routeOffset = baseOffset; wire.routeMode = "orthogonal-container-crossed"; return geometry; }
         }
       }
-      wire.routeOffset = baseOffset; wire.routeMode = "orthogonal-fallback";
-      const diagonal = wireGeometry(a, b, baseOffset, false, wire); diagonal.routeFallback = true; return diagonal;
+      // Third pass: search the grid, first around every obstacle, then around
+      // nodes only. The route stays orthogonal whatever it finds.
+      const searched = searchOrthogonal(a, b, wire, obstacles, spacing);
+      if (searched) { wire.routeOffset = baseOffset; wire.routeMode = "orthogonal-search"; return searched; }
+      const searchedNodes = searchOrthogonal(a, b, wire, nodeObstacles, spacing);
+      if (searchedNodes) { wire.routeOffset = baseOffset; wire.routeMode = "orthogonal-search-container-crossed"; return searchedNodes; }
+      // Nothing is clear: keep the selected style and report the wire.
+      wire.routeOffset = baseOffset; wire.routeMode = "orthogonal-blocked"; wire.routeBlocked = true;
+      return orthogonalGeometry(a, b, baseOffset, wire, plan(primary, 0));
     }
     function directGeometry(a, b, offset, wire) {
       const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len;
@@ -659,14 +765,17 @@
         geometry.mode = "direct"; wire.routeMode = "direct-normal"; return geometry;
       }
       // Direct is a visual preference, not permission to paint through an
-      // architectural block.  Preserve normal endpoint attachment and retain
-      // explicit metadata when the collision-aware Manhattan solver is needed.
+      // architectural block. Find a clear route with the collision-aware
+      // Manhattan solver, then pull it taut into straight runs, so the wire
+      // still reads as Direct (FIX-023) rather than as an orthogonal elbow.
       const detour = routeOrthogonal(wire, nodeMap, nodes, spacing, ctx);
-      wire.routeMode = `direct-${wire.routeMode}`; wire.directFallback = true;
-      return detour;
+      if (wire.routeBlocked) { wire.routeMode = "direct-blocked"; geometry.mode = "direct"; return geometry; }
+      const pulled = pulledStraight(detour, obstacles.concat([a, b].map(node => pad(rectOf(node), -1))));
+      wire.routeMode = `direct-around${wire.routeMode.endsWith("container-crossed") ? "-container-crossed" : ""}`;
+      return pulled;
     }
     function routeAwayFromNodes(wire, nodeMap, nodes, spacing, parallel, ctx) {
-      wire.routeFallback = false;
+      wire.routeFallback = false; wire.routeBlocked = false; wire.directFallback = false;
       // A presentation bundle is a semantic lane grouping, not a promise to
       // stay curved. It must follow the viewer's routing choice just like
       // primary and unbundled secondary wires do.
@@ -704,9 +813,12 @@
       // elbow. Reuse the collision-aware orthogonal solver for this wire so
       // the self-check can distinguish a safe fallback from an impossible
       // route instead of silently shipping a crossing curve.
+      // FIX-023: the elbow is then rounded, so the wire keeps the Curved style.
       if (!wire.bundleRoute && containers.length) {
         const orthogonal = routeOrthogonal(wire, nodeMap, nodes, spacing, ctx);
-        if (orthogonal) { wire.routeFallback = wire.routeMode === "orthogonal-fallback"; return orthogonal; }
+        const curve = wire.routeBlocked ? null : roundedCurve(orthogonal, nodes.filter(node => node.id !== wire.from && node.id !== wire.to).map(node => pad(rectOf(node), 2)).concat(containers));
+        wire.routeBlocked = false;
+        if (curve) { wire.routeOffset = baseOffset; wire.routeControlOffset = baseOffset; wire.routeMode = `curved-around${wire.routeMode.endsWith("container-crossed") ? "-container-crossed" : ""}`; return curve; }
       }
       if (firstNodeClear) { wire.routeOffset = firstCandidate.endpointOffset; wire.routeControlOffset = firstCandidate.controlOffset; wire.routeMode = "curved-fallback"; wire.routeFallback = true; return firstNodeClear; }
       wire.routeOffset = baseOffset; wire.routeControlOffset = baseOffset; wire.routeMode = "curved-fallback"; wire.routeFallback = true;
@@ -1651,8 +1763,8 @@
         wire.requestedRouting = ROUTING;
         wire.geom = routeAwayFromNodes(wire, nodeMap, nodes, spacing, (parallel.get([wire.from, wire.to].sort().join("|") || "") || []).length > 1, ctx);
         wire.actualRouting = actualRoutingOf(wire.geom);
-        wire.routeFallback = wire.actualRouting !== wire.requestedRouting;
-        wire.routeFallbackReason = wire.routeFallback ? (wire.directFallback ? "direct-obstacle-detour" : `${wire.requestedRouting}-constraints`) : null;
+        wire.routeFallback = wire.actualRouting !== wire.requestedRouting || !!wire.routeBlocked;
+        wire.routeFallbackReason = wire.routeFallback ? (wire.routeBlocked ? `${wire.requestedRouting}-blocked` : `${wire.requestedRouting}-constraints`) : null;
         wire.reverseGeom = reverseGeometry(wire.geom);
       });
     }
@@ -2194,7 +2306,7 @@
         // Curved ELK routes use the same package/boundary ownership contract
         // as orthogonal routes. Checking only elbows hid the exact failure
         // mode where a cubic curve swept through a sibling container.
-        if (wire.routeMode === "curved" || wire.routeMode && wire.routeMode.startsWith("orthogonal")) {
+        if (wire.routeMode === "curved" || wire.routeMode && /^(orthogonal|curved-around|direct-around)/.test(wire.routeMode)) {
           const endpointInside = (rect, memberIds) => { const inRect = p => p && p.x >= rect.x && p.x <= rect.x + rect.w && p.y >= rect.y && p.y <= rect.y + rect.h; const fn = layout.nodeMap[wire.from], tn = layout.nodeMap[wire.to]; return inRect(fn) || inRect(tn) || (memberIds && (memberIds.includes(wire.from) || memberIds.includes(wire.to))); };
           (layout.packages || []).forEach(pack => { const rect = { x: pack.x, y: pack.y, w: pack.w, h: pack.h }; if (!endpointInside(rect, [...(pack.memberIds || []), ...descendants(pack.id)]) && pathHitsRect(wire.geom, pad(rect, -4))) push("edge-crosses-package", `${stage.id}${tag}: ${wire.label || wire.key} crosses package ${pack.id}`); });
           (layout.boundaries || []).filter(bnd => !bnd.chip).forEach(bnd => { const rect = { x: bnd.x, y: bnd.y, w: bnd.w, h: bnd.h }; if (!endpointInside(rect, [...(bnd.scope instanceof Set ? bnd.scope : bnd.contains || [])]) && pathHitsRect(wire.geom, pad(rect, -4))) push("edge-crosses-boundary", `${stage.id}${tag}: ${wire.label || wire.key} crosses boundary ${bnd.id}`); });

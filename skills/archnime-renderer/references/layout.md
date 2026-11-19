@@ -169,8 +169,21 @@ vertical polyline:
    other.
 3. **Z** — a mid H/V segment; the router walks a face-plan and mid-shift
    ladder to miss obstacles.
-4. **Diagonal fallback** — the `curved` quad, tagged `orthogonal-fallback`
-   and reported as the advisory `edge-route-fallback`.
+4. **Grid search** — when every face plan and shift hits something, the
+   router searches the grid of the obstacles' padded edges for the cheapest
+   Manhattan path (length plus a cost per bend), first around every node and
+   container, then around nodes only (`orthogonal-search`,
+   `orthogonal-search-container-crossed`). Ties break in queue order, so the
+   route is deterministic.
+5. **Blocked** — only when no clear path exists: an orthogonal route tagged
+   `orthogonal-blocked` and reported as `edge-route-fallback`. It never turns
+   into a curve.
+
+Every style stays in its own family (FIX-023). Curved rounds the corners of
+the searched route (`curved-around`) when no single curve clears a container;
+Direct pulls it taut into straight runs (`direct-around`) when its straight
+line is blocked. A rounding that would touch something the route clears is
+tightened, and refused if even a tight one does.
 
 Every face-plan must lead out along the source face normal and lead in along
 the target face normal before joining the middle Manhattan route. This is
