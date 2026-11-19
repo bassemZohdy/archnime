@@ -32,6 +32,9 @@ is independent of any renderer.
    ```
 6. **Deliver.** Hand over the validated YAML plus a short narrative of what it describes and any assumptions or placeholders.
 
+To update an existing spec after the code changed, run `scripts/check_sources.py` on it first, as it
+is: move or remove what lost its code, then look for what is new, and change nothing else.
+
 ## Pairing with archnime-renderer
 
 When HTML/SVG output is requested, keep this YAML as the semantic source and

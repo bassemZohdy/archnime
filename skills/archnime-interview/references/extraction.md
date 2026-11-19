@@ -38,7 +38,9 @@ questions, or no idea.
 Set `meta.evidence: code` (or `document`). Then read the code the diagram
 describes, at one level for the whole diagram (containers, or components of
 one container), from each entry point the reader's questions touch to what it
-calls, reads and writes.
+calls, reads and writes. Recognise the style the system follows in
+`architecture-styles.md`: it says which parts to look for and how to draw
+them.
 
 - **Evidence only.** Draw a part only when a file backs it: a module, a route,
   a script, a store. Name it after the file that decides, found by following
@@ -122,4 +124,20 @@ Tell the user, briefly:
 - each wire, one line each, with the line (or sentence) that makes it;
 - on an update, what changed and why, starting with what the source check
   said had lost its code;
-- what the diagram still does not show, and the gaps found only in the docs.
+- the architecture style you recognised, or that none fitted;
+- where the colours came from: `meta.theme` and the file or the user's words
+  it was taken from, or the built-in palette (a theme is written only when the
+  user asks for the project's colours);
+- what the diagram still does not show, and the gaps found only in the docs;
+- last, the lines for the README: the documentation SVG with alt text that
+  tells the whole flow in one sentence, and the link to the interactive
+  presenter beside it, since an embedded image cannot pan, step or drill
+  down:
+
+  ```markdown
+  ![<the flow in one sentence>](docs/diagrams/<name>.svg)
+
+  [Open the interactive diagram](docs/diagrams/<name>.html)
+  ```
+
+Edit the README or commit only when the user asks.

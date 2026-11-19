@@ -26,19 +26,41 @@ interview for them: follow `references/extraction.md`. In short:
 3. Print the format with `archnime-dsl/scripts/spec_brief.py` instead of
    writing from memory.
 4. Validate with `--strict`, then run `archnime-dsl/scripts/check_sources.py`
-   until both pass; keep within the density budget.
+   until both pass; keep within the density budget. On an update, run the
+   source check first, on the spec as it is.
 5. Critique the spec against the contract, then report each part and wire
    with its evidence.
 
 Ask the user only when the code and the docs disagree or the request names
 something you cannot find.
 
+## Choose the kind
+
+Draw the kind the reader's question asks for, and never one kind as another
+without saying so: a request drawn as a system loses its order, and a
+migration drawn as one snapshot loses what changed.
+
+| The reader asks | Draw |
+| --- | --- |
+| What is it made of, and what calls what? | `system:` (one snapshot) |
+| In what order do the parts call each other for one request, and what comes back? | `flow:`, with `alt`/`opt`/`loop` for its branches and `phase` for its parts; the sequence SVG and the Mermaid companion come from the same spec |
+| How do we get from today's system to the target, step by step? | `transition:`, or `steps:` when each step is a small change |
+| What changes under this failure, region or option? | `scenarios:` |
+| Where does each part run? | a `views:` bundle with a `mode: deployment` view |
+| Which of these options should we pick? | a `views:` bundle with `meta.comparison` |
+| What states does one thing go through (a lifecycle)? Which role does each step of a business process (lanes)? | Not a kind archnime draws. Say so, offer a `flow:` or `system:` where it answers part of the question, and point to a state or swimlane diagram tool (Mermaid `stateDiagram`, Mermaid swimlanes) for the rest |
+
+"How it works", "the architecture", a diagram for a README: `system:`.
+"What happens when ...", "step by step", one request: `flow:`.
+`references/architecture-styles.md` says, per architecture style, which of
+these a reader usually needs and how to draw it.
+
 ## Interview loop
 
 1. Start mode-first. Ask which outcome is needed: one system snapshot,
    ordered migration, fixed request flow, deployment placement, named
-   scenarios, or a comparison of options. If the user has already made the
-   choice, skip this question.
+   scenarios, or a comparison of options (the table above). If the user has
+   already made the choice, skip this question.
 2. Ask a small batch of related questions from the selected mode bank. Prefer
    one compact batch over a long chain of single-field questions. Offer
    sensible defaults and a “you decide” option when a choice is reversible or
@@ -83,6 +105,8 @@ draft after the diagram source is confirmed. See
 - Read `references/output-contract.md` before the confirmation and handoff.
 - Read `references/comparison.md` for option branches and ADR handoff.
 - Read `references/extraction.md` to draw from code or a named document.
+- Read `references/architecture-styles.md` to recognise the system's style and
+  what its readers ask.
 
 Pairs with `archnime-dsl` for semantic YAML and validation, then
 `archnime-renderer` for interactive HTML/SVG. When available,
