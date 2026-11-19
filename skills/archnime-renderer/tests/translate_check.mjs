@@ -7,7 +7,8 @@
 import { execFileSync, execSync } from "node:child_process";
 import { createServer } from "node:http";
 import { pathToFileURL, fileURLToPath } from "node:url";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { resolve, join, extname, sep } from "node:path";
 import { PYTHON } from "../../../scripts/python_command.mjs";
 
@@ -17,6 +18,7 @@ const TRANSLATOR = join(ROOT, "archnime-renderer", "assets", "translate.html");
 const EXAMPLES = join(ROOT, "archnime-dsl", "assets", "examples");
 const INVALID = join(ROOT, "archnime-dsl", "assets", "fixtures", "invalid");
 const PYTHON_VALIDATOR = join(ROOT, "archnime-dsl", "scripts", "validate_transition_diagram.py");
+const PYTHON_TRANSLATOR = join(ROOT, "archnime-dsl", "scripts", "translate_transition_diagram.py");
 const BROWSER_EXECUTABLE = process.env.BROWSER_EXECUTABLE;
 
 async function loadChromium() {
@@ -87,7 +89,7 @@ try {
     throw new Error(`${error.message}; script state=${JSON.stringify(state)}; page errors=${pageErrors.join(" | ")}; console errors=${consoleErrors.join(" | ")}`);
   }
 
-  for (const name of ["one-shot-checkout.yaml", "strangler-migration.yaml", "strangler-migration-steps.yaml", "steps-refinement.yaml", "orders-failover-scenarios.yaml", "checkout-flow.yaml", "commerce-views.yaml", "comparison-views.yaml", "agent-refusal-flow.yaml"]) {
+  for (const name of ["one-shot-checkout.yaml", "strangler-migration.yaml", "strangler-migration-steps.yaml", "steps-refinement.yaml", "orders-failover-scenarios.yaml", "checkout-flow.yaml", "commerce-views.yaml", "comparison-views.yaml", "sign-in-sequence.yaml", "agent-refusal-flow.yaml"]) {
     const text = readFileSync(join(EXAMPLES, name), "utf8");
     await page.evaluate(async value => { document.getElementById("source").value = value; await window.translateSource(); }, text);
     const result = await page.evaluate(() => ({
@@ -111,6 +113,21 @@ try {
     if (name === "commerce-views.yaml" && (result.model.views?.length !== 3 || result.model.views[1]?.viewMode !== "deployment" || result.model.views[1]?.deployment?.placements?.[1]?.instanceIds?.length !== 2 || result.model.shared?.catalog?.client?.navigateTo !== "checkout")) problems.push("v2 views did not preserve the compact bundle or deployment instances");
     if (name === "comparison-views.yaml" && (result.model.meta?.comparison?.recommended !== "option-b" || result.model.views?.[1]?.comparison?.tradeoffs?.operability?.rating !== 4)) problems.push("comparison metadata or per-option tradeoffs were not preserved");
     if (name === "agent-refusal-flow.yaml") { const last = activeModel.flow?.steps?.at(-1)?.edges?.[0], model = activeModel.catalog?.model, index = activeModel.catalog?.index; if (last?.kind !== "refused" || last.wireFrom !== "agent" || !result.sequence.includes("guard--xagent")) problems.push("refused step was not bound to its forward wire or exported as a cross"); if (model?.variant !== "external" || model?.type !== "llm" || index?.shape !== "db") problems.push("variant external or AI node types were not translated"); }
+    if (name === "sign-in-sequence.yaml") {
+      // FEAT-024: the browser translator flattens fragments exactly as the Python one does, and the
+      // three Mermaid sequence writers (Python, JS translator, presenter) agree byte for byte.
+      const modelPath = join(tmpdir(), `translate-check-${process.pid}.json`); execFileSync(PYTHON, [PYTHON_TRANSLATOR, join(EXAMPLES, name), "--output", modelPath]); const pythonModel = JSON.parse(readFileSync(modelPath, "utf8")); rmSync(modelPath, { force: true });
+      const pythonSequence = execFileSync(PYTHON, [PYTHON_TRANSLATOR, join(EXAMPLES, name), "--sequence"], { encoding: "utf8" }).replace(/\r\n/g, "\n");
+      if (JSON.stringify(activeModel.flow?.steps) !== JSON.stringify(pythonModel.flow?.steps)) problems.push("JS and Python flatten the flow fragments differently");
+      if (result.sequence !== pythonSequence) problems.push("JS and Python Mermaid sequences differ");
+      const presenter = await browser.newPage();
+      await presenter.setContent(result.html, { waitUntil: "domcontentloaded" });
+      await presenter.waitForFunction(() => typeof window.serializeSequenceMermaid === "function" && window.diagramReady, null, { timeout: 60000 });
+      const presented = await presenter.evaluate(async () => { await window.diagramReady; return window.serializeSequenceMermaid(); });
+      await presenter.close();
+      if (presented !== pythonSequence) problems.push("the presenter's Mermaid sequence differs from the translator's");
+      if (!/alt password matches\n {8}api-->>browser: 200 · session\n {4}else\n/.test(result.sequence)) problems.push("the alt and its else branch were not written");
+    }
     if (!result.html.includes("diagram-engine.js (inlined by translate.html)")) problems.push("engine was not inlined");
     if (problems.length) {
       failures++;

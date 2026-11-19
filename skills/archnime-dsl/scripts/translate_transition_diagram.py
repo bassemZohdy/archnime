@@ -47,6 +47,7 @@ SHAPE_BY_TYPE = {
     "vector-store": "db",
 }
 RETURN_KINDS = {"return", "refused"}
+FLOW_FRAGMENTS = ("alt", "opt", "loop")
 
 
 def _renderer_shape(node_type: str) -> str:
@@ -188,7 +189,7 @@ def _flow_edge(text: str) -> dict[str, Any]:
     return {"from": edge["from"], "to": edge["to"], "type": edge.get("type", "data")}
 
 
-def _copy_flow_step(step: dict[str, Any], wires: list[dict[str, Any]], index: int) -> dict[str, Any]:
+def _copy_flow_step(step: dict[str, Any], wires: list[dict[str, Any]], index: int, inherited_kind: str | None = None) -> dict[str, Any]:
     known = {(wire["from"], wire["to"], wire.get("type", "data")): wire for wire in wires}
     reverse = {(to, source, wire.get("type", "data")): wire for (source, to, _), wire in known.items()}
 
@@ -226,14 +227,65 @@ def _copy_flow_step(step: dict[str, Any], wires: list[dict[str, Any]], index: in
             result["edges"] = [edge for child in children for edge in child.get("edges", [])]
         return result
 
-    result = normalize_node(step, step.get("kind", "call"))
+    result = normalize_node(step, step.get("kind", inherited_kind or "call"))
     result["id"] = f"step-{index + 1}"
     return result
 
 
+def _flow_operands(step: dict[str, Any]) -> list[tuple[str, int, dict[str, Any]]]:
+    for fragment in FLOW_FRAGMENTS:
+        if fragment in step:
+            operands = step[fragment] if fragment == "alt" else [step[fragment]]
+            return [(fragment, index, operand) for index, operand in enumerate(operands or []) if isinstance(operand, dict)]
+    return []
+
+
+def _copy_flow_steps(source_steps: list[Any], wires: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Flatten alt, opt and loop fragments into the played order of steps.
+
+    Each step inside a fragment carries `fragments`, its enclosing frames from the outermost
+    in: the frame's id, kind, guard (`when`), branch index and, when given, title and note.
+    A step after a `phase:` carries that phase until the next one.
+    """
+    steps: list[dict[str, Any]] = []
+    counter = 0
+
+    def walk(step: Any, frames: list[dict[str, Any]], inherited_kind: str | None, phase: str | None) -> None:
+        nonlocal counter
+        if not isinstance(step, dict):
+            return
+        operands = _flow_operands(step)
+        if operands:
+            counter += 1
+            frame_id = f"fragment-{counter}"
+            for fragment, index, operand in operands:
+                frame = {"id": frame_id, "kind": fragment, "when": str(operand.get("when", "")), "branch": index}
+                for key in ("title", "note"):
+                    if key in step:
+                        frame[key] = copy.deepcopy(step[key])
+                if "source" in operand:
+                    frame["source"] = copy.deepcopy(operand["source"])
+                for child in operand.get("steps", []) or []:
+                    walk(child, frames + [frame], step.get("kind", inherited_kind), phase)
+            return
+        copied = _copy_flow_step(step, wires, len(steps), inherited_kind)
+        if frames:
+            copied["fragments"] = copy.deepcopy(frames)
+        if phase:
+            copied["phase"] = phase
+        steps.append(copied)
+
+    phase = None
+    for step in source_steps or []:
+        if isinstance(step, dict) and isinstance(step.get("phase"), str):
+            phase = step["phase"]
+        walk(step, [], None, phase)
+    return steps
+
+
 def _copy_flow(source: dict[str, Any], intro: bool = False) -> tuple[dict[str, Any], dict[str, Any]]:
     wires = normalize_wires(source.get("wires", []))
-    steps = [_copy_flow_step(step, wires, index) for index, step in enumerate(source.get("steps", []))]
+    steps = _copy_flow_steps(source.get("steps", []), wires)
     if intro:
         titles = [step.get("title") or step.get("label") or f"Step {index + 1}" for index, step in enumerate(steps)]
         steps.insert(0, {"id": "flow-intro", "title": "Flow overview", "kind": "intro", "edges": [], "note": "Steps: " + " → ".join(titles)})
@@ -517,7 +569,7 @@ def sequence_mermaid(model: dict[str, Any]) -> str:
     participant_ids = [entry if isinstance(entry, str) else entry.get("id") for entry in flow.get("nodes", [])]
     used: set[str] = set()
     aliases = {ident: _mermaid_identifier(ident, used) for ident in participant_ids if ident}
-    lines = ["sequenceDiagram"]
+    lines = ["sequenceDiagram", "    autonumber"]
     for ident in participant_ids:
         if not ident:
             continue
@@ -608,8 +660,48 @@ def sequence_mermaid(model: dict[str, Any]) -> str:
         for edge in edges:
             emit_edge(edge, step, indent)
 
+    named_ids = [aliases[ident] for ident in participant_ids if ident in aliases]
+    span = ",".join(named_ids[:1] if len(named_ids) < 2 else [named_ids[0], named_ids[-1]])
+
+    def one_line(value: Any) -> str:
+        return str(value).replace("\n", " ")
+
+    open_frames: list[list[Any]] = []  # [frame id, branch], from the outermost in
+    phase = None
+
+    def close_to(depth: int) -> None:
+        while len(open_frames) > depth:
+            open_frames.pop()
+            lines.append("    " * (len(open_frames) + 1) + "end")
+
     for step in flow.get("steps", []):
-        emit_step(step)
+        if step.get("kind") == "intro":
+            continue
+        frames = step.get("fragments") or []
+        if step.get("phase") and step.get("phase") != phase:
+            close_to(0)
+            phase = step["phase"]
+            if span:
+                lines.append(f"    Note over {span}: {one_line(phase)}")
+        depth = 0
+        while depth < len(open_frames) and depth < len(frames) and open_frames[depth][0] == frames[depth].get("id") and open_frames[depth][1] == frames[depth].get("branch"):
+            depth += 1
+        if depth < len(open_frames) and depth < len(frames) and open_frames[depth][0] == frames[depth].get("id"):
+            # The next branch of an open alt: close what the last branch held and write `else`.
+            close_to(depth + 1)
+            open_frames[depth][1] = frames[depth].get("branch")
+            guard = one_line(frames[depth].get("when", "")).strip()
+            lines.append("    " * (depth + 1) + ("else" if guard.lower() in ("", "else") else f"else {guard}"))
+            depth += 1
+        close_to(depth)
+        for frame in frames[depth:]:
+            indent = "    " * (len(open_frames) + 1)
+            if frame.get("note") and span:
+                lines.append(f"{indent}Note over {span}: {one_line(frame['note'])}")
+            lines.append(f"{indent}{frame.get('kind', 'opt')} {one_line(frame.get('when', ''))}")
+            open_frames.append([frame.get("id"), frame.get("branch")])
+        emit_step(step, "    " * (len(open_frames) + 1))
+    close_to(0)
     return "\n".join(lines) + "\n"
 
 

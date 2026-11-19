@@ -677,11 +677,27 @@ def _flow_edge_key(edge: dict) -> tuple[str, str]:
     return edge.get("from"), edge.get("to")
 
 
-def _lint_flow_step(step: dict, flow_wires: list[dict], flow_node_ids: set, seen_calls: set[tuple[str, str]], path: str) -> list[Finding]:
+FLOW_FRAGMENTS = ("alt", "opt", "loop")
+
+
+def flow_operands(step: dict) -> list[tuple[str, int | None, dict]]:
+    """The operands of an alt, opt or loop step: (fragment, index within an alt, operand)."""
+    for fragment in FLOW_FRAGMENTS:
+        if fragment in step:
+            value = step[fragment]
+            if fragment == "alt":
+                return [(fragment, index, operand) for index, operand in enumerate(_seq(value)) if isinstance(operand, dict)]
+            return [(fragment, None, value)] if isinstance(value, dict) else []
+    return []
+
+
+def _lint_flow_step(step: dict, flow_wires: list[dict], flow_node_ids: set, seen_calls: set[tuple[str, str]], path: str, top: bool = True) -> list[Finding]:
     findings = []
     if not isinstance(step, dict):
         return findings
     kind = step.get("kind", "call")
+    if not top and "phase" in step:
+        findings.append(Finding("flow-phase-nested", "a phase starts only on a top-level step, never inside parallel branches or a fragment", f"{path}.phase"))
 
     def check_edge(text: str, edge_path: str) -> None:
         try:
@@ -719,9 +735,25 @@ def _lint_flow_step(step: dict, flow_wires: list[dict], flow_node_ids: set, seen
                 check_edge(edge, f"{path}.group[{index}]")
     elif isinstance(step.get("parallel"), list):
         for index, child in enumerate(step["parallel"]):
-            findings += _lint_flow_step(child, flow_wires, flow_node_ids, seen_calls, f"{path}.parallel[{index}]")
+            findings += _lint_flow_step(child, flow_wires, flow_node_ids, seen_calls, f"{path}.parallel[{index}]", top=False)
+    elif any(fragment in step for fragment in FLOW_FRAGMENTS):
+        # Each operand starts from the calls waiting before the fragment: a reply in an
+        # `else` branch cannot answer a call only the first branch made. Afterwards, a
+        # call made in any branch may be answered.
+        before, made = set(seen_calls), set()
+        operands = flow_operands(step)
+        for fragment, index, operand in operands:
+            operand_path = f"{path}.{fragment}" + (f"[{index}]" if index is not None else "")
+            guard = operand.get("when")
+            if isinstance(guard, str) and guard.strip().lower() == "else" and (fragment != "alt" or index != len(operands) - 1):
+                findings.append(Finding("flow-guard-else", "`else` is the guard of an alt's last branch only", f"{operand_path}.when"))
+            branch = set(before)
+            for child_index, child in enumerate(_seq(operand.get("steps"))):
+                findings += _lint_flow_step(child, flow_wires, flow_node_ids, branch, f"{operand_path}.steps[{child_index}]", top=False)
+            made |= branch
+        seen_calls |= made
     else:
-        findings.append(Finding("flow-step-empty", "flow step must contain edge, group, or parallel", path))
+        findings.append(Finding("flow-step-empty", "flow step must contain edge, group, parallel, alt, opt, or loop", path))
     return findings
 
 
@@ -932,6 +964,9 @@ def _lint_navigation_targets(doc: dict, view_ids: set[str]) -> list[Finding]:
             findings.append(Finding("navigation-target-unknown", f"step navigates to unknown view {target!r}", f"{path}.navigateTo"))
         for index, child in enumerate(_seq(step.get("parallel"))):
             check_step(child, f"{path}.parallel[{index}]")
+        for fragment, index, operand in flow_operands(step):
+            for child_index, child in enumerate(_seq(operand.get("steps"))):
+                check_step(child, f"{path}.{fragment}" + (f"[{index}]" if index is not None else "") + f".steps[{child_index}]")
 
     def check_state(state: Any, path: str) -> None:
         if not isinstance(state, dict):

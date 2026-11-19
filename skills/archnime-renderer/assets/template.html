@@ -898,7 +898,7 @@ const MODEL = {
     const participantIds = (FLOW.nodes || []).map(entry => typeof entry === "string" ? entry : entry?.id).filter(Boolean), used = new Set(), aliases = {};
     const mermaidIdentifier = value => { let candidate = String(value).replace(/[^A-Za-z0-9_]/g, "_"); if (!candidate || /^\d/.test(candidate)) candidate = `p_${candidate}`; const base = candidate; let suffix = 2; while (used.has(candidate)) candidate = `${base}_${suffix++}`; used.add(candidate); return candidate; };
     participantIds.forEach(id => aliases[id] = mermaidIdentifier(id));
-    const label = value => String(value ?? "").replace(/[\r\n]+/g, " "), lines = ["sequenceDiagram"];
+    const label = value => String(value ?? "").replace(/[\r\n]+/g, " "), lines = ["sequenceDiagram", "    autonumber"];
     participantIds.forEach(id => lines.push(`    participant ${aliases[id]} as ${label(CATALOG[id]?.label || id)}`));
     const wireKey = wire => `${wire.from}>${wire.to}>${wire.type || "data"}`;
     const wires = Object.fromEntries((FLOW.wires || []).map(wire => [wireKey(wire), wire]));
@@ -907,7 +907,30 @@ const MODEL = {
     const wireLabel = (edge, step) => { const type = edge.wireType || "data", wire = wires[`${edge.from}>${edge.to}>${type}`] || (RETURN_KINDS.includes(edge.kind) ? wires[`${edge.to}>${edge.from}>${type}`] : null); return String(step.label || wire?.label || `${edge.from} → ${edge.to}`).replace(/[\r\n]+/g, " "); };
     const emitEdge = (edge, step, indent) => { if (!aliases[edge.from] || !aliases[edge.to]) return; const kind = edge.kind || step.kind || "call", arrow = kind === "refused" ? "--x" : kind === "async" || kind === "return" ? "-->>" : "->>"; lines.push(`${indent}${aliases[edge.from]}${arrow}${aliases[edge.to]}: ${wireLabel(edge, step)}`); };
     const emitStep = (step, indent = "    ", nested = false) => { const kind = step.kind || "call"; if (kind === "intro") return; const title = String(step.title || step.label || "parallel work").replace(/[\r\n]+/g, " "), named = participants(step).map(id => aliases[id]).filter(Boolean), people = (named.length < 2 ? named : [named[0], named[named.length - 1]]).join(","); if (!nested && step.note && people) lines.push(`${indent}Note over ${people}: ${String(step.note).replace(/[\r\n]+/g, " ")}`); if (step.parallel === true) { lines.push(`${indent}par ${title}`); if (Array.isArray(step.steps) && step.steps.length) step.steps.forEach((child, index) => { if (index) lines.push(`${indent}and ${String(child.title || child.label || "parallel branch").replace(/[\r\n]+/g, " ")}`); emitStep(child, `${indent}    `, true); }); else edgeEntries(step).forEach((edge, index) => { if (index) lines.push(`${indent}and parallel branch`); emitStep({ kind: edge.kind || "call", edges: [edge], repeat: edge.repeat || step.repeat, label: step.label }, `${indent}    `, true); }); lines.push(`${indent}end`); return; } if (Array.isArray(step.parallel)) { lines.push(`${indent}par ${title}`); step.parallel.forEach((child, index) => { if (index) lines.push(`${indent}and ${String(child.title || child.label || "parallel branch").replace(/[\r\n]+/g, " ")}`); emitStep(child, `${indent}    `, true); }); lines.push(`${indent}end`); return; } const edges = edgeEntries(step); if (kind === "loop") { lines.push(`${indent}loop ${String(step.repeat || "repeat").replace(/[\r\n]+/g, " ")}`); edges.forEach(edge => emitEdge(edge, step, `${indent}    `)); lines.push(`${indent}end`); return; } edges.forEach(edge => emitEdge(edge, step, indent)); };
-    (FLOW.steps || []).forEach(step => emitStep(step)); return `${lines.join("\n")}\n`;
+    const namedIds = participantIds.filter(id => aliases[id]).map(id => aliases[id]), span = (namedIds.length < 2 ? namedIds : [namedIds[0], namedIds[namedIds.length - 1]]).join(","), oneLine = value => String(value).replace(/[\r\n]+/g, " ");
+    const openFrames = []; let phase = null; // [frame id, branch], from the outermost in
+    const closeTo = depth => { while (openFrames.length > depth) { openFrames.pop(); lines.push(`${"    ".repeat(openFrames.length + 1)}end`); } };
+    (FLOW.steps || []).forEach(step => {
+      if (step.kind === "intro") return;
+      const frames = Array.isArray(step.fragments) ? step.fragments : [];
+      if (step.phase && step.phase !== phase) { closeTo(0); phase = step.phase; if (span) lines.push(`    Note over ${span}: ${oneLine(phase)}`); }
+      let depth = 0;
+      while (depth < openFrames.length && depth < frames.length && openFrames[depth][0] === frames[depth].id && openFrames[depth][1] === frames[depth].branch) depth += 1;
+      if (depth < openFrames.length && depth < frames.length && openFrames[depth][0] === frames[depth].id) {
+        // The next branch of an open alt: close what the last branch held and write `else`.
+        closeTo(depth + 1); openFrames[depth][1] = frames[depth].branch; const guard = oneLine(frames[depth].when ?? "").trim(); lines.push(`${"    ".repeat(depth + 1)}else${["", "else"].includes(guard.toLowerCase()) ? "" : ` ${guard}`}`); depth += 1;
+      }
+      closeTo(depth);
+      frames.slice(depth).forEach(frame => {
+        const indent = "    ".repeat(openFrames.length + 1);
+        if (frame.note && span) lines.push(`${indent}Note over ${span}: ${oneLine(frame.note)}`);
+        lines.push(`${indent}${frame.kind || "opt"} ${oneLine(frame.when ?? "")}`);
+        openFrames.push([frame.id, frame.branch]);
+      });
+      emitStep(step, "    ".repeat(openFrames.length + 1));
+    });
+    closeTo(0);
+    return `${lines.join("\n")}\n`;
   }
   const escapeXml = value => String(value || "").replace(/[&<>\"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&apos;" }[char]));
   // A native sequence view of the flow: one lifeline per flow node in flow.nodes order, one numbered
@@ -920,46 +943,87 @@ const MODEL = {
     const ids = (FLOW.nodes || []).map(entry => typeof entry === "string" ? entry : entry?.id).filter(Boolean);
     const labelOf = id => String(CATALOG[id]?.label || id), wires = Object.fromEntries((FLOW.wires || []).map(wire => [`${wire.from}>${wire.to}>${wire.type || "data"}`, wire]));
     const returnLike = kind => kind === "return" || kind === "refused";
-    const messages = [];
-    const visit = (step, phase) => {
+    // Each message keeps the frames it sits in, from the outermost in: the alt, opt and loop
+    // fragments the translator tagged, a parallel step's branches, and a single looped step.
+    const messages = [], explicitPhases = FLOW_STEPS.some(step => step && step.phase);
+    const visit = (step, phase, frames) => {
       if (!step || step.kind === "intro") return;
-      if (Array.isArray(step.steps) && step.parallel) { step.steps.forEach(child => visit(child, phase)); return; }
-      (Array.isArray(step.edges) ? step.edges : step.edge && typeof step.edge === "object" ? [step.edge] : []).forEach(edge => {
+      if (Array.isArray(step.steps) && step.parallel) { step.steps.forEach((child, branch) => visit(child, phase, [...frames, { id: `${step.id}-par`, kind: "par", when: String(child.title || child.label || ""), branch }])); return; }
+      const edges = Array.isArray(step.edges) ? step.edges : step.edge && typeof step.edge === "object" ? [step.edge] : [];
+      const looped = (step.kind === "loop" || edges.some(edge => edge.kind === "loop")) ? [...frames, { id: `${step.id}-loop`, kind: "loop", when: String(step.repeat || edges.find(edge => edge.repeat)?.repeat || ""), branch: 0 }] : frames;
+      edges.forEach(edge => {
         if (!ids.includes(edge.from) || !ids.includes(edge.to)) return;
-        const kind = edge.kind || step.kind || "call", type = edge.wireType || "data", repeat = edge.repeat || step.repeat;
+        const kind = edge.kind || step.kind || "call", type = edge.wireType || "data";
         const wire = wires[`${edge.from}>${edge.to}>${type}`] || (returnLike(kind) ? wires[`${edge.to}>${edge.from}>${type}`] : null);
-        const label = String(step.label || wire?.label || (kind === "refused" ? "refused" : "")) + (kind === "loop" && repeat ? ` (${repeat})` : "");
-        messages.push({ from: edge.from, to: edge.to, kind, type, label: label.replace(/[\r\n]+/g, " ").trim(), phase });
+        const label = String(step.label || wire?.label || (kind === "refused" ? "refused" : ""));
+        messages.push({ from: edge.from, to: edge.to, kind, type, label: label.replace(/[\r\n]+/g, " ").trim(), phase, frames: looped });
       });
     };
-    FLOW_STEPS.forEach((step, index) => visit(step, step.title || `Step ${index + 1}`));
+    FLOW_STEPS.forEach((step, index) => visit(step, explicitPhases ? (step.phase || null) : (step.title || `Step ${index + 1}`), Array.isArray(step.fragments) ? step.fragments : []));
     if (!ids.length || !messages.length) throw new Error("Sequence view needs flow nodes and at least one step");
     const measure = (text, size, weight) => { const probe = document.createElementNS("http://www.w3.org/2000/svg", "text"); probe.setAttribute("style", `font:${weight} ${size}px ${font}`); probe.textContent = text; document.getElementById("diagram").appendChild(probe); const width = probe.getComputedTextLength(); probe.remove(); return width; };
     const headW = Math.max(120, ...ids.map(id => Math.ceil(measure(labelOf(id), 13, 600)) + 32));
-    const gapW = Math.max(160, ...messages.map(message => Math.ceil(measure(`${messages.indexOf(message) + 1}  ${message.label}`, 11, 500)) + 40));
-    const left = 32, top = 28, headH = 40, rowH = 36, column = Math.max(headW, gapW), x = id => Math.round(left + headW / 2 + ids.indexOf(id) * column);
-    const width = Math.round(left * 2 + headW + (ids.length - 1) * column), bodyTop = top + headH + 24, height = Math.round(bodyTop + messages.length * rowH + 24 + headH + top);
+    const gapW = Math.max(160, ...messages.map((message, index) => Math.ceil(measure(`${index + 1}  ${message.label}`, 11, 500)) + 40));
+    const depthMax = Math.max(0, ...messages.map(message => message.frames.length));
+    const left = 32 + depthMax * 12, top = 28, headH = 40, rowH = 36, headerH = 22, column = Math.max(headW, gapW), x = id => Math.round(left + headW / 2 + ids.indexOf(id) * column);
+    // First pass: lay the rows out (phase headings, frame headers, else dividers, messages).
+    const rows = [], frames = [], open = [];
+    let y = top + headH + 24, phase = null;
+    // A frame is wide enough for its tag and every guard, and its parent holds it.
+    const tagWidth = frame => Math.ceil(measure(frame.kind, 10, 700)) + 16, guardWidth = text => text ? Math.ceil(measure(`[${text}]`, 10.5, 500)) + 16 : 0;
+    const closeTo = depth => {
+      while (open.length > depth) {
+        const frame = open.pop(), inset = frame.depth * 10, edge = frame.minX - 28 + inset, needed = Math.max(tagWidth(frame) + 8 + guardWidth(frame.when), ...frame.dividers.map(divider => guardWidth(divider.when)));
+        frame.maxX = Math.max(frame.maxX, edge + needed + 12 - 28 + inset);
+        frame.bottom = y + 4; y += 8;
+        const parent = open[open.length - 1];
+        if (parent) { parent.minX = Math.min(parent.minX, frame.minX); parent.maxX = Math.max(parent.maxX, frame.maxX); }
+      }
+    };
+    messages.forEach((message, index) => {
+      if (message.phase && message.phase !== phase) { closeTo(0); phase = message.phase; rows.push({ type: "phase", y: y + 14, text: phase }); y += headerH + 4; }
+      let depth = 0;
+      while (depth < open.length && depth < message.frames.length && open[depth].id === message.frames[depth].id && open[depth].branch === message.frames[depth].branch) depth += 1;
+      if (depth < open.length && depth < message.frames.length && open[depth].id === message.frames[depth].id) {
+        closeTo(depth + 1);
+        open[depth].branch = message.frames[depth].branch; open[depth].dividers.push({ y, when: message.frames[depth].when });
+        y += headerH; depth += 1;
+      }
+      closeTo(depth);
+      message.frames.slice(depth).forEach(spec => { const frame = { ...spec, depth: open.length, top: y, dividers: [], minX: Infinity, maxX: -Infinity }; frames.push(frame); open.push(frame); y += headerH; });
+      const x1 = x(message.from), x2 = x(message.to), reach = x1 === x2 ? x1 + 44 + Math.ceil(measure(`${index + 1}  ${message.label}`, 11, 500)) : Math.max(x1, x2);
+      open.forEach(frame => { frame.minX = Math.min(frame.minX, x1, x2); frame.maxX = Math.max(frame.maxX, reach); });
+      rows.push({ type: "message", y: y + rowH / 2, message, number: index + 1 });
+      y += rowH;
+    });
+    closeTo(0);
+    const width = Math.round(Math.max(left * 2 + headW + (ids.length - 1) * column, ...frames.map(frame => frame.maxX + 28 - frame.depth * 10 + 24))), height = Math.round(y + 24 + headH + top);
     const esc = escapeXml, parts = [];
     ids.forEach(id => {
       const cx = x(id), label = esc(labelOf(id));
       parts.push(`<line class="seq-life" x1="${cx}" y1="${top + headH}" x2="${cx}" y2="${height - top - headH}"/>`);
-      [top, height - top - headH].forEach(y => parts.push(`<g class="seq-head"><rect x="${cx - headW / 2}" y="${y}" width="${headW}" height="${headH}" rx="8"/><text x="${cx}" y="${y + headH / 2 + 4.5}" text-anchor="middle">${label}</text></g>`));
+      [top, height - top - headH].forEach(rowY => parts.push(`<g class="seq-head"><rect x="${cx - headW / 2}" y="${rowY}" width="${headW}" height="${headH}" rx="8"/><text x="${cx}" y="${rowY + headH / 2 + 4.5}" text-anchor="middle">${label}</text></g>`));
     });
-    let phase = null;
-    messages.forEach((message, index) => {
-      const y = bodyTop + index * rowH + rowH / 2, x1 = x(message.from), x2 = x(message.to), number = index + 1;
-      if (message.phase !== phase) { phase = message.phase; parts.push(`<text class="seq-phase" x="${left}" y="${y - rowH / 2 + 2}">${esc(phase)}</text>`); }
+    // Second pass: frames behind the messages, outermost first.
+    frames.forEach(frame => {
+      const inset = frame.depth * 10, fx = Math.round(frame.minX - 28 + inset), fw = Math.round(frame.maxX + 28 - inset - fx), fh = Math.round(frame.bottom - frame.top), tag = frame.kind, tagW = tagWidth(frame);
+      parts.push(`<g class="seq-frame seq-frame-${esc(frame.kind)}"><rect class="seq-frame-box" x="${fx}" y="${frame.top}" width="${fw}" height="${fh}" rx="4"/><path class="seq-frame-tab" d="M${fx} ${frame.top}h${tagW}v12l-6 6h-${tagW - 6}z"/><text class="seq-frame-kind" x="${fx + 6}" y="${frame.top + 13}">${esc(tag)}</text>${frame.when ? `<text class="seq-guard" x="${fx + tagW + 8}" y="${frame.top + 13}">[${esc(frame.when)}]</text>` : ""}`
+        + frame.dividers.map(divider => `<line class="seq-frame-divider" x1="${fx}" y1="${divider.y}" x2="${fx + fw}" y2="${divider.y}"/>${divider.when ? `<text class="seq-guard" x="${fx + 8}" y="${divider.y + 14}">[${esc(divider.when)}]</text>` : ""}`).join("") + `</g>`);
+    });
+    rows.forEach(row => {
+      if (row.type === "phase") { parts.push(`<text class="seq-phase" x="${left}" y="${row.y}">${esc(row.text)}</text>`); return; }
+      const { message, number } = row, rowY = row.y, x1 = x(message.from), x2 = x(message.to);
       const kindClass = `seq-msg seq-${message.kind} type-${message.type}`;
       if (x1 === x2) {
-        parts.push(`<path class="${kindClass}" d="M${x1} ${y - 8} h36 v16 h-36" marker-end="url(#seq-arrow)"/>`);
-        parts.push(`<text class="seq-label" x="${x1 + 44}" y="${y + 4}">${number}  ${esc(message.label)}</text>`);
+        parts.push(`<path class="${kindClass}" d="M${x1} ${rowY - 8} h36 v16 h-36" marker-end="url(#seq-arrow)"/>`);
+        parts.push(`<text class="seq-label" x="${x1 + 44}" y="${rowY + 4}">${number}  ${esc(message.label)}</text>`);
         return;
       }
       const direction = Math.sign(x2 - x1), end = x2 - direction * 2;
-      parts.push(`<line class="${kindClass}" x1="${x1}" y1="${y}" x2="${end}" y2="${y}" marker-end="url(#${message.kind === "refused" ? "seq-refused" : "seq-arrow"})"/>`);
-      parts.push(`<text class="seq-label" x="${(x1 + x2) / 2}" y="${y - 7}" text-anchor="middle">${number}  ${esc(message.label)}</text>`);
+      parts.push(`<line class="${kindClass}" x1="${x1}" y1="${rowY}" x2="${end}" y2="${rowY}" marker-end="url(#${message.kind === "refused" ? "seq-refused" : "seq-arrow"})"/>`);
+      parts.push(`<text class="seq-label" x="${(x1 + x2) / 2}" y="${rowY - 7}" text-anchor="middle">${number}  ${esc(message.label)}</text>`);
     });
-    const css = (vars) => `.seq-life{stroke:${vars.line};stroke-width:1.5;stroke-dasharray:4 4}.seq-head rect{fill:${vars["data-fill"]};stroke:${vars.data};stroke-width:1.5}.seq-head text{fill:${vars.ink};font:600 13px ${font}}.seq-msg{stroke:${vars.data};stroke-width:1.75;fill:none}.seq-msg.type-security{stroke:${vars.security}}.seq-msg.type-control{stroke:${vars.control}}.seq-return,.seq-async{stroke-dasharray:6 4}.seq-refused{stroke:${vars.security};stroke-dasharray:6 4}.seq-label{fill:${vars.ink};font:500 11px ${font}}.seq-phase{fill:${vars.muted};font:650 11px ${font};text-transform:uppercase;letter-spacing:.04em}.seq-bg{fill:${vars.panel}}#seq-arrow path{fill:${vars.ink}}#seq-refused path{stroke:${vars.security};stroke-width:2}`;
+    const css = (vars) => `.seq-life{stroke:${vars.line};stroke-width:1.5;stroke-dasharray:4 4}.seq-head rect{fill:${vars["data-fill"]};stroke:${vars.data};stroke-width:1.5}.seq-head text{fill:${vars.ink};font:600 13px ${font}}.seq-msg{stroke:${vars.data};stroke-width:1.75;fill:none}.seq-msg.type-security{stroke:${vars.security}}.seq-msg.type-control{stroke:${vars.control}}.seq-return,.seq-async{stroke-dasharray:6 4}.seq-refused{stroke:${vars.security};stroke-dasharray:6 4}.seq-label{fill:${vars.ink};font:500 11px ${font}}.seq-phase{fill:${vars.muted};font:650 11px ${font};text-transform:uppercase;letter-spacing:.04em}.seq-bg{fill:${vars.panel}}.seq-frame-box{fill:none;stroke:${vars.muted};stroke-width:1}.seq-frame-tab{fill:${vars["data-fill"]};stroke:${vars.muted};stroke-width:1}.seq-frame-kind{fill:${vars.ink};font:700 10px ${font}}.seq-guard{fill:${vars.muted};font:italic 500 10.5px ${font}}.seq-frame-divider{stroke:${vars.muted};stroke-width:1;stroke-dasharray:5 4}#seq-arrow path{fill:${vars.ink}}#seq-refused path{stroke:${vars.security};stroke-width:2}`;
     const style = `${embeddedSvgFontRules()}\n${css(palette.light)}@media (prefers-color-scheme: dark){${css(palette.dark)}}`;
     const defs = `<defs><marker id="seq-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z"/></marker><marker id="seq-refused" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="10" markerHeight="10" orient="auto"><path d="M1 1L9 9M9 1L1 9"/></marker></defs>`;
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img"><title>${esc(META.title)} — ${esc(FLOW.title || "sequence")}</title><style>${style}</style>${defs}<rect class="seq-bg" x="0" y="0" width="${width}" height="${height}"/>${parts.join("")}</svg>`;
@@ -1147,8 +1211,8 @@ ${style}</style>${sharedDefs}${groups.join("")}<g class="animated-legend" aria-l
   }
 
   function renderPanel(stage, index, layout) {
-    const step = IS_FLOW ? FLOW_STEPS[index] : null, count = IS_FLOW ? FLOW_STEPS.length : STAGES.length, unit = IS_FLOW ? "Step" : IS_SCENARIOS ? "Variant" : "Stage", title = IS_FLOW ? (step?.title || `Step ${index + 1}`) : stage.title, summary = IS_FLOW ? (step?.note || stage.summary || "") : (stage.summary || "");
-    document.getElementById("diagram-title").textContent = META.title; document.getElementById("diagram-subtitle").textContent = META.subtitle || ""; document.getElementById("stage-eyebrow").textContent = `${unit} ${index + 1} of ${count} · ${layout.engine} layout`; document.getElementById("stage-title").textContent = title; document.getElementById("stage-summary").textContent = summary;
+    const step = IS_FLOW ? FLOW_STEPS[index] : null, count = IS_FLOW ? FLOW_STEPS.length : STAGES.length, unit = IS_FLOW ? "Step" : IS_SCENARIOS ? "Variant" : "Stage", guards = IS_FLOW ? (step?.fragments || []).filter(frame => frame.when).map(frame => `[${frame.when}]`).join(" ") : "", title = IS_FLOW ? `${guards ? `${guards} ` : ""}${step?.title || `Step ${index + 1}`}` : stage.title, summary = IS_FLOW ? (step?.note || stage.summary || "") : (stage.summary || "");
+    document.getElementById("diagram-title").textContent = META.title; document.getElementById("diagram-subtitle").textContent = META.subtitle || ""; document.getElementById("stage-eyebrow").textContent = `${unit} ${index + 1} of ${count}${IS_FLOW && step?.phase ? ` · ${step.phase}` : ""} · ${layout.engine} layout`; document.getElementById("stage-title").textContent = title; document.getElementById("stage-summary").textContent = summary;
     const list = document.getElementById("stage-changes"); list.innerHTML = ""; (IS_FLOW ? [] : (stage.changes || [])).forEach(change => { const item = document.createElement("li"); item.textContent = change; list.appendChild(item); });
     const callout = document.getElementById("stage-callout"); callout.textContent = stage.callout || ""; callout.style.display = stage.callout ? "" : "none";
     const links = document.getElementById("stage-links"); links.innerHTML = ""; [["docs", "Documentation"], ["adr", "Architecture decision record"]].forEach(([key, label]) => { const value = typeof stage[key] === "string" ? safeLinkTarget(stage[key]) : null; if (!value) return; const link = document.createElement("a"); link.href = value; link.textContent = label; if (/^https?:\/\//i.test(value)) { link.target = "_blank"; link.rel = "noopener noreferrer"; } links.appendChild(link); }); links.style.display = links.childNodes.length ? "flex" : "none";

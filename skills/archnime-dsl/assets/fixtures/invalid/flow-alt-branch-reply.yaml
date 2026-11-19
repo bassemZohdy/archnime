@@ -1,0 +1,20 @@
+dsl: transition-diagram/1.0
+meta:
+  title: A reply to another branch's call
+catalog:
+  api: { label: API, type: service }
+  db: { label: Users, type: database }
+flow:
+  title: Each branch starts from the calls before the alt
+  nodes: [api, db]
+  wires:
+    - "api -> db: find user"
+  steps:
+    - title: Answer
+      alt:
+        - when: cache missed
+          steps:
+            - { title: Find, edge: "api -> db" }
+        - when: else
+          steps:
+            - { title: Row, edge: "db -> api", kind: return }

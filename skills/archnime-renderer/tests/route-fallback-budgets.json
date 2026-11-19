@@ -126,6 +126,11 @@
       "orthogonal": 0,
       "direct": 0
     },
+    "dsl/sign-in-sequence": {
+      "curved": 0,
+      "orthogonal": 0,
+      "direct": 0
+    },
     "dsl/steps-refinement": {
       "curved": 0,
       "orthogonal": 0,

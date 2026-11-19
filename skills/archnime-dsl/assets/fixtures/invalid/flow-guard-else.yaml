@@ -1,0 +1,20 @@
+dsl: transition-diagram/1.0
+meta:
+  title: Else before the last branch
+catalog:
+  api: { label: API, type: service }
+  db: { label: Users, type: database }
+flow:
+  title: An else that is not last
+  nodes: [api, db]
+  wires:
+    - "api -> db: find user"
+  steps:
+    - title: Answer
+      alt:
+        - when: else
+          steps:
+            - { title: Find, edge: "api -> db" }
+        - when: user exists
+          steps:
+            - { title: Find again, edge: "api -> db" }
