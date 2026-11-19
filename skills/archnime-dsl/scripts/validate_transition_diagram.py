@@ -378,6 +378,76 @@ def _lint_duplicate_ids(doc: dict) -> list[Finding]:
     return findings
 
 
+# The renderer's built-in palette (template.html, :root and its dark media rule). meta.theme overrides
+# single roles, so contrast is checked on the palette the reader will actually see. test_theme.py keeps
+# this copy equal to the template's.
+THEME_DEFAULTS = {
+    "light": {
+        "bg": "#f6f7fb", "panel": "#fff", "ink": "#1c2130", "muted": "#5b6478", "line": "#d8dce6",
+        "data": "#0f9bb5", "data-fill": "#e2f6fa", "security": "#d2337b", "security-fill": "#fde7f1",
+        "control": "#7657c7", "control-fill": "#eee9ff", "existing": "#d98a12", "existing-fill": "#fff4e0",
+        "retired": "#8a93a6", "retired-fill": "#eef0f4", "neutral": "#7a8399", "boundary": "#6b7390",
+        "data-label": "#087487", "security-label": "#ae1f62", "control-label": "#5d43aa", "neutral-label": "#536078", "existing-label": "#9a5d00",
+    },
+    "dark": {
+        "bg": "#0f1420", "panel": "#171d2b", "ink": "#e7eaf2", "muted": "#9aa4ba", "line": "#2a3245",
+        "data": "#2ec4de", "data-fill": "#0e3540", "security": "#f0619e", "security-fill": "#43182c",
+        "control": "#b09cff", "control-fill": "#2a214d", "existing": "#f0a53a", "existing-fill": "#3a2a12",
+        "retired": "#6f7890", "retired-fill": "#222838", "neutral": "#8b95ad", "boundary": "#8e97b3",
+        "data-label": "#75e3f3", "security-label": "#ff8fbc", "control-label": "#c5b7ff", "neutral-label": "#b7c1d7", "existing-label": "#ffc16a",
+    },
+}
+_THEME_FILLS = ("data-fill", "security-fill", "control-fill", "existing-fill", "retired-fill")
+# (foreground, background, minimum ratio): WCAG 2.1 asks 4.5:1 for text (1.4.3) and 3:1 for the lines that
+# carry meaning (1.4.11). Each pair is one the presenter or an export paints.
+THEME_CONTRAST_PAIRS = (
+    [(text, ground, 4.5) for text in ("ink", "muted") for ground in ("panel", "bg")]
+    + [(label, "panel", 4.5) for label in ("data-label", "security-label", "control-label", "neutral-label", "existing-label")]
+    + [(text, fill, 4.5) for text in ("ink", "muted") for fill in _THEME_FILLS]
+    + [(stroke, "panel", 3.0) for stroke in ("data", "security", "control", "boundary")]
+)
+_THEME_HEX = re.compile(r"^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
+
+
+def _relative_luminance(color: str) -> float:
+    digits = color[1:]
+    if len(digits) == 3:
+        digits = "".join(ch * 2 for ch in digits)
+    channels = []
+    for i in (0, 2, 4):
+        value = int(digits[i:i + 2], 16) / 255
+        channels.append(value / 12.92 if value <= 0.03928 else ((value + 0.055) / 1.055) ** 2.4)
+    return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
+
+
+def contrast_ratio(first: str, second: str) -> float:
+    lighter, darker = sorted((_relative_luminance(first), _relative_luminance(second)), reverse=True)
+    return (lighter + 0.05) / (darker + 0.05)
+
+
+def _lint_theme(doc: dict) -> list[Finding]:
+    theme = _map(_map(doc.get("meta")).get("theme"))
+    findings = []
+    for scheme in ("light", "dark"):
+        overrides = {role: value for role, value in _map(theme.get(scheme)).items()
+                     if role in THEME_DEFAULTS[scheme] and isinstance(value, str) and _THEME_HEX.match(value)}
+        if not overrides:
+            continue
+        palette = {**THEME_DEFAULTS[scheme], **overrides}
+        for fore, back, minimum in THEME_CONTRAST_PAIRS:
+            if fore not in overrides and back not in overrides:
+                continue
+            ratio = contrast_ratio(palette[fore], palette[back])
+            if ratio < minimum:
+                role = fore if fore in overrides else back
+                findings.append(Finding(
+                    "theme-contrast",
+                    f"{scheme} {fore} {palette[fore]} on {back} {palette[back]} has contrast {ratio:.2f}:1, below {minimum:g}:1",
+                    f"$['meta']['theme'][{scheme!r}][{role!r}]",
+                ))
+    return findings
+
+
 def _lint_icons_and_node_types(doc: dict) -> list[Finding]:
     findings = []
     registered = _map(_map(doc.get("meta")).get("icons"))
@@ -1055,6 +1125,7 @@ def run_lint_pass(doc: dict) -> list[Finding]:
 
     findings += _lint_duplicate_ids(doc)
     findings += _lint_icons_and_node_types(doc)
+    findings += _lint_theme(doc)
     findings += _lint_sources(doc)
     findings += _lint_reader(doc)
     findings += _lint_evidence(doc)

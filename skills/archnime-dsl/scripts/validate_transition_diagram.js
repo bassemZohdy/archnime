@@ -463,6 +463,69 @@
     else if (Array.isArray(doc)) doc.forEach((value, index) => found.push(...wireLists(value, `${where}[${index}]`, parent)));
     return found;
   }
+  // The renderer's built-in palette (template.html, :root and its dark media rule); kept equal to the
+  // Python copy and to the template by test_theme.py.
+  const THEME_DEFAULTS = {
+    light: {
+      bg: "#f6f7fb", panel: "#fff", ink: "#1c2130", muted: "#5b6478", line: "#d8dce6",
+      data: "#0f9bb5", "data-fill": "#e2f6fa", security: "#d2337b", "security-fill": "#fde7f1",
+      control: "#7657c7", "control-fill": "#eee9ff", existing: "#d98a12", "existing-fill": "#fff4e0",
+      retired: "#8a93a6", "retired-fill": "#eef0f4", neutral: "#7a8399", boundary: "#6b7390",
+      "data-label": "#087487", "security-label": "#ae1f62", "control-label": "#5d43aa", "neutral-label": "#536078", "existing-label": "#9a5d00",
+    },
+    dark: {
+      bg: "#0f1420", panel: "#171d2b", ink: "#e7eaf2", muted: "#9aa4ba", line: "#2a3245",
+      data: "#2ec4de", "data-fill": "#0e3540", security: "#f0619e", "security-fill": "#43182c",
+      control: "#b09cff", "control-fill": "#2a214d", existing: "#f0a53a", "existing-fill": "#3a2a12",
+      retired: "#6f7890", "retired-fill": "#222838", neutral: "#8b95ad", boundary: "#8e97b3",
+      "data-label": "#75e3f3", "security-label": "#ff8fbc", "control-label": "#c5b7ff", "neutral-label": "#b7c1d7", "existing-label": "#ffc16a",
+    },
+  };
+  const THEME_ROLES = Object.keys(THEME_DEFAULTS.light), THEME_HEX = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+  const THEME_FILLS = ["data-fill", "security-fill", "control-fill", "existing-fill", "retired-fill"];
+  const THEME_CONTRAST_PAIRS = [
+    ...["ink", "muted"].flatMap(text => ["panel", "bg"].map(ground => [text, ground, 4.5])),
+    ...["data-label", "security-label", "control-label", "neutral-label", "existing-label"].map(label => [label, "panel", 4.5]),
+    ...["ink", "muted"].flatMap(text => THEME_FILLS.map(fill => [text, fill, 4.5])),
+    ...["data", "security", "control", "boundary"].map(stroke => [stroke, "panel", 3]),
+  ];
+  function relativeLuminance(color) {
+    let digits = color.slice(1);
+    if (digits.length === 3) digits = [...digits].map(ch => ch + ch).join("");
+    const [r, g, b] = [0, 2, 4].map(i => { const value = parseInt(digits.slice(i, i + 2), 16) / 255; return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4; });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  }
+  function contrastRatio(first, second) {
+    const [lighter, darker] = [relativeLuminance(first), relativeLuminance(second)].sort((x, y) => y - x);
+    return (lighter + 0.05) / (darker + 0.05);
+  }
+  function checkTheme(theme, path, findings) {
+    if (!isObject(theme)) { findings.push(schema("theme must be an object", path)); return; }
+    checkAdditional(theme, new Set(["light", "dark"]), path, findings);
+    if (!Object.keys(theme).length) findings.push(schema("theme must name light or dark", path));
+    ["light", "dark"].filter(scheme => has(theme, scheme)).forEach(scheme => {
+      const palette = theme[scheme], palettePath = pathKey(path, scheme);
+      if (!isObject(palette) || !Object.keys(palette).length) { findings.push(schema(`theme.${scheme} must map at least one colour role to a colour`, palettePath)); return; }
+      Object.entries(palette).forEach(([role, value]) => {
+        if (!THEME_ROLES.includes(role)) findings.push(schema(`theme.${scheme} role must be one of ${THEME_ROLES.join(", ")}`, pathKey(palettePath, role)));
+        else if (typeof value !== "string" || !THEME_HEX.test(value)) findings.push(schema(`theme.${scheme}.${role} must be a hex colour, #rgb or #rrggbb`, pathKey(palettePath, role)));
+      });
+    });
+  }
+  function lintTheme(doc) {
+    const theme = obj(obj(doc.meta).theme), findings = [];
+    ["light", "dark"].forEach(scheme => {
+      const overrides = Object.fromEntries(Object.entries(obj(theme[scheme])).filter(([role, value]) => has(THEME_DEFAULTS[scheme], role) && typeof value === "string" && THEME_HEX.test(value)));
+      if (!Object.keys(overrides).length) return;
+      const palette = { ...THEME_DEFAULTS[scheme], ...overrides };
+      THEME_CONTRAST_PAIRS.forEach(([fore, back, minimum]) => {
+        if (!has(overrides, fore) && !has(overrides, back)) return;
+        const ratio = contrastRatio(palette[fore], palette[back]);
+        if (ratio < minimum) findings.push(finding("theme-contrast", `${scheme} ${fore} ${palette[fore]} on ${back} ${palette[back]} has contrast ${ratio.toFixed(2)}:1, below ${minimum}:1`, pathKey(pathKey(pathKey(pathKey("$", "meta"), "theme"), scheme), has(overrides, fore) ? fore : back)));
+      });
+    });
+    return findings;
+  }
   function lintEvidence(doc) {
     const evidence = obj(doc.meta).evidence;
     if (evidence !== "code" && evidence !== "document") return [];
@@ -500,7 +563,7 @@
     if (!["transition-diagram/1.0", "transition-diagram/2.0"].includes(doc.dsl)) findings.push(schema("dsl must equal transition-diagram/1.0 or transition-diagram/2.0", pathKey("$", "dsl")));
     if (!isObject(doc.meta)) findings.push(schema("meta is required and must be an object", pathKey("$", "meta")));
     else {
-      const allowed = new Set(["title", "subtitle", "layout", "minWireLen", "perspectives", "routing", "wireJumps", "composition", "comparison", "direction", "focusHops", "levels", "icons", "flow", "gif", "reader", "evidence", "density"]);
+      const allowed = new Set(["title", "subtitle", "layout", "minWireLen", "perspectives", "routing", "wireJumps", "composition", "comparison", "direction", "focusHops", "levels", "icons", "flow", "gif", "reader", "evidence", "density", "theme"]);
       checkAdditional(doc.meta, allowed, pathKey("$", "meta"), findings);
       if (typeof doc.meta.title !== "string" || !doc.meta.title.length) findings.push(schema("meta.title must be a non-empty string", pathKey(pathKey("$", "meta"), "title")));
       if (has(doc.meta, "subtitle") && typeof doc.meta.subtitle !== "string") findings.push(schema("subtitle must be a string", pathKey(pathKey("$", "meta"), "subtitle")));
@@ -519,6 +582,7 @@
       if (has(doc.meta, "levels") && (!Array.isArray(doc.meta.levels) || doc.meta.levels.length < 1 || !doc.meta.levels.every(item => typeof item === "string"))) findings.push(schema("levels must be a non-empty string array", pathKey(pathKey("$", "meta"), "levels")));
       checkExtractionMeta(doc.meta, pathKey("$", "meta"), findings);
       if (has(doc.meta, "icons")) checkIcons(doc.meta.icons, pathKey(pathKey("$", "meta"), "icons"), findings);
+      if (has(doc.meta, "theme")) checkTheme(doc.meta.theme, pathKey(pathKey("$", "meta"), "theme"), findings);
       if (has(doc.meta, "comparison")) checkComparison(doc.meta.comparison, pathKey(pathKey("$", "meta"), "comparison"), findings);
       if (has(doc.meta, "flow")) {
         const flowPath = pathKey(pathKey("$", "meta"), "flow");
@@ -1037,7 +1101,7 @@
   function lintPass(doc) {
     const findings = [], hasSystem = has(doc, "system"), hasTransition = has(doc, "transition"), hasSteps = has(doc, "steps"), hasScenarios = has(doc, "scenarios"), hasFlow = has(doc, "flow"), hasViews = has(doc, "views");
     if (!hasSystem && !hasTransition && !hasSteps && !hasScenarios && !hasFlow && !hasViews) findings.push(finding("mode-required", "document has neither system:, transition:, steps:, scenarios:, flow:, nor views:", "$"));
-    findings.push(...lintDuplicateIds(doc), ...lintPackageGraph(doc), ...lintSources(doc), ...lintReader(doc), ...lintEvidence(doc), ...lintDensity(doc));
+    findings.push(...lintDuplicateIds(doc), ...lintPackageGraph(doc), ...lintSources(doc), ...lintReader(doc), ...lintEvidence(doc), ...lintDensity(doc), ...lintTheme(doc));
     const knownIds = collectKnownIds(doc), packageIds = new Set(Object.keys(obj(doc.packages)));
     Object.entries(obj(doc.packages)).forEach(([packageId, pkg]) => (isObject(pkg) ? strs(pkg.children) : []).forEach(child => { if (!knownIds.has(child)) findings.push(finding("unknown-catalog-ref", `package '${packageId}' child '${child}' is not a catalog or package id`, `$.packages.${packageId}.children`)); }));
     if (hasViews) {
@@ -1085,6 +1149,8 @@
     schemaPass,
     lintPass,
     configureSchema,
+    contrastRatio,
+    THEME_DEFAULTS,
     get schema() { return SCHEMA; },
   };
 })(typeof window !== "undefined" ? window : globalThis);

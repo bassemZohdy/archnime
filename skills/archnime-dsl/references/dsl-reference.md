@@ -106,6 +106,7 @@ structure and `contains` drill-down when the same view should expand in place.
 | `focusHops` | non-negative integer | `1` | node-selection focus radius; hides nodes and wires beyond this many hops without relayout |
 | `levels` | list of string | -- | breadcrumb levels, e.g. `[Context, Container, Component]` |
 | `icons` | map of type → alias or SVG definition | -- | project-registered catalog types; aliases name one of the built-ins |
+| `theme` | `light` and/or `dark` map of colour role → hex colour | built-in palette | the project's own colours; see [Theme](#theme) |
 | `flow.secondary` | list of wire type | -- | which types count as secondary |
 | `flow.mode` | `deemphasize`\|`bundle`\|`hide` | -- | |
 | `flow.secondaryRoute` | `direct`\|`bundle` | -- | |
@@ -172,6 +173,37 @@ uses the registered type as its icon name. `kind` continues to control fill
 and stroke, and the validator rejects attempts to replace a built-in type.
 
 `kind` enum: `existing`, `new`, `mixed`, `security`, `retired`.
+
+### Theme
+
+`meta.theme` gives the diagram the project's own colours. Each scheme is a map
+from a colour role to a hex colour (`#rgb` or `#rrggbb`); a role left out keeps
+the built-in colour, and a scheme left out keeps the built-in scheme:
+
+```yaml
+meta:
+  theme:
+    light: { panel: "#fffdf7", data: "#0b6e4f", data-fill: "#e3f4ec" }
+    dark:  { panel: "#101914", data: "#3fd08f" }
+```
+
+| Roles | What they paint |
+| --- | --- |
+| `bg`, `panel`, `line` | the page, the drawing surface, and the rules between them |
+| `ink`, `muted` | labels and secondary text (node details, captions) |
+| `data`, `security`, `control`, `existing`, `retired`, `neutral` | wire and node outline colour of that type or kind |
+| `data-fill`, `security-fill`, `control-fill`, `existing-fill`, `retired-fill` | node fills |
+| `data-label`, `security-label`, `control-label`, `existing-label`, `neutral-label` | wire and package labels |
+| `boundary` | trust-boundary outlines |
+
+The presenter, the documentation SVG and the sequence SVG all use the theme,
+each scheme under its own `prefers-color-scheme`. Both validators check the
+palette the reader will see, the built-in colours with the theme on top, and
+report `theme-contrast` when a colour you set leaves text under 4.5:1 (`ink`
+and `muted` on `panel`, `bg` and every fill; each label colour on `panel`) or
+a wire or boundary line under 3:1 (`data`, `security`, `control`, `boundary`
+on `panel`), the WCAG 2.1 text and non-text thresholds. `theme` is set once,
+on the top-level `meta`.
 
 ## `packages`
 

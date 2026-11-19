@@ -173,6 +173,16 @@ $defs:
         description: Where the facts come from; code and document require a source on every part and wire.
         type: string
         enum: [code, document, interview]
+      theme:
+        description: >-
+          The project's own colours, per colour scheme. Each role replaces one colour of the
+          built-in palette; roles left out keep it. Text and wire colours are checked for contrast.
+        type: object
+        additionalProperties: false
+        minProperties: 1
+        properties:
+          light: { $ref: "#/$defs/themePalette" }
+          dark: { $ref: "#/$defs/themePalette" }
       density:
         description: Raise the per-state budget of 12 nodes and 16 wires knowingly.
         type: object
@@ -180,6 +190,18 @@ $defs:
         properties:
           nodes: { type: integer, minimum: 1 }
           wires: { type: integer, minimum: 1 }
+
+  themePalette:
+    type: object
+    minProperties: 1
+    propertyNames:
+      enum: [bg, panel, ink, muted, line, data, data-fill, data-label, security, security-fill, security-label, control, control-fill, control-label, existing, existing-fill, existing-label, retired, retired-fill, neutral, neutral-label, boundary]
+    additionalProperties: { $ref: "#/$defs/themeColor" }
+
+  themeColor:
+    description: A hex colour, #rgb or #rrggbb.
+    type: string
+    pattern: "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$"
 
   canvas:
     type: object

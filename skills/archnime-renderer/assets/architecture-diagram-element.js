@@ -78,7 +78,9 @@
     const styleMatch = source.match(/<style>([\s\S]*?)<\/style>/i);
     const bodyMatch = source.match(/<body>([\s\S]*?)\s*<script>/i);
     if (!styleMatch || !bodyMatch) throw new Error("template.html is missing its style or shadow-root shell");
-    return { css: styleMatch[1], html: bodyMatch[1] };
+    // The palette lives on :root, which matches nothing inside a shadow root: move it to :host, or every
+    // var(--data), var(--existing-fill)… is undefined there and nodes paint black.
+    return { css: styleMatch[1].replace(/:root\b/g, ":host"), html: bodyMatch[1] };
   }
 
   // @font-face rules inside a shadow root are ignored by browsers, so the

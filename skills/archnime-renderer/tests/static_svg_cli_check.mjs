@@ -4,11 +4,13 @@
  *   - is byte-identical on a second run (documentation and sequence views),
  *   - carries the light and the dark palette, and Chromium paints dark under prefers-color-scheme: dark,
  *   - draws a refused reply with its cross, an external part dashed, and the AI types with their own icons,
- *   - and, with --sequence, draws one lifeline per flow node and one numbered message per step edge.
+ *   - and, with --sequence, draws one lifeline per flow node and one numbered message per step edge;
+ *   - meta.theme (FEAT-025) recolours the presenter and both exports, light and dark, and leaves the
+ *     other scheme's defaults alone.
  * Missing Chromium is reported as SKIP, or FAIL under REQUIRE_BROWSER_TESTS=1: never as a pass.
  */
-import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -21,6 +23,8 @@ const AGENT = join(SKILLS, "archnime-dsl", "assets", "examples", "agent-refusal-
 const CHECKOUT = join(SKILLS, "archnime-dsl", "assets", "examples", "checkout-flow.yaml");
 const SYSTEM = join(SKILLS, "archnime-dsl", "assets", "examples", "one-shot-checkout.yaml");
 const SIGN_IN = join(SKILLS, "archnime-dsl", "assets", "examples", "sign-in-sequence.yaml");
+const PYTHON = process.env.PYTHON || (process.platform === "win32" ? "python" : "python3");
+const THEME = { light: { data: "#0b6e4f", "data-fill": "#e3f4ec", panel: "#fffdf7" }, dark: { data: "#3fd08f", panel: "#101914" } };
 const failures = [];
 const check = (ok, message) => { console.log(`${ok ? "✓" : "✗"} ${message}`); if (!ok) failures.push(message); };
 
@@ -105,6 +109,45 @@ try {
   check(count(fragments, /class="seq-frame-divider"/g) === 1, "the alt's else branch is set off by one divider");
   check(count(fragments, /class="seq-phase"/g) === 3 && />Check the password</.test(fragments), "each named phase is headed once");
   check(count(fragments, /class="seq-msg /g) === 8, `every message is drawn once (${count(fragments, /class="seq-msg /g)} of 8)`);
+  // FEAT-025: a themed copy of the sign-in flow. Light panel #fffdf7, dark panel #101914, data green.
+  const themed = join(work, "themed.yaml");
+  const themeYaml = ["light", "dark"].map(scheme => `    ${scheme}: { ${Object.entries(THEME[scheme]).map(([role, value]) => `${role}: "${value}"`).join(", ")} }`).join("\n");
+  writeFileSync(themed, readFileSync(SIGN_IN, "utf8").replace(/^meta:\r?\n/m, `meta:\n  theme:\n${themeYaml}\n`), "utf8");
+  const themedDoc = await exportSvg({ source: themed, chromium });
+  const themedSeq = await exportSvg({ source: themed, sequence: true, chromium });
+  for (const [name, text] of [["documentation", themedDoc], ["sequence", themedSeq]]) {
+    // Light is the base (inline or plain rules); dark is the one media rule, up to the end of its <style>.
+    const split = text.indexOf("@media (prefers-color-scheme: dark)"), end = split < 0 ? -1 : text.indexOf("</style>", split);
+    const darkPart = split < 0 ? "" : text.slice(split, end), lightPart = split < 0 ? text : text.slice(0, split) + text.slice(end);
+    check(/#0b6e4f|rgb\(11, 110, 79\)/i.test(lightPart) && /#3fd08f|rgb\(63, 208, 143\)/i.test(darkPart), `the ${name} SVG carries the theme's data colour in light and in dark`);
+    check(!/#3fd08f|rgb\(63, 208, 143\)/i.test(lightPart) && !/#0b6e4f|rgb\(11, 110, 79\)/i.test(darkPart), `the ${name} SVG keeps each scheme's colour in its own scheme`);
+  }
+  const themedPaint = {};
+  for (const scheme of ["light", "dark"]) {
+    const page = await browser.newPage({ colorScheme: scheme });
+    const file = join(work, `themed-${scheme}.svg`);
+    writeFileSync(file, themedDoc, "utf8");
+    await page.goto(pathToFileURL(file).href);
+    themedPaint[scheme] = await page.evaluate(() => getComputedStyle(document.querySelector("rect.doc-background")).fill);
+    await page.close();
+  }
+  check(themedPaint.light === "rgb(255, 253, 247)" && themedPaint.dark === "rgb(16, 25, 20)", `the themed SVG paints the theme's panel light and dark (${themedPaint.light} / ${themedPaint.dark})`);
+  // The presenter: the bundle itself shows the theme, and a light-only role keeps the dark default.
+  const model = join(work, "themed.json"), html = join(work, "themed.html");
+  execFileSync(PYTHON, [join(SKILLS, "archnime-dsl", "scripts", "translate_transition_diagram.py"), themed, "--output", model], { stdio: ["ignore", "ignore", "pipe"] });
+  execFileSync(PYTHON, [join(SKILLS, "archnime-renderer", "scripts", "build_bundle.py"), "--template", join(SKILLS, "archnime-renderer", "assets", "template.html"), "--model", model, "--output", html, "--inline", "--offline"], { stdio: ["ignore", "ignore", "pipe"] });
+  const presenterVars = {};
+  for (const scheme of ["light", "dark"]) {
+    const page = await browser.newPage({ colorScheme: scheme });
+    await page.goto(pathToFileURL(html).href, { waitUntil: "domcontentloaded" });
+    await page.waitForFunction(() => window.diagramReady, null, { timeout: 60000 });
+    presenterVars[scheme] = await page.evaluate(() => { const root = getComputedStyle(document.documentElement); return ["data", "data-fill", "panel"].map(role => root.getPropertyValue(`--${role}`).trim()); });
+    await page.close();
+  }
+  check(presenterVars.light.join() === "#0b6e4f,#e3f4ec,#fffdf7", `the presenter uses the light theme (${presenterVars.light.join(" ")})`);
+  check(presenterVars.dark.join() === "#3fd08f,#0e3540,#101914", `the presenter uses the dark theme and keeps the dark data fill (${presenterVars.dark.join(" ")})`);
+  const unthemed = await exportSvg({ source: SIGN_IN, chromium });
+  check(!/#0b6e4f/i.test(unthemed), "a spec without a theme keeps the built-in palette");
   const refusedFlowOnly = run(SYSTEM, "--sequence", "--out", join(work, "none.svg"));
   check(refusedFlowOnly.status === 1 && /needs a flow/.test(refusedFlowOnly.stderr), "--sequence on a spec without a flow is refused");
 } finally {
