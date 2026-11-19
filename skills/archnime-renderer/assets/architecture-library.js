@@ -8,7 +8,7 @@
     colors: Object.freeze({
       bg: "#f6f7fb", panel: "#ffffff", ink: "#1c2130", muted: "#5b6478", line: "#d8dce6",
       data: "#0f9bb5", dataFill: "#e2f6fa", security: "#d2337b", securityFill: "#fde7f1",
-      control: "#7657c7", controlFill: "#eee9ff", existing: "#d98a12", existingFill: "#fff4e0",
+      control: "#7657c7", controlFill: "#eee9ff", existing: "#b87100", existingFill: "#fff4e0",
       retired: "#8a93a6", retiredFill: "#eef0f4", neutral: "#7a8399", glow: "#3b82f6",
       boundary: "#6b7390"
     }),

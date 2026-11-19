@@ -140,6 +140,11 @@ class ThemeRule(unittest.TestCase):
         self.assertEqual(python_findings(with_theme({"light": {"data": "#949494"}})), [])
         self.assertTrue(python_findings(with_theme({"light": {"data-label": "#949494"}})))
 
+    def test_a_faint_node_outline_is_refused(self) -> None:
+        # The old default amber outline, #d98a12, is about 2.77:1 on white.
+        found = python_findings(with_theme({"light": {"existing": "#d98a12"}}))
+        self.assertEqual(found, [("theme-contrast", "$['meta']['theme']['light']['existing']")])
+
     def test_each_scheme_is_checked_alone(self) -> None:
         # Black is fine as the dark panel; the light palette is untouched.
         self.assertEqual(python_findings(with_theme({"dark": {"panel": "#000000"}})), [])
