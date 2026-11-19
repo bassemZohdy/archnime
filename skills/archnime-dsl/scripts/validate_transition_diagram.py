@@ -385,7 +385,7 @@ THEME_DEFAULTS = {
     "light": {
         "bg": "#f6f7fb", "panel": "#fff", "ink": "#1c2130", "muted": "#5b6478", "line": "#d8dce6",
         "data": "#0f9bb5", "data-fill": "#e2f6fa", "security": "#d2337b", "security-fill": "#fde7f1",
-        "control": "#7657c7", "control-fill": "#eee9ff", "existing": "#d98a12", "existing-fill": "#fff4e0",
+        "control": "#7657c7", "control-fill": "#eee9ff", "existing": "#b87100", "existing-fill": "#fff4e0",
         "retired": "#8a93a6", "retired-fill": "#eef0f4", "neutral": "#7a8399", "boundary": "#6b7390",
         "data-label": "#087487", "security-label": "#ae1f62", "control-label": "#5d43aa", "neutral-label": "#536078", "existing-label": "#9a5d00",
     },
@@ -404,7 +404,7 @@ THEME_CONTRAST_PAIRS = (
     [(text, ground, 4.5) for text in ("ink", "muted") for ground in ("panel", "bg")]
     + [(label, "panel", 4.5) for label in ("data-label", "security-label", "control-label", "neutral-label", "existing-label")]
     + [(text, fill, 4.5) for text in ("ink", "muted") for fill in _THEME_FILLS]
-    + [(stroke, "panel", 3.0) for stroke in ("data", "security", "control", "boundary")]
+    + [(stroke, "panel", 3.0) for stroke in ("data", "security", "control", "existing", "boundary")]
 )
 _THEME_HEX = re.compile(r"^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
 

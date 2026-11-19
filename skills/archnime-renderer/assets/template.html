@@ -40,7 +40,7 @@
   :root {
     --bg: #f6f7fb; --panel: #fff; --ink: #1c2130; --muted: #5b6478; --line: #d8dce6;
     --data: #0f9bb5; --data-fill: #e2f6fa; --security: #d2337b; --security-fill: #fde7f1;
-    --control: #7657c7; --control-fill: #eee9ff; --existing: #d98a12; --existing-fill: #fff4e0;
+    --control: #7657c7; --control-fill: #eee9ff; --existing: #b87100; --existing-fill: #fff4e0;
     --retired: #8a93a6; --retired-fill: #eef0f4; --neutral: #7a8399; --glow: #3b82f6;
     --boundary: #6b7390; --boundary-fill: rgba(107,115,144,.05);
     --data-label: #087487; --security-label: #ae1f62; --control-label: #5d43aa; --neutral-label: #536078; --existing-label: #9a5d00;
@@ -1065,7 +1065,7 @@ const MODEL = {
     } finally {
       perspective = oldPerspective; DUR = oldDur; if (IS_FLOW) applyFlowStep(oldStage); else applyStage(oldStage);
     }
-    const colors = { ink: tokenColor("--ink", "#1c2130"), muted: tokenColor("--muted", "#5b6478"), panel: tokenColor("--panel", "#ffffff"), data: tokenColor("--data", "#0f9bb5"), security: tokenColor("--security", "#d2337b"), control: tokenColor("--control", "#7657c7"), compat: tokenColor("--existing", "#d98a12"), neutral: tokenColor("--neutral", "#7a8399") };
+    const colors = { ink: tokenColor("--ink", "#1c2130"), muted: tokenColor("--muted", "#5b6478"), panel: tokenColor("--panel", "#ffffff"), data: tokenColor("--data", "#0f9bb5"), security: tokenColor("--security", "#d2337b"), control: tokenColor("--control", "#7657c7"), compat: tokenColor("--existing", "#b87100"), neutral: tokenColor("--neutral", "#7a8399") };
     const legendColumns = Math.max(1, Math.floor((CANVAS.w - 48) / 170));
     const legend = [ ["data", "Data"], ["security", "Security"], ["control", "Control"], ["compat", "Compat"], ["neutral", "Neutral"] ].map(([type, label], index) => { const x = 24 + (index % legendColumns) * 170, y = CANVAS.h - 22 - Math.floor(index / legendColumns) * 18, color = colors[type]; return `<line x1="${x}" y1="${y}" x2="${x + 24}" y2="${y}" stroke="${color}" stroke-width="2.6"/><text x="${x + 32}" y="${y + 4}" fill="${colors.muted}">${label}</text>`; }).join("");
     const style = `.animated-stage{opacity:0;visibility:hidden;animation:animated-stage-slot ${cycleMs}ms linear infinite;animation-delay:var(--stage-delay)}.animated-stage-caption{font:650 16px ${JSON.stringify(getComputedStyle(document.documentElement).getPropertyValue("--font").trim() || "sans-serif")};fill:${colors.ink}}@keyframes animated-stage-slot{0%,${Math.max(0, 100 / frameTotal - fadePercent)}%{opacity:1;visibility:visible}${100 / frameTotal - fadePercent > 0 ? "" : ";"}${100 / frameTotal}%,100%{opacity:0;visibility:hidden}}.animated-stage.stage-1{opacity:1;visibility:visible}@media(prefers-reduced-motion:reduce){.animated-stage{animation:none}}.animated-legend{font:12px ${JSON.stringify(getComputedStyle(document.documentElement).getPropertyValue("--font").trim() || "sans-serif")}}`;

@@ -469,7 +469,7 @@
     light: {
       bg: "#f6f7fb", panel: "#fff", ink: "#1c2130", muted: "#5b6478", line: "#d8dce6",
       data: "#0f9bb5", "data-fill": "#e2f6fa", security: "#d2337b", "security-fill": "#fde7f1",
-      control: "#7657c7", "control-fill": "#eee9ff", existing: "#d98a12", "existing-fill": "#fff4e0",
+      control: "#7657c7", "control-fill": "#eee9ff", existing: "#b87100", "existing-fill": "#fff4e0",
       retired: "#8a93a6", "retired-fill": "#eef0f4", neutral: "#7a8399", boundary: "#6b7390",
       "data-label": "#087487", "security-label": "#ae1f62", "control-label": "#5d43aa", "neutral-label": "#536078", "existing-label": "#9a5d00",
     },
@@ -487,7 +487,7 @@
     ...["ink", "muted"].flatMap(text => ["panel", "bg"].map(ground => [text, ground, 4.5])),
     ...["data-label", "security-label", "control-label", "neutral-label", "existing-label"].map(label => [label, "panel", 4.5]),
     ...["ink", "muted"].flatMap(text => THEME_FILLS.map(fill => [text, fill, 4.5])),
-    ...["data", "security", "control", "boundary"].map(stroke => [stroke, "panel", 3]),
+    ...["data", "security", "control", "existing", "boundary"].map(stroke => [stroke, "panel", 3]),
   ];
   function relativeLuminance(color) {
     let digits = color.slice(1);
