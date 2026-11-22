@@ -145,6 +145,11 @@ class ThemeRule(unittest.TestCase):
         found = python_findings(with_theme({"light": {"existing": "#d98a12"}}))
         self.assertEqual(found, [("theme-contrast", "$['meta']['theme']['light']['existing']")])
 
+    def test_a_faint_retired_outline_is_refused(self) -> None:
+        # #b6bccb on white is about 1.9:1, too faint for the dashed outline of a retired part.
+        found = python_findings(with_theme({"light": {"retired": "#b6bccb"}}))
+        self.assertEqual(found, [("theme-contrast", "$['meta']['theme']['light']['retired']")])
+
     def test_each_scheme_is_checked_alone(self) -> None:
         # Black is fine as the dark panel; the light palette is untouched.
         self.assertEqual(python_findings(with_theme({"dark": {"panel": "#000000"}})), [])
@@ -158,7 +163,7 @@ class ThemeRule(unittest.TestCase):
     @unittest.skipUnless(NODE, "node is not installed")
     def test_browser_validator_agrees(self) -> None:
         themes = [self.GOOD, {"light": {"ink": "#9aa4ba"}}, {"dark": {"panel": "#8b95ad"}}, {"dark": {"control": "#2a214d"}},
-                  {"light": {"data": "#949494"}}, {"light": {"data-label": "#949494"}}, {"dark": {"panel": "#000000"}}]
+                  {"light": {"data": "#949494"}}, {"light": {"data-label": "#949494"}}, {"dark": {"panel": "#000000"}}, {"light": {"retired": "#b6bccb"}}]
         docs = [with_theme(theme) for theme in themes]
         self.assertEqual(browser_findings(docs), [python_findings(doc) for doc in docs])
         bad = [with_theme(theme) for theme in ({"light": {"glow": "#ffffff"}}, {"light": {"ink": "black"}},

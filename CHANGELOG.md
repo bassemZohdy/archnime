@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- **FIX-031** (fix): Paint the label of a retired part in the muted text colour instead of its pale outline colour, which read 2.7:1 on the part's fill (5.2:1 now), and add `retired` to the line colours `theme-contrast` checks. Validated: `python -m unittest skills/archnime-dsl/tests/test_theme.py`.
+
 ## [2.1.0] - 2026-11-22
 
 ### Added

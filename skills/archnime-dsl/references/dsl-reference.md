@@ -145,7 +145,7 @@ palette the reader will see, the built-in colours with the theme on top, and
 report `theme-contrast` when a colour you set leaves text under 4.5:1 (`ink`
 and `muted` on `panel`, `bg` and every fill; each label colour on `panel`) or
 a wire, outline or boundary line under 3:1 (`data`, `security`, `control`,
-`existing`, `boundary` on `panel`), the WCAG 2.1 text and non-text
+`existing`, `retired`, `boundary` on `panel`), the WCAG 2.1 text and non-text
 thresholds. `theme` is set once, on the top-level `meta`.
 
 ## `canvas`

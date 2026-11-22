@@ -487,7 +487,7 @@
     ...["ink", "muted"].flatMap(text => ["panel", "bg"].map(ground => [text, ground, 4.5])),
     ...["data-label", "security-label", "control-label", "neutral-label", "existing-label"].map(label => [label, "panel", 4.5]),
     ...["ink", "muted"].flatMap(text => THEME_FILLS.map(fill => [text, fill, 4.5])),
-    ...["data", "security", "control", "existing", "boundary"].map(stroke => [stroke, "panel", 3]),
+    ...["data", "security", "control", "existing", "retired", "boundary"].map(stroke => [stroke, "panel", 3]),
   ];
   function relativeLuminance(color) {
     let digits = color.slice(1);
