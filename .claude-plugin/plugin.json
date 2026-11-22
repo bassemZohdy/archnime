@@ -1,7 +1,7 @@
 {
   "name": "archnime",
   "displayName": "Archnime",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Architecture diagrams from conversation to documentation: interview, validated YAML source, interactive HTML presenter, documentation-safe SVG exports and validation.",
   "author": {
     "name": "Bassem Zohdy",
