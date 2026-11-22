@@ -404,7 +404,7 @@ THEME_CONTRAST_PAIRS = (
     [(text, ground, 4.5) for text in ("ink", "muted") for ground in ("panel", "bg")]
     + [(label, "panel", 4.5) for label in ("data-label", "security-label", "control-label", "neutral-label", "existing-label")]
     + [(text, fill, 4.5) for text in ("ink", "muted") for fill in _THEME_FILLS]
-    + [(stroke, "panel", 3.0) for stroke in ("data", "security", "control", "existing", "boundary")]
+    + [(stroke, "panel", 3.0) for stroke in ("data", "security", "control", "existing", "retired", "boundary")]
 )
 _THEME_HEX = re.compile(r"^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
 
