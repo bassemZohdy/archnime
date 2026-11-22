@@ -5,6 +5,8 @@ import json
 import re
 import sys
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[1]
 SKILLS_DIR = ROOT / "skills"
 SKILLS = (
@@ -38,6 +40,7 @@ def check_plugin_manifests(failures):
     marketplaces = {
         ".claude-plugin/marketplace.json": lambda d: d.get("plugins", []),
         ".agents/plugins/marketplace.json": lambda d: d.get("plugins", []),
+        ".github/plugin/marketplace.json": lambda d: d.get("plugins", []),
     }
     for relative, entries_of in marketplaces.items():
         try:
@@ -80,6 +83,14 @@ def main():
                 failures.append(f"{name}: frontmatter name mismatch")
             if "license: Apache-2.0" not in frontmatter:
                 failures.append(f"{name}: missing Apache-2.0 license")
+            # Hosts parse the frontmatter as YAML; an unquoted ": " in a description makes them drop every field.
+            try:
+                fields = yaml.safe_load(frontmatter)
+            except yaml.YAMLError as error:
+                failures.append(f"{name}: frontmatter is not valid YAML ({str(error).splitlines()[0]})")
+            else:
+                if not isinstance(fields, dict) or not all(isinstance(fields.get(key), str) and fields[key].strip() for key in ("name", "description")):
+                    failures.append(f"{name}: frontmatter needs a name and a description as text")
         if not agent.is_file():
             failures.append(f"{name}: missing agents/openai.yaml")
         for link in re.findall(r"\[[^\]]+\]\(([^)]+)\)", content):

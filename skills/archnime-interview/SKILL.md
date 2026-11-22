@@ -1,6 +1,6 @@
 ---
 name: archnime-interview
-description: Elicit the minimum architecture facts needed to produce a validated transition-diagram YAML; use when the user says “help me diagram my architecture,” has an incomplete architecture brief, or needs to choose among system, transition, flow, deployment, or comparison views. Also use it to draw an architecture from the code or a named document ("draw how this works", "diagram this repo"): it writes the reader contract and an evidence-only spec where every part and wire names the file or sentence behind it.
+description: Elicit the minimum architecture facts needed to produce a validated transition-diagram YAML; use when the user says “help me diagram my architecture,” has an incomplete architecture brief, or needs to choose among system, transition, flow, deployment, or comparison views. Also use it to draw an architecture from the code or a named document ("draw how this works", "diagram this repo"). It writes the reader contract and an evidence-only spec where every part and wire names the file or sentence behind it.
 license: Apache-2.0
 ---
 
