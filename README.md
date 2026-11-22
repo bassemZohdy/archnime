@@ -25,6 +25,7 @@ This repository is one plugin, `archnime`, that holds all five skills in `skills
 | Claude Code | `/plugin install archnime --marketplace bassemZohdy/archnime` (Claude Code 2.1.275 or later), or `/plugin marketplace add bassemZohdy/archnime` then `/plugin install archnime@archnime` |
 | Codex | `codex plugin marketplace add bassemZohdy/archnime`, then install `archnime` from the plugin directory |
 | Gemini CLI | `gemini extensions install https://github.com/bassemZohdy/archnime` |
+| GitHub Copilot (CLI and VS Code) | `copilot plugin marketplace add bassemZohdy/archnime`, then `copilot plugin install archnime@archnime` |
 | Cursor and other Agent Plugins hosts | Add `https://github.com/bassemZohdy/archnime` as a plugin source; the root `plugin.json` follows the [Agent Plugins](https://agent-plugins.org/) standard |
 | Any Agent Skills tool | `npx skills add bassemZohdy/archnime` |
 
@@ -47,6 +48,7 @@ skills/                      the five Agent Skills (each: SKILL.md, agents/, ref
 .claude-plugin/              Claude Code plugin.json and marketplace.json
 plugin.json                  Agent Plugins manifest (Codex, Cursor and other hosts); OpenAI presentation under extensions
 .agents/plugins/             Codex marketplace.json
+.github/plugin/             GitHub Copilot marketplace.json (the plugin itself is the root plugin.json)
 gemini-extension.json        Gemini CLI extension manifest (skills/ is discovered automatically)
 docs/                        one guide per skill
 scripts/                     repository checks (check_skill_structure.py also verifies every manifest) and install.mjs, the one-command installer
@@ -77,6 +79,8 @@ Use **interactive HTML** for live demonstrations and drill-down. In the HTML exp
 See [documentation-export.md](skills/archnime-renderer/references/documentation-export.md) and [the renderer guide](docs/archnime-renderer.md).
 
 How archnime compares with Mermaid and archgram, and when to use each: [docs/comparison.md](docs/comparison.md).
+
+Publishing the plugin to the provider directories, and what only the repository owner can do: [docs/publishing.md](docs/publishing.md).
 
 ## Work tracking
 
