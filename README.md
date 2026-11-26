@@ -82,7 +82,7 @@ How archnime compares with Mermaid and archgram, and when to use each: [docs/com
 
 Publishing the plugin to the provider directories, and what only the repository owner can do: [docs/publishing.md](docs/publishing.md).
 
-Whether layout could be computed at build time and stored in the page, with the evidence and the plan: [docs/build-time-layout.md](docs/build-time-layout.md) (proposed, not adopted).
+Whether layout could be computed at build time and stored in the page, with the evidence and the plan: [docs/build-time-layout.md](docs/build-time-layout.md) (decided, pending a parity gate).
 
 ## Work tracking
 

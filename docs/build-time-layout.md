@@ -1,6 +1,6 @@
 # Build-time layout: decision note
 
-**Status: proposed, not adopted.** Nothing in the renderer has changed. This note records evidence and the plan in `TODO.md` so the decision can be taken deliberately.
+**Status: decided on 2026-11-26, pending the parity gate.** Build-time layout is the direction, the current runtime layout will be archived, and the old runtime will not be kept as an option. Nothing in the renderer has changed yet: no code is removed until the parity gate (TASK-035 in `TODO.md`) passes.
 
 ## What was compared
 
@@ -31,25 +31,24 @@ As described in [archnime-renderer.md](archnime-renderer.md), archnime lays diag
 
 The evidence above came from a deliberately small, lane-aligned diagram. archnime serves larger and more varied models (nested packages, trust boundaries, perspectives, tuning), so it does not show that the same approach carries over.
 
-## Proposed direction
+## Decision
 
-Add build-time layout as an option alongside the existing runtime layout, and make it the default only if a spike shows it holds for archnime's own fixtures:
+1. **Archive the current renderer** as the git tag `legacy-runtime-layout` plus a `legacy/2.x` branch for fixes. It is not moved into the repository tree, because the repository root is the plugin and archived code would ship with every install.
+2. **Make build-time layout the layout path.** Geometry is produced per stage with the existing engine and stored in the generated page. A missing or stale geometry fails the build; there is no fall-back to layout in the page.
+3. **Do not keep the old runtime layout as an option.** The runtime layout code and the dagre, ELK and force libraries are removed in 3.0.0, a major version because the default changes.
+4. **Gate the removal.** Nothing is removed until the parity matrix shows what is kept, replaced or dropped, the free-form and nested fixtures render correctly, and the regression gate passes.
 
-1. Produce geometry per stage with the existing engine and store it in the generated page.
-2. Let the renderer use stored geometry when present and fall back to runtime layout when it is absent or stale.
-3. Where the page needs no layout library, stop loading it.
-4. Keep the canonical YAML and the existing validators as the source of truth; stored geometry is derived and never edited.
-
-What stays: the DSL, the validators, the SVG documentation export, the aggregator and its routing rules.
+The canonical YAML, the validators, the SVG documentation export, the aggregator and its routing rules stay. Stored geometry is derived and never edited.
 
 ## Risks and open questions
 
-- The runtime features that depend on layout in the page (the Tune layout search, expansion of packages, per-style rerouting) may need the engine at runtime, which would limit what can be dropped.
-- Stored geometry can drift from the model; staleness needs a check.
+- The runtime features that depend on layout in the page (the Tune layout search, expansion of packages, per-style rerouting) may need the engine at runtime. With the old runtime not kept, each of them becomes a kept, replaced or dropped row in the parity matrix, and a dropped row needs the owner's agreement.
+- Opening a specification directly in the page with no build step would no longer be laid out. The parity matrix must say whether that use is dropped or served some other way.
+- Stored geometry can drift from the model; the hash check turns drift into a build failure.
 - Does the same approach hold on a free-form, non-lane-aligned diagram?
 - Would a GSAP animation layer on the same layout do better than the plain Web Animations runtime? Not tested.
 - Any change to the renderer needs the existing renderer tests, fixtures and browser checks to pass (see `AGENTS.md`).
 
 ## Plan
 
-The tasks are in [TODO.md](../TODO.md), under the `build-time-layout` lane. The first is a decision and a spike, not an implementation.
+The tasks are in [TODO.md](../TODO.md), under the `build-time-layout` lane: archive, spike, parity gate, fixtures and regression gate, stored geometry, then the 3.0.0 release that removes the old runtime. Optional GSAP spike after the release.
