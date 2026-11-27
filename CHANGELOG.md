@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **TASK-032** (docs): Record the build-time layout decision and its evidence in `docs/build-time-layout.md` (current renderer to be archived by tag and branch, old runtime not kept, removal gated on a parity check; no renderer change yet), link it from the README, and add the follow-up tasks to `TODO.md` under a `build-time-layout` lane. Validated: `npm run check-skills`. Docs: added docs/build-time-layout.md, updated README.md, TODO.md.
+
 ## [2.1.1] - 2026-11-22
 
 ### Fixed
