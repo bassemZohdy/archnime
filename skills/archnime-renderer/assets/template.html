@@ -7,18 +7,16 @@
 <!-- Copy architecture-library.js beside the generated HTML. CDN scripts are replaceable, not semantic inputs. -->
 <script src="./architecture-library.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@dagrejs/dagre@1.1.4/dist/dagre.min.js" integrity="sha384-lNbBZ8yeW7Otl9YsPLeAvfxwUjrpXOnk/ujXsbt5s9wWhKWCYzMeFdZwKBpYxeDT" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/elkjs@0.12.0/lib/elk.bundled.js" integrity="sha384-ww57TDqx4cGknIavPm0QKO+aygLUR1BLSn2Vhbnt1XdYKWcwLyWTFKX7aZMaKIi2" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js" integrity="sha384-4RMW82CWFobXY+HRHXe5go/V5acBhiIVGCT+2k7TEoxi7AiWKw8WoWb9qMU+FAFu" crossorigin="anonymous"></script>
-<!-- Layout + self-check engine, shared with the DSL translator. Copy beside the generated HTML. -->
-<script src="./diagram-engine.js"></script>
+<!-- The runtime part of the engine: stored layouts, wire rerouting, layout check. Generated from diagram-engine.js; copy beside the generated HTML. -->
+<script src="./diagram-runtime.js"></script>
 <script>
   // A library that failed to load (blocked CDN, missing vendored file) would otherwise leave a blank
   // page with only a console error: say what is missing and how to fix it.
   (function reportMissingLibraries() {
     var missing = [];
     if (typeof d3 === "undefined") missing.push("d3");
-    if (typeof DiagramEngine === "undefined") missing.push("diagram-engine.js");
+    if (typeof DiagramEngine === "undefined") missing.push("diagram-runtime.js");
     if (!missing.length) return;
     var show = function () {
       var box = document.createElement("div");
@@ -120,10 +118,6 @@
   .menu-panel { position: absolute; right: 0; bottom: calc(100% + 6px); z-index: 20; display: flex; flex-direction: column; gap: 2px; padding: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgb(20 30 50 / 18%); min-width: 168px; }
   .menu-panel button { text-align: left; }
   .view-tools[hidden] { display: none; }
-  .tune-tools[hidden] { display: none; }
-  .tune-tools { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; }
-  .tune-tools select { max-width: 150px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); font: inherit; font-size: 12px; }
-  .tune-preserve { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
   .view-tools { display: flex; align-items: center; gap: 6px; }
   .view-tools label { color: var(--muted); font-size: 11px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
   .view-tools select { max-width: 190px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); font: inherit; font-size: 12px; }
@@ -238,7 +232,6 @@
   .bchip text { font-family: var(--font); font-size: 10px; font-weight: 650; fill: var(--boundary); letter-spacing: .02em; }
   .bchip.tone-security rect { fill: color-mix(in srgb, var(--security) 14%, var(--panel)); stroke: var(--security); }
   .bchip.tone-security text { fill: var(--security); }
-  body.presenter:not(.stored-geometry) .bchip text { font-size: 12px; }
   body.presenter .node text.label { font-size: 16px; } body.presenter .node text.detail { font-size: 13px; }
   body.presenter .wire-label { font-size: 13px; stroke-width: 5px; } body.presenter .hint, body.presenter .search-tools { display: none; }
   body.presenter .card:not(.legend), body.presenter .breadcrumbs { display: none; }
@@ -272,7 +265,7 @@
   <div class="notice">D3 could not be loaded. Reconnect, or vendor the pinned scripts beside this file.</div>
   <div class="scroller"><svg id="diagram" role="img" aria-labelledby="diagram-title"></svg></div><div class="progress"><div id="progress"></div></div>
   <div class="controls"><button id="btn-prev" type="button" disabled>◀ Prev</button><button id="btn-play" type="button" disabled>▶ Play</button><button id="btn-next" type="button" disabled>Next ▶</button><div class="pills" id="pills" role="tablist" aria-label="Stages"></div><button id="btn-disclosure" type="button" disabled hidden>Show supporting flows</button><div class="spacer"></div><div class="view-tools" id="view-tools" role="group" aria-label="Diagram view" hidden><label for="view-select">View</label><select id="view-select"></select></div><div class="view-tools" id="routing-tools"><label for="routing-select">Wires</label><select id="routing-select"><option value="curved">Curved</option><option value="orthogonal">Orthogonal</option><option value="direct">Direct</option></select></div><div class="perspective-tools" id="perspective-tools" role="group" aria-label="Perspective"><label for="perspective-select">Perspective</label><select id="perspective-select" aria-label="Perspective"></select></div><button id="btn-panel-toggle" class="panel-toggle" type="button" aria-controls="details-panel" aria-expanded="true" title="Hide the right details panel">Hide details</button>
-    <div class="search-tools"><input id="search" type="search" placeholder="Find node…" aria-label="Find node"><button id="btn-search" type="button" disabled>Find</button></div><button id="btn-fit" type="button" disabled>Fit</button><div class="tune-tools" id="tune-tools" hidden role="group" aria-label="Tune options"><label for="tune-strategy">Strategy</label><select id="tune-strategy"><option value="all">All strategies</option><option value="balanced">Balanced clarity</option><option value="wire-clearance">Wire clearance</option><option value="boundary-safe">Boundary-safe spacing</option></select><label class="tune-preserve"><input id="tune-preserve-routing" type="checkbox"> Keep wires</label></div><button id="btn-retry-elk" type="button" disabled hidden title="Try alternate ELK placement and wire-routing strategies, keeping the clearest valid result">Tune layout</button><button id="btn-presenter" type="button" disabled aria-pressed="false" title="Presentation mode: larger labels, hides the side panels and hints (shortcut: P)">Present</button><details class="menu" id="tools-menu"><summary>Export ▾</summary><div class="menu-panel"><button id="btn-print" type="button" disabled>Print</button><button id="btn-export-svg" type="button" disabled>SVG (this view)</button><button id="btn-export-documentation-svg" type="button" disabled>SVG (documentation)</button><button id="btn-export-animated-svg" type="button" disabled>Animated SVG</button><button id="btn-export-mermaid" type="button" disabled>Mermaid (architecture)</button><button id="btn-export-sequence" type="button" disabled hidden>Mermaid (sequence)</button><button id="btn-export-sequence-svg" type="button" disabled hidden>SVG (sequence)</button><button id="btn-export-png" type="button" disabled>PNG</button><button id="btn-export-jpeg" type="button" disabled>JPEG</button><button id="btn-export-gif" type="button" disabled>GIF</button></div></details><span class="hint">← → · Home/End · P present · Esc clear</span>
+    <div class="search-tools"><input id="search" type="search" placeholder="Find node…" aria-label="Find node"><button id="btn-search" type="button" disabled>Find</button></div><button id="btn-fit" type="button" disabled>Fit</button><button id="btn-presenter" type="button" disabled aria-pressed="false" title="Presentation mode: larger labels, hides the side panels and hints (shortcut: P)">Present</button><details class="menu" id="tools-menu"><summary>Export ▾</summary><div class="menu-panel"><button id="btn-print" type="button" disabled>Print</button><button id="btn-export-svg" type="button" disabled>SVG (this view)</button><button id="btn-export-documentation-svg" type="button" disabled>SVG (documentation)</button><button id="btn-export-animated-svg" type="button" disabled>Animated SVG</button><button id="btn-export-mermaid" type="button" disabled>Mermaid (architecture)</button><button id="btn-export-sequence" type="button" disabled hidden>Mermaid (sequence)</button><button id="btn-export-sequence-svg" type="button" disabled hidden>SVG (sequence)</button><button id="btn-export-png" type="button" disabled>PNG</button><button id="btn-export-jpeg" type="button" disabled>JPEG</button><button id="btn-export-gif" type="button" disabled>GIF</button></div></details><span class="hint">← → · Home/End · P present · Esc clear</span>
   </div><div class="flow-timeline" id="flow-timeline" role="list" aria-label="Flow steps" hidden></div><div class="status" id="status" role="status" aria-live="polite"></div>
 </section><aside class="panel" id="details-panel" aria-label="Diagram details"><div class="card" id="stage-card" aria-live="polite"><div class="eyebrow" id="stage-eyebrow"></div><h2 id="stage-title"></h2><p id="stage-summary"></p><ul id="stage-changes"></ul><div class="callout" id="stage-callout"></div><div class="stage-links" id="stage-links"></div></div><div class="card comparison-card" id="comparison-card" hidden><h3>Comparison</h3><div class="comparison-recommendation" id="comparison-recommendation"></div><table class="comparison-table"><thead><tr><th>Criterion</th><th>Weight</th><th>Active option</th></tr></thead><tbody id="comparison-rows"></tbody></table></div><div class="card legend"><h3>How to read this</h3><ul id="legend"></ul></div></aside></main>
 
@@ -329,10 +322,14 @@ const MODEL = {
   // One view of a bundle, merged with the parts the bundle shares. The engine owns this so the build step
   // that stores geometry merges a view exactly as the page does.
   function materializeView(view) { return DiagramEngine.materializeView(MODEL, view); }
-  // FEAT-038: a page built with `build_bundle.py --geometry` carries its layouts. The engine then
-  // places nothing and the page loads neither dagre nor ELK; a state with no stored layout is an error.
+  // The page carries its layouts: build_bundle.py computes them and embeds them as `diagram-geometry`.
+  // The engine here places nothing, so there is no dagre and no ELK; a state with no stored layout is an error.
   const GEOMETRY = (() => { const element = document.getElementById("diagram-geometry"); return element ? JSON.parse(element.textContent) : null; })();
-  document.body.classList.toggle("stored-geometry", !!GEOMETRY);
+  if (!GEOMETRY) {
+    const message = "This diagram has no stored geometry. Layout is computed when the diagram is built, not in the page: build it with build_bundle.py (it embeds the geometry), or give the <architecture-diagram> element a geometry-src.";
+    const status = document.getElementById("status"); if (status) { status.setAttribute("role", "alert"); status.textContent = message; }
+    throw new Error(message);
+  }
   // A bundle stores one geometry per view, keyed by view id.
   const viewGeometry = model => { if (!GEOMETRY.views) return GEOMETRY; const found = GEOMETRY.views[model.viewId]; if (!found) throw new Error(`No stored geometry for view "${model.viewId}". Layout is computed when the diagram is built: build it again with store_geometry.mjs.`); return found; };
   let ACTIVE_MODEL = materializeView(VIEW_BUNDLE.find(view => view.viewId === requestedView) || VIEW_BUNDLE[0] || MODEL);
@@ -381,7 +378,7 @@ const MODEL = {
   function bindModel(model) {
     ACTIVE_MODEL = materializeView(model);
     LIB = typeof BASE_LIBRARY.withIcons === "function" ? BASE_LIBRARY.withIcons(ACTIVE_MODEL.meta?.icons) : BASE_LIBRARY;
-    ENGINE = DiagramEngine.create(ACTIVE_MODEL, { document: document.ownerDocument || document, tokenRoot: document.documentElement, presenterRoot: document.body, ...(GEOMETRY ? { geometry: viewGeometry(ACTIVE_MODEL) } : {}) });
+    ENGINE = DiagramEngine.create(ACTIVE_MODEL, { document: document.ownerDocument || document, tokenRoot: document.documentElement, presenterRoot: document.body, geometry: viewGeometry(ACTIVE_MODEL) });
     ({ meta: META, canvas: CANVAS, catalog: CATALOG, packages: PACKAGES, stages: STAGES } = ENGINE.model);
     FLOW = ENGINE.model.flow || null; FLOW_STEPS = FLOW?.steps || []; COMPARISON = ENGINE.model.comparison || null; IS_FLOW = !!FLOW; FLOW_RENDER = META.flow?.render || "stepwise"; FLOW_ALL_STEPS = FLOW_RENDER === "all-steps"; FLOW_SINGLE = FLOW_RENDER === "single"; IS_SCENARIOS = META.composition === "scenarios";
     ({ layoutStage, selfCheck: engineSelfCheck, setPackageOverride, invalidateLayoutCache, textWidth, wrappedTextLines, diagramTokens, nodeTextLayout, rectOf, ancestors, geomPoint, boundaryTitleBox, packageLabelBox, packageBounds, boundaryChipBox, presentationFor, isSecondaryWire, wireLayer } = ENGINE);
@@ -622,7 +619,7 @@ const MODEL = {
     document.documentElement.style.setProperty("--diagram-min-width", `${Math.max(0, Number(CANVAS.minWidth) || 720)}px`);
     return Promise.resolve(ENGINE.ready).then(() => {
       if (operation !== operationEpoch) return;
-      if (IS_FLOW) FLOW_LAYOUT = ENGINE.layoutFlow(); configureRouting(); buildLegend(); addPresentationLegend(); configureViewSelector(); configurePerspectives(); configurePanelToggle(); configureStagePills(); configureFlowTimeline(); configureCompositionControls(); configureElkRetry(); setControlsDisabled(false); const viewDuration = DUR; if (retainKeyedScene) DUR = 0; try { applyStage(0); } finally { DUR = viewDuration; } const status = document.getElementById("status"); if (status?.textContent.startsWith("Loading ")) status.textContent = "";
+      if (IS_FLOW) FLOW_LAYOUT = ENGINE.layoutFlow(); configureRouting(); buildLegend(); addPresentationLegend(); configureViewSelector(); configurePerspectives(); configurePanelToggle(); configureStagePills(); configureFlowTimeline(); configureCompositionControls(); setControlsDisabled(false); const viewDuration = DUR; if (retainKeyedScene) DUR = 0; try { applyStage(0); } finally { DUR = viewDuration; } const status = document.getElementById("status"); if (status?.textContent.startsWith("Loading ")) status.textContent = "";
     }).catch(error => {
       if (operation !== operationEpoch) return;
       document.getElementById("status").textContent = `View preparation failed: ${error.message || error}`; setControlsDisabled(false);
@@ -638,34 +635,6 @@ const MODEL = {
     settle(svg).call(zoom.transform, d3.zoomIdentity.translate(x, y).scale(scale));
   }
   document.getElementById("btn-prev").onclick = () => { stopPlay(); goTo(current - 1); }; document.getElementById("btn-next").onclick = () => { stopPlay(); goTo(current + 1); }; document.getElementById("btn-play").onclick = () => playTimer ? stopPlay() : startPlay(); document.getElementById("btn-fit").onclick = fitOccupiedContent;
-  document.getElementById("btn-retry-elk").onclick = async () => {
-    const operation = ++operationEpoch;
-    const button = document.getElementById("btn-retry-elk"), stage = STAGES[IS_FLOW ? 0 : current];
-    if (!button || !stage || !ENGINE.tuneAvailable || button.disabled) return;
-    const oldText = button.textContent;
-    button.disabled = true; button.textContent = "Tuning…";
-    document.getElementById("status").textContent = "Tuning layout and wire routing…";
-    try {
-      const strategy = document.getElementById("tune-strategy")?.value || "all";
-      const preserveRouting = !!document.getElementById("tune-preserve-routing")?.checked;
-      const result = await ENGINE.retryElk(stage, false, null, { variantCount: 3, wireVariantCount: preserveRouting ? 1 : 3, restartCount: 3, strategy });
-      if (operation !== operationEpoch) return;
-      window.__diagramTuneForTest = result;
-      if (IS_FLOW) FLOW_LAYOUT = result.layout;
-      const routing = document.getElementById("routing-select");
-      if (routing) routing.value = ENGINE.routing;
-      try { localStorage.setItem(`architecture-diagram-routing:${META.title || "default"}`, ENGINE.routing); } catch (error) {}
-      buildLegend();
-      renderCurrent();
-      await paintedFrame();
-      const searchLabel = result.variant.id === "local" ? "local multi-start search" : "fresh multi-start search", strategyLabel = result.strategy?.label || "multi-strategy search";
-      const searchOutcome = result.searchStatus === "failed" ? `search failed; retained previous scene · ${result.failed} failed` : result.searchStatus === "partial" ? `${result.succeeded}/${result.attempted} candidates succeeded; ${result.failed} failed` : `${result.succeeded ?? result.tried.length} candidates succeeded`;
-      document.getElementById("status").textContent = `Layout tuned${result.improved ? "" : " · no improvement over current layout"} · ${result.variant.label} + ${result.wireVariant.label} · ${strategyLabel} · ${result.issueCount} issue${result.issueCount === 1 ? "" : "s"} after ${result.tried.length} tries · ${searchOutcome} · ${searchLabel}`;
-    } catch (error) {
-      if (operation !== operationEpoch) return;
-      document.getElementById("status").textContent = `Layout tuning failed: ${error.message || error}`;
-    } finally { if (operation === operationEpoch) { button.disabled = false; button.textContent = oldText; } }
-  };
   const pills = document.getElementById("pills");
   function configureStagePills() { pills.innerHTML = ""; STAGES.forEach((s, i) => { const b = document.createElement("button"); b.type = "button"; b.textContent = `${i + 1}`; b.title = s.title; b.setAttribute("role", "tab"); b.onclick = () => { stopPlay(); goTo(i); }; pills.appendChild(b); }); }
   function configureFlowTimeline() { const root = document.getElementById("flow-timeline"), interactive = IS_FLOW && FLOW_RENDER === "stepwise"; root.hidden = !interactive; pills.hidden = IS_FLOW; if (!interactive) return; root.innerHTML = ""; FLOW_STEPS.forEach((step, index) => { const item = document.createElement("span"); item.setAttribute("role", "listitem"); const button = document.createElement("button"); button.type = "button"; button.textContent = `${index + 1}`; button.title = step.note || `Step ${index + 1}`; button.setAttribute("aria-label", `Go to step ${index + 1}: ${step.note || "flow step"}`); button.setAttribute("aria-current", index === current ? "step" : "false"); button.onclick = () => { stopPlay(); if (step.navigateTo && navigateToView(step.navigateTo)) return; applyFlowStep(index); }; item.appendChild(button); root.appendChild(item); }); }
@@ -679,15 +648,6 @@ const MODEL = {
       VIEW_BUNDLE.forEach(view => { const button = document.createElement("button"); button.type = "button"; button.textContent = view.viewTitle || view.viewId; button.dataset.viewId = view.viewId; button.setAttribute("role", "tab"); button.setAttribute("aria-pressed", String(view.viewId === ACTIVE_MODEL.viewId)); if (view.viewId === META.comparison.recommended) { button.classList.add("comparison-recommended"); button.title = "Recommended option"; } else button.title = view.viewTitle || view.viewId; button.onclick = () => navigateToView(view.viewId); pills.appendChild(button); });
       const tools = document.getElementById("view-tools"); if (tools) tools.hidden = true;
     } else { pills.hidden = IS_FLOW; pills.setAttribute("aria-label", variant ? "Variants" : "Stages"); }
-  }
-  function configureElkRetry() {
-    const button = document.getElementById("btn-retry-elk"), tools = document.getElementById("tune-tools");
-    if (!button) return;
-    button.hidden = !ENGINE.tuneAvailable;
-    if (tools) tools.hidden = !ENGINE.tuneAvailable;
-    button.title = ENGINE.elkAvailable
-      ? "Try alternate ELK placement and wire-routing strategies, keeping the clearest valid result"
-      : "Try alternate built-in layout and wire-routing strategies";
   }
   function handleKeydown(e) { const t = e.target; if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) { if (e.key === "Escape") { highlightedId = null; renderCurrent(); } return; } if (e.key === "ArrowRight") { stopPlay(); goTo(current + 1); e.preventDefault(); } else if (e.key === "ArrowLeft") { stopPlay(); goTo(current - 1); e.preventDefault(); } else if (e.key === "Home") { stopPlay(); goTo(0); e.preventDefault(); } else if (e.key === "End") { stopPlay(); goTo((IS_FLOW ? FLOW_STEPS.length : STAGES.length) - 1); e.preventDefault(); } else if (e.key.toLowerCase() === "p") togglePresenter(); else if (e.key === "Escape") { highlightedId = null; renderCurrent(); } }
   document.addEventListener("keydown", handleKeydown);
@@ -1291,15 +1251,12 @@ ${style}</style>${sharedDefs}${groups.join("")}<g class="animated-legend" aria-l
   let readyCheckTimer = null, disposed = false;
   function handlePopstate() { const target = viewForId(new URL(location.href).searchParams.get("view")) || VIEW_BUNDLE[0]; if (target && target.viewId !== ACTIVE_MODEL.viewId) switchToView(target); }
   window.addEventListener("popstate", handlePopstate);
-  const refreshMediaGeometry = () => { invalidateLayoutCache(true); if (IS_FLOW) FLOW_LAYOUT = ENGINE.layoutFlow({ bypassCache: true }); renderCurrent(); };
-  window.addEventListener("beforeprint", refreshMediaGeometry);
-  window.addEventListener("afterprint", refreshMediaGeometry);
   window.diagramDispose = function () {
     disposed = true;
     stopPlay(); clearPendingClicks(); clearTimeout(disclosureTimer); disclosureTimer = null; if (readyCheckTimer) { clearTimeout(readyCheckTimer); readyCheckTimer = null; }
-    document.removeEventListener("keydown", handleKeydown); window.removeEventListener("popstate", handlePopstate); window.removeEventListener("beforeprint", refreshMediaGeometry); window.removeEventListener("afterprint", refreshMediaGeometry);
+    document.removeEventListener("keydown", handleKeydown); window.removeEventListener("popstate", handlePopstate);
   };
-  window.diagramReady = Promise.resolve(ENGINE.ready).then(() => { if (disposed) return; if (IS_FLOW) FLOW_LAYOUT = ENGINE.layoutFlow(); configureRouting(); buildLegend(); addPresentationLegend(); configureViewSelector(); configurePerspectives(); configurePanelToggle(); configureStagePills(); configureFlowTimeline(); configureCompositionControls(); configureElkRetry(); setControlsDisabled(false); document.documentElement.style.setProperty("--diagram-min-width", `${Math.max(0, Number(CANVAS.minWidth) || 720)}px`); applyStage(start); if (params.has("check")) readyCheckTimer = setTimeout(() => { readyCheckTimer = null; if (!disposed) window.diagramSelfCheck(); }, 50); }).catch(error => { if (disposed) return; document.getElementById("status").textContent = `Layout preparation failed: ${error.message || error}`; throw error; });
+  window.diagramReady = Promise.resolve(ENGINE.ready).then(() => { if (disposed) return; if (IS_FLOW) FLOW_LAYOUT = ENGINE.layoutFlow(); configureRouting(); buildLegend(); addPresentationLegend(); configureViewSelector(); configurePerspectives(); configurePanelToggle(); configureStagePills(); configureFlowTimeline(); configureCompositionControls(); setControlsDisabled(false); document.documentElement.style.setProperty("--diagram-min-width", `${Math.max(0, Number(CANVAS.minWidth) || 720)}px`); applyStage(start); if (params.has("check")) readyCheckTimer = setTimeout(() => { readyCheckTimer = null; if (!disposed) window.diagramSelfCheck(); }, 50); }).catch(error => { if (disposed) return; document.getElementById("status").textContent = `Layout preparation failed: ${error.message || error}`; throw error; });
 })();
 </script>
 </body>
