@@ -1,5 +1,5 @@
 {
   "name": "archnime",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Architecture-diagram agent skills: interview, validated YAML source, interactive HTML presenter, documentation-safe SVG exports and validation."
 }

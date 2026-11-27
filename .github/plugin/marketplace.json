@@ -10,7 +10,7 @@
       "name": "archnime",
       "source": "./",
       "description": "Five Agent Skills that turn a validated YAML architecture model into an interactive presenter and documentation-safe SVG exports.",
-      "version": "3.0.0",
+      "version": "3.0.1",
       "keywords": ["architecture", "diagram", "svg", "documentation"]
     }
   ]
