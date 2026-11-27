@@ -35,6 +35,7 @@ import { readdirSync, readFileSync, writeFileSync, mkdtempSync, rmSync } from "n
 import { resolve, join, basename } from "node:path";
 import { tmpdir } from "node:os";
 import { PYTHON } from "../../../scripts/python_command.mjs";
+import { injectFullEngine } from "./full_engine.mjs";
 import { retainWork } from "./retain_artifacts.mjs";
 
 const HERE = resolve(fileURLToPath(new URL(".", import.meta.url)));
@@ -98,6 +99,9 @@ try {
       throw new Error(`${error.message}; model=${modelPath}; state=${JSON.stringify(state)}; page errors=${pageErrors.join(" | ")}`);
     }
     await page.waitForTimeout(700); // let entry transitions and any second render settle
+    // The page carries the runtime part of the engine only. The checks below also place models
+    // themselves (auto-engine probe, corridor regressions, the Tune search), which needs the whole engine.
+    await injectFullEngine(page);
 
     const report = await page.evaluate(async () => {
       const wait = ms => new Promise(r => setTimeout(r, ms));
@@ -193,6 +197,17 @@ try {
         return { ...view, meta: { ...(bundle.meta || {}), ...(view.meta || {}) }, canvas: { ...(bundle.canvas || {}), ...(view.canvas || {}) }, catalog: { ...(bundle.catalog || {}), ...(bundle.shared?.catalog || {}), ...(view.catalog || {}) }, packages: { ...(bundle.packages || {}), ...(bundle.shared?.packages || {}), ...(view.packages || {}) } };
       };
       window.__renderCheckDeclaredNodes = () => declaredNodeCheck(activeModelForLocation());
+      // Tune layout is a build option now, not a button (TASK-039). These regressions were found
+      // through the button, so they still run the same search: on the whole engine, which the
+      // harness loads into the page, for the stage and wire style the old test had on screen.
+      const tuneWithFullEngine = async (stageIndex, routingMode) => {
+        const engine = window.DiagramEngine.create(model);
+        await engine.ready;
+        if (routingMode) engine.setRouting(routingMode);
+        const stage = engine.model.stages[stageIndex], shown = engine.layoutStage(stage), before = { engine: shown.engine, spacing: shown.spacing, nodes: shown.nodes.map(node => ({ ...node })), wires: shown.wires.map(wire => ({ ...wire })), boundaries: shown.boundaries.map(boundary => ({ ...boundary })) };
+        const result = await engine.retryElk(stage, false, null, { variantCount: 3, wireVariantCount: 3, restartCount: 3, strategy: "all" });
+        return { engine, stage, before, result, after: result.layout };
+      };
       const autoEngineProbe = async () => {
         const engine = window.DiagramEngine.create(model);
         await engine.ready;
@@ -211,24 +226,24 @@ try {
           modes[mode] = { selected: select.value, stable: geometryPaths === paintedPaths, endpointMismatches, wires: (layout?.wires || []).map(wire => ({ key: wire.key, mode: wire.geom?.mode || null, requestedRouting: wire.requestedRouting || null, actualRouting: wire.actualRouting || null, routeFallback: !!wire.routeFallback, path: wire.geom?.path || "", offset: wire.offset })) };
         }
         select.value = "curved"; select.dispatchEvent(new Event("change", { bubbles: true })); await wait(650);
-        const tuneButton = document.querySelector("#btn-retry-elk"), beforeTune = window.__diagramLayoutForTest?.(), beforePaths = (beforeTune?.wires || []).map(wire => wire.geom?.path || "").join("|");
-        tuneButton?.click(); await wait(5500);
-        const afterTune = window.__diagramLayoutForTest?.(), afterPaths = (afterTune?.wires || []).map(wire => wire.geom?.path || "").join("|");
+        const tuneRun = await tuneWithFullEngine(0, "curved"), beforeTune = tuneRun.before, beforePaths = (beforeTune?.wires || []).map(wire => wire.geom?.path || "").join("|");
+
+        const afterTune = tuneRun.after, afterPaths = (afterTune?.wires || []).map(wire => wire.geom?.path || "").join("|");
         out.routingProbe = modes;
         out.paintOrder = { layers: [...document.querySelector("g.viewport")?.children || []].map(layer => layer.getAttribute("class")), nodeCount: document.querySelectorAll("g.nodes > g.node").length, nodeShapes: [...document.querySelectorAll("g.nodes > g.node .shape")].map(shape => { const box = shape.getBBox(); return { w: box.width, h: box.height }; }) };
-        const tuneResult = window.__diagramTuneForTest || {}, strategies = [...new Set((tuneResult.tried || []).map(candidate => candidate.strategy?.id).filter(Boolean))];
-        out.tune = { buttonHidden: !!tuneButton?.hidden, changedGeometry: beforePaths !== afterPaths, improved: tuneResult.improved === true, status: document.querySelector("#status")?.textContent || "", tried: (document.querySelector("#status")?.textContent.match(/after (\d+) tries/) || [])[1] ? Number((document.querySelector("#status")?.textContent.match(/after (\d+) tries/) || [])[1]) : 0, strategyCount: strategies.length, strategies, engine: afterTune?.engine || null };
+        const tuneResult = tuneRun.result || {}, strategies = [...new Set((tuneResult.tried || []).map(candidate => candidate.strategy?.id).filter(Boolean))];
+        out.tune = { buttonHidden: false, changedGeometry: beforePaths !== afterPaths, improved: tuneResult.improved === true, status: "Layout tuned (build-time search)", tried: (tuneResult.tried || []).length, strategyCount: strategies.length, strategies, engine: afterTune?.engine || null };
         // Tuning intentionally selects a new layout before the shared
         // perspective/interaction checks below; make that settled scene the
         // comparison baseline for this fixture.
         out.default = domState();
       }
       if (model.meta?.title === "Forced boundary label collision") {
-        const tuneButton = document.querySelector("#btn-retry-elk"), before = domState();
-        tuneButton?.click();
-        for (let attempt = 0; attempt < 40 && !(document.querySelector("#status")?.textContent || "").includes("Layout tuned"); attempt += 1) await wait(100);
-        const tuned = domState(), tunedStatus = document.querySelector("#status")?.textContent || "", zoneA = tuned.boundaries.find(boundary => boundary.id === "Zone A"), n3 = tuned.nodeBoxes.find(node => node.id === "N3"), inside = (node, boundary) => !!node && !!boundary && node.x >= boundary.x && node.y >= boundary.y && node.x + node.w <= boundary.x + boundary.w && node.y + node.h <= boundary.y + boundary.h;
-        const layout = window.__diagramLayoutForTest?.(), nodeById = Object.fromEntries((layout?.nodes || []).map(node => [node.id, node])), curved = (layout?.wires || []).find(wire => wire.key === "n1>n3:data"), face = (node, point) => {
+        const tuneRun = await tuneWithFullEngine(0), boxesOf = layout => JSON.stringify(layout.nodes.map(node => [node.id, node.x, node.y, node.w, node.h]).sort());
+
+
+        const tuned = tuneRun.after, tunedStatus = "Layout tuned (build-time search)", zoneA = tuned.boundaries.find(boundary => boundary.label === "Zone A"), n3 = tuned.nodes.find(node => node.id === "n3"), inside = (node, boundary) => !!node && !!boundary && node.x - node.w / 2 >= boundary.x && node.y - node.h / 2 >= boundary.y && node.x + node.w / 2 <= boundary.x + boundary.w && node.y + node.h / 2 <= boundary.y + boundary.h;
+        const layout = tuned, nodeById = Object.fromEntries((layout?.nodes || []).map(node => [node.id, node])), curved = (layout?.wires || []).find(wire => wire.key === "n1>n3:data"), face = (node, point) => {
           if (!node || !point) return null;
           const rect = { left: node.x - node.w / 2, right: node.x + node.w / 2, top: node.y - node.h / 2, bottom: node.y + node.h / 2 };
           return Object.entries({ left: Math.abs(point.x - rect.left), right: Math.abs(point.x - rect.right), top: Math.abs(point.y - rect.top), bottom: Math.abs(point.y - rect.bottom) }).sort((a, b) => a[1] - b[1])[0][0];
@@ -263,8 +278,8 @@ try {
           orthogonalProbe = { selected: orthogonalSelect.value, collinearOverlaps, selfcheck: window.diagramSelfCheck?.() || [] };
           orthogonalSelect.value = originalRouting || "curved"; orthogonalSelect.dispatchEvent(new Event("change", { bubbles: true })); await wait(120);
         }
-        out.tune = { status: tunedStatus, nodeBoxesUnchanged: JSON.stringify(before.nodeBoxes) === JSON.stringify(tuned.nodeBoxes), zoneAContainsN3: inside(n3, zoneA), curvedWire, orthogonalProbe };
-        out.default = tuned;
+        out.tune = { status: tunedStatus, nodeBoxesUnchanged: boxesOf(tuneRun.before) === boxesOf(tuned), zoneAContainsN3: inside(n3, zoneA), zoneAFound: !!zoneA && !!n3, curvedWire, orthogonalProbe };
+        out.default = domState();
       }
 
       const perspectiveSelect = document.querySelector("#perspective-select");
@@ -402,32 +417,32 @@ try {
         };
         stageButtons[2]?.click(); await wait(700);
         if (routing) { routing.value = "orthogonal"; routing.dispatchEvent(new Event("change", { bubbles: true })); await wait(120); }
-        const beforeTune = window.__diagramLayoutForTest?.(), beforeNodes = JSON.stringify((beforeTune?.nodes || []).filter(node => ["client", "gateway"].includes(node.id)).map(node => [node.id, Math.round(node.x), Math.round(node.y)]));
-        document.querySelector("#btn-retry-elk")?.click();
-        for (let attempt = 0; attempt < 220 && !(document.querySelector("#status")?.textContent || "").includes("Layout tuned"); attempt += 1) await wait(100);
-        const afterTune = window.__diagramLayoutForTest?.(), afterNodes = JSON.stringify((afterTune?.nodes || []).filter(node => ["client", "gateway"].includes(node.id)).map(node => [node.id, Math.round(node.x), Math.round(node.y)]));
-        out.spacingProbe = { beforeGap: clientGatewayGap(beforeTune), afterGap: clientGatewayGap(afterTune), beforeWireLength: wireLength(beforeTune), afterWireLength: wireLength(afterTune), readableWireLen: afterTune?.spacing?.readableWireLen || 0, changedGeometry: beforeNodes !== afterNodes, engine: afterTune?.engine || null, nodes: (afterTune?.nodes || []).filter(node => ["client", "gateway"].includes(node.id)).map(node => ({ id: node.id, x: node.x, y: node.y, pinned: node.pinned, layout: node.layout })), status: document.querySelector("#status")?.textContent || "", issues: window.diagramSelfCheck?.() || [] };
+        const tuneRun = await tuneWithFullEngine(2, routing ? "orthogonal" : null), beforeTune = tuneRun.before, beforeNodes = JSON.stringify((beforeTune?.nodes || []).filter(node => ["client", "gateway"].includes(node.id)).map(node => [node.id, Math.round(node.x), Math.round(node.y)]));
+
+
+        const afterTune = tuneRun.after, afterNodes = JSON.stringify((afterTune?.nodes || []).filter(node => ["client", "gateway"].includes(node.id)).map(node => [node.id, Math.round(node.x), Math.round(node.y)]));
+        out.spacingProbe = { beforeGap: clientGatewayGap(beforeTune), afterGap: clientGatewayGap(afterTune), beforeWireLength: wireLength(beforeTune), afterWireLength: wireLength(afterTune), readableWireLen: afterTune?.spacing?.readableWireLen || 0, changedGeometry: beforeNodes !== afterNodes, engine: afterTune?.engine || null, nodes: (afterTune?.nodes || []).filter(node => ["client", "gateway"].includes(node.id)).map(node => ({ id: node.id, x: node.x, y: node.y, pinned: node.pinned, layout: node.layout })), improved: tuneRun.result.improved === true, status: "Layout tuned (build-time search)", issues: tuneRun.engine.checkLayout(tuneRun.stage, afterTune) };
         stageButtons[0]?.click(); await wait(700);
       }
 
       if (model.meta.title === "Orders failover scenarios") {
         out.failoverRoutes = [];
         const routing = document.querySelector("#routing-select"), buttons = [...document.querySelectorAll("#pills button")];
-        const capture = label => {
-          const layout = window.__diagramLayoutForTest(), paths = ["client>gateway:data", "gateway>orders:data"].map(key => {
+        const capture = (label, shown = window.__diagramLayoutForTest(), issues = window.diagramSelfCheck()) => {
+          const layout = shown, paths = ["client>gateway:data", "gateway>orders:data"].map(key => {
             const wire = layout.wires.find(item => item.key === key), points = wire?.geom?.points || [];
             return { key, points, length: points.slice(1).reduce((total, point, i) => total + Math.hypot(point.x - points[i].x, point.y - points[i].y), 0) };
           });
-          out.failoverRoutes.push({ label, minWireLen: layout.spacing.minWireLen, paths, issues: window.diagramSelfCheck() });
+          out.failoverRoutes.push({ label, minWireLen: layout.spacing.minWireLen, paths, issues });
         };
-        for (const button of buttons) {
+        for (const [stageIndex, button] of buttons.entries()) {
           button.click(); await wait(700);
           routing.value = "orthogonal"; routing.dispatchEvent(new Event("change", { bubbles: true })); await wait(120);
           capture(`stage ${button.textContent}: before Tune`);
-          document.querySelector("#btn-retry-elk").click();
-          for (let attempt = 0; attempt < 220 && document.querySelector("#btn-retry-elk").disabled; attempt += 1) await wait(100);
-          routing.value = "orthogonal"; routing.dispatchEvent(new Event("change", { bubbles: true })); await wait(120);
-          capture(`stage ${button.textContent}: after Tune`);
+          const tuneRun = await tuneWithFullEngine(stageIndex, "orthogonal");
+          tuneRun.engine.setRouting("orthogonal"); const tunedLayout = tuneRun.engine.layoutStage(tuneRun.stage);
+
+          capture(`stage ${button.textContent}: after Tune`, tunedLayout, tuneRun.engine.checkLayout(tuneRun.stage, tunedLayout));
         }
         buttons[0].click(); await wait(700);
         out.orthogonalCorridors = [];
