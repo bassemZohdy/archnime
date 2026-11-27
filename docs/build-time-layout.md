@@ -75,9 +75,9 @@ Three targets are not met today and are recorded as known gaps, which the gate h
 - **Pause on a flow.** Pause stops the steps, but the animated dashes on the active wires keep moving. They cover too few pixels to trip the harness threshold, which is why the gate also counts animating elements.
 - **No loop.** Staged playback stops after the last stage; a flow loops only with `meta.flow.loop`. The harness measured a loop length, so the figure here is one run.
 
-## Parity matrix (TASK-035, draft awaiting the owner)
+## Parity matrix (TASK-035)
 
-Proposed status of every renderer feature once geometry is stored at build time and the page no longer loads dagre, ELK or the force layout. The statuses come from reading `template.html` and `diagram-engine.js` and from the spike above; none has been built. A stored geometry belongs to one layout state: a stage, a set of expanded packages, and presenter mode on or off.
+Status of every renderer feature once geometry is stored at build time and delivered diagrams no longer load dagre, ELK or the force layout. The statuses come from reading `template.html` and `diagram-engine.js` and from the spike above; none has been built. The owner agreed the four rows that needed a decision on 2026-11-27 (Tune layout, loading a specification with no build step, package expansion, presenter mode). A stored geometry belongs to one layout state: a stage and a set of expanded packages.
 
 | Feature | Uses layout in the page today | Status | How, and why |
 |---|---|---|---|
@@ -86,31 +86,31 @@ Proposed status of every renderer feature once geometry is stored at build time 
 | Perspectives | none: filters restyle without relayout | kept | No change. |
 | Search, zoom, Fit, hover, panels | reads node and package boxes | kept | Read from the stored geometry. |
 | Multi-view bundles, comparison and deployment views | one engine per view | kept | Each view stores its own geometry. Not covered by the spike; needs a fixture in FEAT-038. |
-| Package expansion and collapse | new layout per expansion state | replaced | Store one geometry per expansion state. The engine already enumerates the states its self-check covers (default, all, each package, pairs, capped by `meta.layoutValidation.maxExpansionScenarios`, 20 by default). A state outside that list has no geometry: the build either stores every combination or the page refuses the click. **Owner to choose.** |
-| Presenter mode | new layout: the boundary chip size changes | replaced | Store a second geometry per state for presenter mode, which doubles the stored size, or keep one geometry and stop changing the chip size in presenter mode. **Owner to choose.** |
+| Package expansion and collapse | new layout per expansion state | replaced | The build lays out and stores every reachable combination of expanded packages, so any click finds its geometry. Build time and page size grow with the number of packages; the build fails with a clear message above a stated limit on the number of states instead of storing a partial set. Owner decision: store every combination. |
+| Presenter mode | new layout: the boundary chip size changes | replaced | Presenter mode reuses the stored geometry. It stops enlarging the boundary chip, the one presenter change that moved the layout; larger and bolder labels, hidden panels and contrast stay. Owner decision: one geometry. |
 | Wire styles (Curved, Orthogonal, Direct) and reroute | reroutes wires, keeps boxes; no layout library involved | kept | Routing is the engine's own code, not dagre or ELK. Keep the routing part of the engine in the page and store boxes plus the default routes. Storing all three route sets instead would triple the wire data, which is most of the geometry. |
-| Tune layout | searches ELK variants, seeds and strategies in the page | dropped from the page, replaced at build | The search needs ELK. Proposed: a build option runs the same search and stores the best result; the Tune button, strategy list and Keep wires box leave the page. **Needs the owner's agreement.** |
+| Tune layout | searches ELK variants, seeds and strategies in the page | dropped from the page, replaced at build | A build option runs the same search and stores the best result. The Tune button, strategy list and Keep wires box leave the page. Owner agreed. |
 | Self-check (`diagramSelfCheck()`, `?check=1`) | lays out every stage and expansion state, then checks | replaced | The build runs the full self-check and fails on findings, as translation does today. In the page, `checkLayout` on a stored geometry needs no layout library, so `?check=1` can keep reporting on what is shown. |
 | SVG (documentation), SVG, PNG, JPEG export | paints the current layout | kept | Painted from stored geometry. `export_svg.mjs` runs at build time already. |
 | Animated SVG and GIF export | paints every stage | kept | Same stored geometries; no relayout. |
 | Print | invalidates the layout cache before and after printing | replaced | Print uses the stored geometry; the cache refresh goes away. To verify that print output is unchanged. |
 | `<architecture-diagram>` element | lays out the model it is given | replaced | The element accepts a built model that carries geometry and refuses one that does not, with the same message as the build. |
-| Loading a specification in the page with no build step (`translate.html`) | translates, lays out and checks in the browser | dropped, or kept as a separate tool | Without layout libraries the page cannot lay out a new specification. Either drop it, or keep `translate.html` as the one page that still loads the libraries, as an authoring tool rather than a renderer. The second contradicts "no old runtime" unless the owner reads that as applying to delivered diagrams only. **Needs the owner's agreement.** |
+| Loading a specification in the page with no build step (`translate.html`) | translates, lays out and checks in the browser | kept as an authoring tool | `translate.html` stays the one page that loads the layout libraries, for authors checking a specification. It is not a delivered diagram, and nothing it produces is delivered without the build. Owner decision: "no old runtime" applies to delivered diagrams. |
 | ELK retry variants and the dagre fall-back when ELK is missing | chosen in the page | replaced | Chosen at build. A layout that cannot be produced fails the build instead of falling back. |
-| Pinned CDN scripts, their integrity hashes and vendored copies | D3, dagre, ELK, GIF | replaced | dagre and ELK leave the page and stay as build dependencies. D3 stays for painting, GIF for export. |
+| Pinned CDN scripts, their integrity hashes and vendored copies | D3, dagre, ELK, GIF | replaced | dagre and ELK leave the delivered page and stay as build dependencies and for `translate.html`. D3 stays for painting, GIF for export. |
 | Text measurement from the pinned Inter table | used by layout | kept | Used at build; the page still needs it for wire rerouting and label boxes. |
 
-Open points the matrix raises:
+What the matrix settles for the next tasks:
 
-- **Stored size.** Geometry measured 7 to 25 KB per state. A view with 3 stages, 8 expansion states and presenter mode stores about 48 states, roughly 0.5 to 1 MB uncompressed, against about 2 MB for ELK today. Storing node, package and boundary boxes and routing wires in the page would cut this to a small fraction; that is why wire routing is proposed as kept.
-- **What "runtime layout code" means for TASK-039.** If wire routing and `checkLayout` stay in the page, TASK-039 removes placement (dagre, ELK, force, the Tune search) and not the whole engine.
-- **Three rows need the owner**: Tune layout, loading a specification with no build step, and the choice for expansion states outside the enumerated list. Presenter mode is a choice between two ways of keeping it.
+- **Stored size.** Geometry measured 7 to 25 KB per state, most of it wire routes. Storing every expansion combination multiplies the states (four packages can give up to 16 per stage), so FEAT-038 stores node, package and boundary boxes plus the default routes and leaves rerouting to the page; that is why wire routing is kept. FEAT-038 sets the limit on states and measures the real size.
+- **What "runtime layout code" means for TASK-039.** Wire routing and `checkLayout` stay in the delivered page. TASK-039 removes placement from it: dagre, ELK, the force layout and the Tune search. `translate.html` keeps loading the libraries.
+- **No row is dropped without a replacement** except the in-page Tune controls, which the owner agreed to move to the build.
 
 ## Decision
 
 1. **Archive the current renderer** as the git tag `legacy-runtime-layout` plus a `legacy/2.x` branch for fixes. It is not moved into the repository tree, because the repository root is the plugin and archived code would ship with every install.
 2. **Make build-time layout the layout path.** Geometry is produced per stage with the existing engine and stored in the generated page. A missing or stale geometry fails the build; there is no fall-back to layout in the page.
-3. **Do not keep the old runtime layout as an option.** The runtime layout code and the dagre, ELK and force libraries are removed in 3.0.0, a major version because the default changes.
+3. **Do not keep the old runtime layout as an option.** The runtime layout code and the dagre, ELK and force libraries are removed from delivered diagrams in 3.0.0, a major version because the default changes. The authoring page `translate.html` keeps them (parity matrix).
 4. **Gate the removal.** Nothing is removed until the parity matrix shows what is kept, replaced or dropped, the free-form and nested fixtures render correctly, and the regression gate passes.
 
 The canonical YAML, the validators, the SVG documentation export, the aggregator and its routing rules stay. Stored geometry is derived and never edited.
