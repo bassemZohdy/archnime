@@ -223,6 +223,22 @@ equal one of the headless stages. Prints the headless and in-page layout time an
 fixture; `--out <dir>` keeps the JSON. The headless half needs no browser.
 Covers TASK-034 and TASK-036, the evidence for [build-time layout](../../../docs/build-time-layout.md).
 
+## `playback_gate_check.mjs` — pause, navigation, text size and run length
+
+The measurements of the comparison harness behind
+[build-time layout](../../../docs/build-time-layout.md), ported as a gate. It
+builds the offline page for a staged diagram (`strangler-migration`) and a flow
+walkthrough (`checkout-flow`) at 1280 x 800 and checks that Pause freezes motion
+(two screenshots 2.5 s apart differ in under 0.05% of pixels, the step does not
+advance, nothing visible is still animating, and Play resumes), that Next, Back
+and a jump land on the right step when pressed while playing, that no visible
+text is under 12 px on screen, and that a run from the first step lasts the
+number of steps times the interval. A console error or a network request fails
+it. A target the renderer does not meet yet is recorded in
+`playback-gate-budgets.json` with its measured value; the gate fails when that
+value gets worse and when the target is met, so the entry cannot go stale.
+`--write-budgets` rewrites the file after review. Covers TASK-037.
+
 ## `routing_stability_check.mjs` — wire-style switches keep placement
 
 Builds the canonical Test System DSL into HTML, then cycles the template's

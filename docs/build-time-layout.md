@@ -56,6 +56,25 @@ What this shows and what it does not:
 - The free-form fixture has call cycles and no lane order. `auto` chose dagre for it; the stored-geometry approach does not depend on which engine ran.
 - Not covered: presenter mode (it changes the chip size token, so its geometry is a separate state), package expansion states other than the default, tuned layouts, perspectives, comparison and deployment views, and custom `measureContext` fonts. These are rows for the parity matrix (TASK-035).
 
+## Regression gate (TASK-037)
+
+`skills/archnime-renderer/tests/playback_gate_check.mjs` ports the four measurements of the comparison harness and runs them on the current renderer at 1280 x 800, so the same numbers exist before and after the change:
+
+| Measurement | Staged diagram (`strangler-migration`) | Flow walkthrough (`checkout-flow`) |
+|---|---|---|
+| Next, Back and jump while playing | pass | pass |
+| Pause: pixels changing over 2.5 s (target under 0.05%) | 0.000% | 0.034% to 0.038% |
+| Pause: elements still animating (target 0) | 0 | 4 |
+| Smallest text on screen (target 12 px) | 6.1 px | 5.5 px |
+| Text characters under 12 px (target 0%) | 31.9% | 27% |
+| Run from the first step | 9.1 s, 3 steps at 3 s, no loop | 8.5 s, 7 steps at 1.2 s, no loop |
+
+Three targets are not met today and are recorded as known gaps, which the gate holds at their current values:
+
+- **Text size.** At 1280 px wide the diagram is scaled to about 0.55 to fit, so 11 to 13 px labels paint at 6 px. Roughly a third of the text is under 12 px.
+- **Pause on a flow.** Pause stops the steps, but the animated dashes on the active wires keep moving. They cover too few pixels to trip the harness threshold, which is why the gate also counts animating elements.
+- **No loop.** Staged playback stops after the last stage; a flow loops only with `meta.flow.loop`. The harness measured a loop length, so the figure here is one run.
+
 ## Parity matrix (TASK-035, draft awaiting the owner)
 
 Proposed status of every renderer feature once geometry is stored at build time and the page no longer loads dagre, ELK or the force layout. The statuses come from reading `template.html` and `diagram-engine.js` and from the spike above; none has been built. A stored geometry belongs to one layout state: a stage, a set of expanded packages, and presenter mode on or off.
