@@ -2,12 +2,12 @@
   "note": "Measurements the renderer does not meet yet, with the value when recorded. playback_gate_check.mjs fails when one gets worse or when its target is met. Rewrite with --write-budgets after review.",
   "knownGaps": {
     "dsl/strangler-migration": {
-      "minTextPx": 6.1,
-      "smallTextPercent": 31.9
+      "minTextPx": 7.5,
+      "smallTextPercent": 31.3
     },
     "dsl/checkout-flow": {
-      "minTextPx": 5.5,
-      "smallTextPercent": 27
+      "minTextPx": 6.5,
+      "smallTextPercent": 26.2
     }
   }
 }

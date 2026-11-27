@@ -510,7 +510,9 @@ all show the layout stored for that stage and expansion set.
 
 - **Search** by component name or ID — expands ancestor packages, highlights the
   node and its wires, dims the rest, and animates an SVG zoom to the node. `Fit`
-  restores the view. `Esc` clears.
+  restores the view. `Esc` clears. The page opens fitted to what every stage
+  draws, not to the whole `canvas`, so a diagram that fills a small part of the
+  canvas is shown larger and its text with it.
 - **Stage navigation** — Prev / Next, numbered pills, `←` `→` `Home` `End`, and
   Play (auto-advance at `meta.playIntervalMs`).
 - **Package expand/collapse** — click or keyboard-activate an outline or block.

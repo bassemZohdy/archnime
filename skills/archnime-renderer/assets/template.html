@@ -627,14 +627,27 @@ const MODEL = {
       document.getElementById("status").textContent = `View preparation failed: ${error.message || error}`; setControlsDisabled(false);
     });
   }
-  function fitOccupiedContent() {
-    const bounds = viewport.node()?.getBBox();
-    if (!bounds || !bounds.width || !bounds.height) return;
-    const box = svg.node().getBoundingClientRect(), padding = 28;
-    const unconstrained = Math.min((box.width - padding * 2) / bounds.width, (box.height - padding * 2) / bounds.height);
-    const scale = Math.max(.65, Math.min(4, unconstrained));
-    const x = box.width / 2 - scale * (bounds.x + bounds.width / 2), y = box.height / 2 - scale * (bounds.y + bounds.height / 2);
-    settle(svg).call(zoom.transform, d3.zoomIdentity.translate(x, y).scale(scale));
+  // The zoom transform is in canvas units, so the content is fitted to the canvas, not to the window's pixels.
+  // A diagram that fills a small part of the canvas is shown larger, and its text with it (FIX-043).
+  function fitContent(bounds, animate = true) {
+    if (!bounds || !(bounds.width > 0) || !(bounds.height > 0)) return;
+    const padding = 28, scale = Math.max(.35, Math.min(4, (CANVAS.w - padding * 2) / bounds.width, (CANVAS.h - padding * 2) / bounds.height));
+    const x = CANVAS.w / 2 - scale * (bounds.x + bounds.width / 2), y = CANVAS.h / 2 - scale * (bounds.y + bounds.height / 2);
+    (animate ? settle(svg) : svg).call(zoom.transform, d3.zoomIdentity.translate(x, y).scale(scale));
+  }
+  function fitOccupiedContent() { fitContent(viewport.node()?.getBBox()); }
+  // The opening view: everything any stage draws, so no stage is cut off by the fit.
+  function fitOpeningView() {
+    const own = viewport.node()?.getBBox();
+    if (!own || !own.width || !own.height) return;
+    let x0 = own.x, y0 = own.y, x1 = own.x + own.width, y1 = own.y + own.height;
+    const layouts = IS_FLOW ? [] : STAGES.map(stage => { try { return layoutStage(stage); } catch { return null; } });
+    layouts.forEach(layout => {
+      if (!layout) return;
+      layout.packages.forEach(pack => { x0 = Math.min(x0, pack.x); y0 = Math.min(y0, pack.y); x1 = Math.max(x1, pack.x + pack.w); y1 = Math.max(y1, pack.y + pack.h); });
+      layout.nodes.forEach(node => { x0 = Math.min(x0, node.x - node.w / 2); y0 = Math.min(y0, node.y - node.h / 2); x1 = Math.max(x1, node.x + node.w / 2); y1 = Math.max(y1, node.y + node.h / 2); });
+    });
+    fitContent({ x: x0, y: y0, width: x1 - x0, height: y1 - y0 }, false);
   }
   document.getElementById("btn-prev").onclick = () => { stopPlay(); goTo(current - 1); }; document.getElementById("btn-next").onclick = () => { stopPlay(); goTo(current + 1); }; document.getElementById("btn-play").onclick = () => { if (playTimer) { stopPlay(); document.body.classList.add("playback-paused"); } else startPlay(); }; document.getElementById("btn-fit").onclick = fitOccupiedContent;
   const pills = document.getElementById("pills");
@@ -1258,7 +1271,7 @@ ${style}</style>${sharedDefs}${groups.join("")}<g class="animated-legend" aria-l
     stopPlay(); clearPendingClicks(); clearTimeout(disclosureTimer); disclosureTimer = null; if (readyCheckTimer) { clearTimeout(readyCheckTimer); readyCheckTimer = null; }
     document.removeEventListener("keydown", handleKeydown); window.removeEventListener("popstate", handlePopstate);
   };
-  window.diagramReady = Promise.resolve(ENGINE.ready).then(() => { if (disposed) return; if (IS_FLOW) FLOW_LAYOUT = ENGINE.layoutFlow(); configureRouting(); buildLegend(); addPresentationLegend(); configureViewSelector(); configurePerspectives(); configurePanelToggle(); configureStagePills(); configureFlowTimeline(); configureCompositionControls(); setControlsDisabled(false); document.documentElement.style.setProperty("--diagram-min-width", `${Math.max(0, Number(CANVAS.minWidth) || 720)}px`); applyStage(start); if (params.has("check")) readyCheckTimer = setTimeout(() => { readyCheckTimer = null; if (!disposed) window.diagramSelfCheck(); }, 50); }).catch(error => { if (disposed) return; document.getElementById("status").textContent = `Layout preparation failed: ${error.message || error}`; throw error; });
+  window.diagramReady = Promise.resolve(ENGINE.ready).then(() => { if (disposed) return; if (IS_FLOW) FLOW_LAYOUT = ENGINE.layoutFlow(); configureRouting(); buildLegend(); addPresentationLegend(); configureViewSelector(); configurePerspectives(); configurePanelToggle(); configureStagePills(); configureFlowTimeline(); configureCompositionControls(); setControlsDisabled(false); document.documentElement.style.setProperty("--diagram-min-width", `${Math.max(0, Number(CANVAS.minWidth) || 720)}px`); applyStage(start); fitOpeningView(); if (params.has("check")) readyCheckTimer = setTimeout(() => { readyCheckTimer = null; if (!disposed) window.diagramSelfCheck(); }, 50); }).catch(error => { if (disposed) return; document.getElementById("status").textContent = `Layout preparation failed: ${error.message || error}`; throw error; });
 })();
 </script>
 </body>
