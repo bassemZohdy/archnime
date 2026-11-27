@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- **TASK-044** (docs): Record that staged playback stopping after the last stage, with Play restarting it from stage 1, is intended, and that only flows loop (`meta.flow.loop`, opt-in). No switch is added for staged diagrams, so a presenter can stop on the final stage. Validated: `npm run check-skills`. Docs: updated docs/build-time-layout.md, TODO.md.
+
 ## [3.0.2] - 2026-11-27
 
 ### Fixed
