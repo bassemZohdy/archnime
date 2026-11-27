@@ -2308,7 +2308,12 @@
       if (!STORED.live.has(key)) {
         const index = (STORED.states[stage.id] || {})[expansionKey(expanded)];
         if (index === undefined || !STORED.layouts[index]) throw new Error(`No stored geometry for stage "${stage.id}" with ${expanded.size ? `package(s) ${expansionKey(expanded)} expanded` : "no package expanded"}. Layout is computed when the diagram is built, not in the page: build it again with store_geometry.mjs.`);
-        STORED.live.set(key, unpackLayout(STORED.layouts[index]));
+        const layout = unpackLayout(STORED.layouts[index]);
+        // The builder checks the model hash. This catches a geometry handed to the engine directly
+        // (the <architecture-diagram> element) for a model whose nodes have since changed.
+        const visible = resolveNodes(stage, expanded).nodes.map(node => node.id).sort().join(","), storedIds = layout.nodes.map(node => node.id).sort().join(",");
+        if (visible !== storedIds) throw new Error(`Stored geometry for stage "${stage.id}" is stale: it holds nodes ${storedIds || "(none)"} and the model shows ${visible || "(none)"}. Build it again with store_geometry.mjs.`);
+        STORED.live.set(key, layout);
       }
       const layout = routedFor(STORED.live.get(key));
       if (layout.canvas) { CANVAS.w = layout.canvas.w; CANVAS.h = layout.canvas.h; }
@@ -2330,7 +2335,8 @@
     }
     async function collectGeometry(opts = {}) {
       if (STORED) throw new Error("collectGeometry needs an engine that computes layout, not one created from stored geometry");
-      const limit = Math.max(1, Number(opts.maxStatesPerStage) || 64), states = {}, layouts = [], known = new Map(), prepared = new Set();
+      const limit = Math.max(1, Number(opts.maxStatesPerStage) || 64), states = {}, layouts = [], known = new Map(), prepared = new Set(), tuned = [];
+      const tuneAvailable = stage => (stage.nodes || []).length > 1 && (stage.wires || []).length > 0;
       await ready;
       for (const stage of STAGES) {
         states[stage.id] = {};
@@ -2338,13 +2344,16 @@
         for (let index = 0; index < expansions.length; index += 1) {
           const expanded = expansions[index], scenario = elkScenarioKey(stage, expanded);
           if (usesElk && !prepared.has(scenario)) { await prepareElkItem({ stage, expanded }); prepared.add(scenario); }
+          // Tune at build time: the search the page's Tune button ran, keeping the wire style, so
+          // the stored layout is the best placement found. It commits its result for this state.
+          if (opts.tune && tuneAvailable(stage)) { const result = await retryElk(stage, false, index === 0 ? null : expanded, { variantCount: 3, wireVariantCount: 1, restartCount: 3, strategy: opts.tune === true ? "all" : opts.tune }); if (result.improved) tuned.push(`${stage.id}|${expansionKey(expanded)}`); }
           // The first is the state the page opens on, laid out through the same call the page makes.
           const text = JSON.stringify(packLayout(index === 0 ? layoutStage(stage) : layoutStage(stage, false, expanded)));
           if (!known.has(text)) { known.set(text, layouts.length); layouts.push(JSON.parse(text)); }
           states[stage.id][expansionKey(expanded)] = known.get(text);
         }
       }
-      return { states, layouts };
+      return opts.tune ? { states, layouts, tuned } : { states, layouts };
     }
     function layoutFlow(opts = {}) {
       if (!FLOW || !STAGES[0]) throw new Error("DiagramEngine.layoutFlow requires a translated flow model");
@@ -2609,10 +2618,63 @@
     };
   }
 
+  // One view of a multi-view bundle as a complete model: the bundle's meta, canvas, catalog and packages
+  // merged with the view's own. A model with no views is returned as it is merged with itself.
+  function materializeView(MODEL, view) {
+    const VIEW_BUNDLE = Array.isArray(MODEL.views) ? MODEL.views : [];
+    function mergedBundleView(view) {
+      const shared = MODEL.shared || {};
+      return {
+        ...view,
+        catalog: { ...(MODEL.catalog || {}), ...(shared.catalog || {}), ...(view?.catalog || {}) },
+        packages: { ...(MODEL.packages || {}), ...(shared.packages || {}), ...(view?.packages || {}) },
+      };
+    }
+    function comparisonExpandedPackages(view) {
+      if (!MODEL.meta?.comparison || VIEW_BUNDLE.length < 2) return [];
+      const packageIds = new Set(VIEW_BUNDLE.flatMap(candidate => Object.keys(mergedBundleView(candidate).packages || {})));
+      const leaves = (packages, id, seen = new Set()) => {
+        if (seen.has(id)) return [];
+        seen.add(id);
+        return packages[id] ? (packages[id].children || []).flatMap(child => leaves(packages, child, seen)) : [id];
+      };
+      const signature = candidate => {
+        const data = mergedBundleView(candidate), packages = data.packages || {}, stage = candidate.stages?.[0] || {};
+        const declared = new Set((stage.nodes || []).flatMap(entry => leaves(packages, typeof entry === "string" ? entry : entry?.id)));
+        return [...packageIds].sort().map(id => {
+          if (!packages[id]) return [id, null];
+          const members = new Set(leaves(packages, id));
+          const selected = [...members].filter(member => declared.has(member)).sort();
+          const internalWires = (stage.wires || []).filter(wire => {
+            const from = new Set(leaves(packages, wire.from)), to = new Set(leaves(packages, wire.to));
+            return [...from].some(member => members.has(member)) && [...to].some(member => members.has(member));
+          }).map(wire => ({ from: wire.from, to: wire.to, type: wire.type || "data", label: wire.label || "" })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+          return [id, { selected, internalWires }];
+        });
+      };
+      const signatures = VIEW_BUNDLE.map(candidate => JSON.stringify(signature(candidate)));
+      const activePackages = Object.keys(mergedBundleView(view).packages || {});
+      return activePackages.filter(id => new Set(signatures.map(value => JSON.parse(value).find(entry => entry[0] === id)?.[1] ?? null).map(value => JSON.stringify(value))).size > 1);
+    }
+    function materialize(view) {
+      const shared = MODEL.shared || {};
+      const comparisonPackages = comparisonExpandedPackages(view);
+      return {
+        ...view,
+        meta: { ...(MODEL.meta || {}), ...(view?.meta || {}), ...(comparisonPackages.length ? { autoExpandComparisonPackages: comparisonPackages } : {}) },
+        canvas: { ...(MODEL.canvas || {}), ...(view?.canvas || {}) },
+        catalog: { ...(MODEL.catalog || {}), ...(shared.catalog || {}), ...(view?.catalog || {}) },
+        packages: { ...(MODEL.packages || {}), ...(shared.packages || {}), ...(view?.packages || {}) },
+      };
+    }
+    return materialize(view);
+  }
+
   global.DiagramEngine = {
     create,
     packLayout,
     unpackLayout,
+    materializeView,
     fontCoverage,
     fontScripts: () => FONT_SCRIPTS.map(entry => ({ ...entry })),
     layoutFlow(model, options) {

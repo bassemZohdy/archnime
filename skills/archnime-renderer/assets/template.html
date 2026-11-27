@@ -326,55 +326,15 @@ const MODEL = {
     (diagramRoot && diagramRoot.nodeType === 11 ? diagramRoot : owner.head || owner.documentElement).appendChild(style);
   })(MODEL.meta?.theme);
   const requestedView = (() => { try { return new URL(location.href).searchParams.get("view"); } catch (error) { return null; } })();
-  function mergedBundleView(view) {
-    const shared = MODEL.shared || {};
-    return {
-      ...view,
-      catalog: { ...(MODEL.catalog || {}), ...(shared.catalog || {}), ...(view?.catalog || {}) },
-      packages: { ...(MODEL.packages || {}), ...(shared.packages || {}), ...(view?.packages || {}) },
-    };
-  }
-  function comparisonExpandedPackages(view) {
-    if (!MODEL.meta?.comparison || VIEW_BUNDLE.length < 2) return [];
-    const packageIds = new Set(VIEW_BUNDLE.flatMap(candidate => Object.keys(mergedBundleView(candidate).packages || {})));
-    const leaves = (packages, id, seen = new Set()) => {
-      if (seen.has(id)) return [];
-      seen.add(id);
-      return packages[id] ? (packages[id].children || []).flatMap(child => leaves(packages, child, seen)) : [id];
-    };
-    const signature = candidate => {
-      const data = mergedBundleView(candidate), packages = data.packages || {}, stage = candidate.stages?.[0] || {};
-      const declared = new Set((stage.nodes || []).flatMap(entry => leaves(packages, typeof entry === "string" ? entry : entry?.id)));
-      return [...packageIds].sort().map(id => {
-        if (!packages[id]) return [id, null];
-        const members = new Set(leaves(packages, id));
-        const selected = [...members].filter(member => declared.has(member)).sort();
-        const internalWires = (stage.wires || []).filter(wire => {
-          const from = new Set(leaves(packages, wire.from)), to = new Set(leaves(packages, wire.to));
-          return [...from].some(member => members.has(member)) && [...to].some(member => members.has(member));
-        }).map(wire => ({ from: wire.from, to: wire.to, type: wire.type || "data", label: wire.label || "" })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
-        return [id, { selected, internalWires }];
-      });
-    };
-    const signatures = VIEW_BUNDLE.map(candidate => JSON.stringify(signature(candidate)));
-    const activePackages = Object.keys(mergedBundleView(view).packages || {});
-    return activePackages.filter(id => new Set(signatures.map(value => JSON.parse(value).find(entry => entry[0] === id)?.[1] ?? null).map(value => JSON.stringify(value))).size > 1);
-  }
-  function materializeView(view) {
-    const shared = MODEL.shared || {};
-    const comparisonPackages = comparisonExpandedPackages(view);
-    return {
-      ...view,
-      meta: { ...(MODEL.meta || {}), ...(view?.meta || {}), ...(comparisonPackages.length ? { autoExpandComparisonPackages: comparisonPackages } : {}) },
-      canvas: { ...(MODEL.canvas || {}), ...(view?.canvas || {}) },
-      catalog: { ...(MODEL.catalog || {}), ...(shared.catalog || {}), ...(view?.catalog || {}) },
-      packages: { ...(MODEL.packages || {}), ...(shared.packages || {}), ...(view?.packages || {}) },
-    };
-  }
+  // One view of a bundle, merged with the parts the bundle shares. The engine owns this so the build step
+  // that stores geometry merges a view exactly as the page does.
+  function materializeView(view) { return DiagramEngine.materializeView(MODEL, view); }
   // FEAT-038: a page built with `build_bundle.py --geometry` carries its layouts. The engine then
   // places nothing and the page loads neither dagre nor ELK; a state with no stored layout is an error.
   const GEOMETRY = (() => { const element = document.getElementById("diagram-geometry"); return element ? JSON.parse(element.textContent) : null; })();
   document.body.classList.toggle("stored-geometry", !!GEOMETRY);
+  // A bundle stores one geometry per view, keyed by view id.
+  const viewGeometry = model => { if (!GEOMETRY.views) return GEOMETRY; const found = GEOMETRY.views[model.viewId]; if (!found) throw new Error(`No stored geometry for view "${model.viewId}". Layout is computed when the diagram is built: build it again with store_geometry.mjs.`); return found; };
   let ACTIVE_MODEL = materializeView(VIEW_BUNDLE.find(view => view.viewId === requestedView) || VIEW_BUNDLE[0] || MODEL);
   const BASE_LIBRARY = window.ARCHITECTURE_LIBRARY || { iconName: () => "service", icons: {}, styles: { flows: {} } };
   const SAFE_ICON_TAGS = new Set(["circle", "ellipse", "line", "path", "polygon", "polyline", "rect"]);
@@ -421,7 +381,7 @@ const MODEL = {
   function bindModel(model) {
     ACTIVE_MODEL = materializeView(model);
     LIB = typeof BASE_LIBRARY.withIcons === "function" ? BASE_LIBRARY.withIcons(ACTIVE_MODEL.meta?.icons) : BASE_LIBRARY;
-    ENGINE = DiagramEngine.create(ACTIVE_MODEL, { document: document.ownerDocument || document, tokenRoot: document.documentElement, presenterRoot: document.body, ...(GEOMETRY ? { geometry: GEOMETRY } : {}) });
+    ENGINE = DiagramEngine.create(ACTIVE_MODEL, { document: document.ownerDocument || document, tokenRoot: document.documentElement, presenterRoot: document.body, ...(GEOMETRY ? { geometry: viewGeometry(ACTIVE_MODEL) } : {}) });
     ({ meta: META, canvas: CANVAS, catalog: CATALOG, packages: PACKAGES, stages: STAGES } = ENGINE.model);
     FLOW = ENGINE.model.flow || null; FLOW_STEPS = FLOW?.steps || []; COMPARISON = ENGINE.model.comparison || null; IS_FLOW = !!FLOW; FLOW_RENDER = META.flow?.render || "stepwise"; FLOW_ALL_STEPS = FLOW_RENDER === "all-steps"; FLOW_SINGLE = FLOW_RENDER === "single"; IS_SCENARIOS = META.composition === "scenarios";
     ({ layoutStage, selfCheck: engineSelfCheck, setPackageOverride, invalidateLayoutCache, textWidth, wrappedTextLines, diagramTokens, nodeTextLayout, rectOf, ancestors, geomPoint, boundaryTitleBox, packageLabelBox, packageBounds, boundaryChipBox, presentationFor, isSecondaryWire, wireLayer } = ENGINE);

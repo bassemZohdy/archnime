@@ -144,12 +144,16 @@ def _load_geometry(geometry_path: Path, model_path: Path, template_dir: Path) ->
         raise GeometryError(f"geometry file {geometry_path} is not readable JSON ({error}); {again}") from error
     if not isinstance(geometry, dict) or geometry.get("format") != GEOMETRY_FORMAT:
         raise GeometryError(f"geometry file {geometry_path} is not in the {GEOMETRY_FORMAT} format; {again}")
-    if not isinstance(geometry.get("states"), dict) or not isinstance(geometry.get("layouts"), list) or not geometry["layouts"]:
+    # A plain model stores { states, layouts }; a multi-view bundle stores one of those per view id.
+    parts = list(geometry["views"].values()) if isinstance(geometry.get("views"), dict) and geometry["views"] else [geometry]
+    if any(not isinstance(part, dict) or not isinstance(part.get("states"), dict) or not isinstance(part.get("layouts"), list) or not part["layouts"] for part in parts):
         raise GeometryError(f"geometry file {geometry_path} holds no layouts; {again}")
     if geometry.get("modelSha256") != _content_hash(model_path):
         raise GeometryError(f"geometry file {geometry_path} is stale: it was computed from a different version of {model_path}; {again}")
     if geometry.get("engineSha256") != _content_hash(*(template_dir / name for name in ENGINE_SOURCES)):
         raise GeometryError(f"geometry file {geometry_path} is stale: the layout engine has changed since it was computed; {again}")
+    if "views" in geometry:
+        return {"views": {view_id: {"states": part["states"], "layouts": part["layouts"]} for view_id, part in geometry["views"].items()}}
     return {"states": geometry["states"], "layouts": geometry["layouts"]}
 
 

@@ -57,9 +57,15 @@ one. Geometry is derived, never edited: run `store_geometry.mjs` again after any
 
 What differs from a page that lays out at run time: Tune layout is not offered; presenter mode
 keeps the boundary chip at its normal size, so it reuses the same layouts; and each state has one
-layout, where the run-time force layout could differ with the order of clicks. Not covered yet:
-multi-view bundles (`views`), the `<architecture-diagram>` element, and a build option for Tune.
-It is opt-in until those are done; without `--geometry` the build is unchanged.
+layout, where the run-time force layout could differ with the order of clicks.
+
+A multi-view bundle (`views`) gets one geometry per view in the same file. `--tune` on
+`store_geometry.mjs` runs the Tune search for every state and stores the best placement found; it
+keeps the wire style and takes longer. The `<architecture-diagram>` element takes the same file as
+`geometry-src="model.geometry.json"` (or an `application/json` child script marked `data-geometry`)
+and then needs neither Dagre nor ELK on the host page; it cannot check the hash, so it refuses a
+geometry whose nodes are not the model's. Stored geometry is opt-in until 3.0.0: without
+`--geometry` the build is unchanged.
 
 `--offline` replaces every CDN `<script>` with the vendored copy (placed in `vendor/` beside the
 output, or inlined with `--inline`), embeds the GIF worker source in the page, and removes the
