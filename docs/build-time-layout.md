@@ -73,7 +73,7 @@ Three targets are not met today and are recorded as known gaps, which the gate h
 
 - **Text size.** At 1280 px wide the diagram is scaled to about 0.55 to fit, so 11 to 13 px labels paint at 6 px. Roughly a third of the text is under 12 px. FIX-043 fits the opening view to the content instead of the 1600 x 900 canvas, which raised the smallest text from 6.1 to 7.5 px (`strangler-migration`) and from 5.5 to 6.5 px (`checkout-flow`). The target is still not met, and cannot be at 1280 px by scaling: the side panel leaves the diagram 884 px, and `checkout-flow` is 1315 units wide, so reaching 12 px would take larger fonts, which change node sizes and every stored layout. The gate holds the new values.
 - **Pause on a flow** (fixed after 3.0.0 by FIX-041; the table shows the state when the gate was added). Pause stopped the steps, but the animated dashes on the active wires kept moving. They cover too few pixels to trip the harness threshold, which is why the gate also counts animating elements.
-- **No loop.** Staged playback stops after the last stage; a flow loops only with `meta.flow.loop`. The harness measured a loop length, so the figure here is one run.
+- **No loop** (decided in TASK-044: intended). Staged playback stops after the last stage and pressing Play again restarts it from stage 1; a flow loops only with `meta.flow.loop`. Presenters can stop on the final stage, so looping stays opt-in and staged diagrams have no switch for it. The harness measured a loop length, so the figure in the table is one run.
 
 ## Stored geometry (FEAT-038)
 
