@@ -632,6 +632,8 @@ skills/archnime-renderer/
       commerce-views.json                 v2 context/deployment/flow bundle with infrastructure nesting and navigation; generated from the DSL example
   scripts/
     build_bundle.py                     deterministic model-to-HTML builder; linked multi-file default, --inline embeds the sidecars for single-file delivery
+    store_geometry.mjs                  compute every layout at build time and write it as geometry for build_bundle.py --geometry (opt-in; see docs/build-time-layout.md)
+    headless_engine.mjs                 load the layout engine in Node with no browser, for store_geometry.mjs
     regen_fixtures.py                   regenerate or verify the DSL-derived fixtures (npm run regen-fixtures)
     validate_transition_diagram.js      browser-port validator (loaded by translate.html)
     translate_transition_diagram.js     browser-port DSL-to-MODEL mapper
@@ -639,7 +641,8 @@ skills/archnime-renderer/
     render_check.mjs                    headless Chromium check: diagramSelfCheck + rendered-DOM inspection + collapse round trip
     element_check.mjs                   headless Chromium check of the shadow-root <architecture-diagram> web component
     visual_audit.mjs                    retained responsive evidence audit across wide/medium/narrow, presenter, and print modes
-    test_build_bundle.py                Python regression tests for editable and ship-mode HTML bundles
+    test_build_bundle.py                Python regression tests for editable and ship-mode HTML bundles, and for the --geometry hash check
+    stored_geometry_check.mjs           headless Chromium check: a page built from stored geometry equals the run-time page, with the layout libraries absent
     translate_check.mjs                 browser translator + JS-validator rule-parity check over both examples and every invalid fixture
     fixtures/                           portable models exercising collapse / boundary cases the examples do not
   references/

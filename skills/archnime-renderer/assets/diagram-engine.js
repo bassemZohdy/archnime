@@ -23,6 +23,13 @@
  *     ... plus geometry / hierarchy / box helpers the page's render code calls.
  *
  *   DiagramEngine.layoutStage(model, stageIndex[, options]) -> Promise<layout> (one-shot)
+ *
+ * Stored geometry (FEAT-038). `engine.collectGeometry()` lays out every stage in
+ * every expansion state a click can reach and returns `{ states, layouts }`,
+ * plain JSON. An engine created with that object as `options.geometry` places
+ * nothing: `layoutStage` returns the stored layout for the requested state and
+ * throws when there is none, so it needs neither dagre nor ELK nor the force
+ * layout. Wire rerouting and `checkLayout` still work on a stored layout.
  *   DiagramEngine.selfCheck(model[, options]) -> Promise<issues>              (one-shot)
  *
  * `model` is the portable `{ meta, canvas, catalog, packages, stages }` shape
@@ -76,6 +83,19 @@
     return { supported: characters.length === 0, missing: characters, scripts: [...new Set(characters.map(item => item.script))] };
   }
 
+  // A layout is plain data apart from two Sets, two Maps and `nodeMap`, which is
+  // the node list by id. These two turn it into JSON and back without loss.
+  function packLayout(layout) {
+    const { nodeMap, ...rest } = layout;
+    return JSON.parse(JSON.stringify(rest, (key, value) => value instanceof Set ? { $set: [...value] } : value instanceof Map ? { $map: [...value] } : value));
+  }
+  function unpackLayout(packed) {
+    const tagged = (value, tag) => value && typeof value === "object" && Array.isArray(value[tag]) && Object.keys(value).length === 1;
+    const layout = JSON.parse(JSON.stringify(packed), (key, value) => tagged(value, "$set") ? new Set(value.$set) : tagged(value, "$map") ? new Map(value.$map) : value);
+    layout.nodeMap = Object.fromEntries(layout.nodes.map(node => [node.id, node]));
+    return layout;
+  }
+
   function create(model, options) {
     options = options || {};
     const d3 = options.d3 || global.d3;
@@ -116,9 +136,13 @@
       if (!doc) return STATIC_TOKENS;
       const styles = getComputedStyle(tokenRoot || doc.documentElement);
       const px = (name, fallback) => { const value = parseFloat(styles.getPropertyValue(name)); return Number.isFinite(value) ? value : fallback; };
-      return { label: px("--diagram-label-font", 13), detail: px("--diagram-detail-font", 11), wire: px("--diagram-wire-font", 11), package: px("--diagram-package-font", 11), boundary: px("--diagram-boundary-font", 12), chip: presenterRoot && presenterRoot.classList.contains("presenter") ? 12 : 10, line: px("--diagram-line-height", 15) };
+      return { label: px("--diagram-label-font", 13), detail: px("--diagram-detail-font", 11), wire: px("--diagram-wire-font", 11), package: px("--diagram-package-font", 11), boundary: px("--diagram-boundary-font", 12), chip: !STORED && presenterRoot && presenterRoot.classList.contains("presenter") ? 12 : 10, line: px("--diagram-line-height", 15) };
     };
     const presenterKey = () => (presenterRoot && presenterRoot.classList.contains("presenter")) ? "P" : "-";
+    // Stored geometry: { states: { stageId: { "pkgA,pkgB": layoutIndex } }, layouts: [packed layout] }.
+    // Presenter mode shares it, so the one token that moved the layout there (the chip size) stays fixed.
+    const STORED = options.geometry ? { states: options.geometry.states || {}, layouts: options.geometry.layouts || [], live: new Map() } : null;
+    const expansionKey = expanded => [...expanded].sort().join(",");
 
     /* --- per-instance mutable layout state --- */
     let rerouteCount = 0, lastSelfCheckScenarios = [];
@@ -1262,7 +1286,10 @@
         if (chooseLayout(probe.nodes, probeWires, stage) !== "elk") return;
         expansionScenarios(stage).forEach(scenario => work.push({ stage, expanded: expandedPackages(stage, false, scenario.expanded) }));
       });
-      for (const item of work) {
+      for (const item of work) await prepareElkItem(item);
+    }
+    async function prepareElkItem(item) {
+      {
         const key = elkScenarioKey(item.stage, item.expanded), seed = new Map(lastPositions), restoreSeed = () => { lastPositions.clear(); seed.forEach((value, id) => lastPositions.set(id, value)); };
         if (!elkPositionCache.has(elkPositionKey(item.stage, item.expanded, 0, 0, 0))) {
           const previousTrial = activeLayoutTrial; activeLayoutTrial = 0;
@@ -2267,6 +2294,7 @@
     }
     function layoutStage(stage, forceAllExpanded = false, expansionOverride = null, opts = {}) {
       const expanded = expandedPackages(stage, forceAllExpanded, expansionOverride);
+      if (STORED) return storedLayout(stage, expanded);
       if (opts.bypassCache) return computeLayout(stage, forceAllExpanded, expansionOverride);
       const key = `${stage.id}|${forceAllExpanded ? "all" : "sel"}|${presenterKey()}|${[...expanded].sort().join(",")}`;
       const restoreCanvas = layout => { if (layout.canvas) { CANVAS.w = layout.canvas.w; CANVAS.h = layout.canvas.h; } return layout; };
@@ -2274,6 +2302,49 @@
       if (layoutCache.has(key)) return restoreCanvas(routedFor(layoutCache.get(key)));
       if (!forceAllExpanded && allPackagesForStage(stage).size) applyMasterSeed(stage, masterPositions(stage));
       return restoreCanvas(cacheLayout(key, computeLayout(stage, forceAllExpanded, expansionOverride)));
+    }
+    function storedLayout(stage, expanded) {
+      const key = `${stage.id}|${expansionKey(expanded)}`;
+      if (!STORED.live.has(key)) {
+        const index = (STORED.states[stage.id] || {})[expansionKey(expanded)];
+        if (index === undefined || !STORED.layouts[index]) throw new Error(`No stored geometry for stage "${stage.id}" with ${expanded.size ? `package(s) ${expansionKey(expanded)} expanded` : "no package expanded"}. Layout is computed when the diagram is built, not in the page: build it again with store_geometry.mjs.`);
+        STORED.live.set(key, unpackLayout(STORED.layouts[index]));
+      }
+      const layout = routedFor(STORED.live.get(key));
+      if (layout.canvas) { CANVAS.w = layout.canvas.w; CANVAS.h = layout.canvas.h; }
+      return layout;
+    }
+    // Every expansion state a click can reach: the default, and each set in which
+    // an expanded package has all its ancestors expanded (collapsing removes the
+    // descendants, expanding adds the ancestors, so no other set comes up).
+    function reachableExpansions(stage, limit) {
+      const all = [...allPackagesForStage(stage)].sort((a, b) => depthOf(a) - depthOf(b) || a.localeCompare(b));
+      let sets = [new Set()];
+      for (const id of all) {
+        const parents = ancestors(id).filter(parent => all.includes(parent));
+        sets = sets.flatMap(set => parents.every(parent => set.has(parent)) ? [set, new Set([...set, id])] : [set]);
+        if (sets.length > limit) throw new Error(`Stage "${stage.id}" has more than ${limit} package expansion states. Stored geometry holds one layout per state; reduce the nesting or raise the limit (maxStatesPerStage).`);
+      }
+      const configured = expandedPackages(stage, false, null, true), keys = new Set([expansionKey(configured)]);
+      return [configured, ...sets.filter(set => !keys.has(expansionKey(set)) && keys.add(expansionKey(set)))];
+    }
+    async function collectGeometry(opts = {}) {
+      if (STORED) throw new Error("collectGeometry needs an engine that computes layout, not one created from stored geometry");
+      const limit = Math.max(1, Number(opts.maxStatesPerStage) || 64), states = {}, layouts = [], known = new Map(), prepared = new Set();
+      await ready;
+      for (const stage of STAGES) {
+        states[stage.id] = {};
+        const expansions = reachableExpansions(stage, limit);
+        for (let index = 0; index < expansions.length; index += 1) {
+          const expanded = expansions[index], scenario = elkScenarioKey(stage, expanded);
+          if (usesElk && !prepared.has(scenario)) { await prepareElkItem({ stage, expanded }); prepared.add(scenario); }
+          // The first is the state the page opens on, laid out through the same call the page makes.
+          const text = JSON.stringify(packLayout(index === 0 ? layoutStage(stage) : layoutStage(stage, false, expanded)));
+          if (!known.has(text)) { known.set(text, layouts.length); layouts.push(JSON.parse(text)); }
+          states[stage.id][expansionKey(expanded)] = known.get(text);
+        }
+      }
+      return { states, layouts };
     }
     function layoutFlow(opts = {}) {
       if (!FLOW || !STAGES[0]) throw new Error("DiagramEngine.layoutFlow requires a translated flow model");
@@ -2417,7 +2488,24 @@
       try { checkLayoutIssues(stage, layout, (type, detail) => issues.push({ type, detail }), tag); } finally { CANVAS.w = canvas.w; CANVAS.h = canvas.h; }
       return issues;
     }
+    function storedSelfCheck() {
+      const issues = [], push = (type, detail) => issues.push({ type, detail }), canvas = { w: CANVAS.w, h: CANVAS.h }, evaluated = [];
+      try {
+        STAGES.forEach(stage => {
+          const configured = expansionKey(expandedPackages(stage, false, null, true));
+          Object.keys(STORED.states[stage.id] || {}).forEach(key => {
+            const layout = storedLayout(stage, new Set(key ? key.split(",") : []));
+            if (key === configured) checkDeclaredNodes(stage, layout, push);
+            checkLayoutIssues(stage, layout, push, key === configured ? "" : ` [stored: ${key || "collapsed"}]`);
+            evaluated.push(`${stage.id}:${key === configured ? "default" : key || "collapsed"}`);
+          });
+        });
+      } finally { CANVAS.w = canvas.w; CANVAS.h = canvas.h; }
+      lastSelfCheckScenarios = evaluated;
+      return issues;
+    }
     function selfCheck() {
+      if (STORED) return storedSelfCheck();
       const issues = [], push = (type, detail) => issues.push({ type, detail });
       const restorePositions = snapshot => { lastPositions.clear(); snapshot.forEach((v, k) => lastPositions.set(k, v)); };
       const canvasSnapshot = { w: CANVAS.w, h: CANVAS.h }, restoreCanvas = () => { CANVAS.w = canvasSnapshot.w; CANVAS.h = canvasSnapshot.h; };
@@ -2486,7 +2574,7 @@
       return stage.layout !== "elk" && META.layout !== "elk" && chooseLayout(probe.nodes, probeWires, stage) === "elk";
     });
     const usesElk = explicitElk || autoElk;
-    const ready = usesElk ? prepareElk() : Promise.resolve();
+    const ready = !STORED && usesElk ? prepareElk() : Promise.resolve();
 
     return {
       model: { meta: META, canvas: CANVAS, catalog: CATALOG, packages: PACKAGES, stages: STAGES, ...(FLOW ? { flow: FLOW } : {}), ...(DEPLOYMENT ? { deployment: DEPLOYMENT } : {}), ...(COMPARISON ? { comparison: COMPARISON } : {}) },
@@ -2494,13 +2582,15 @@
       ready,
       usesElk,
       elkAvailable: !!elkSource,
-      tuneAvailable: STAGES.some(stage => (stage.nodes || []).length > 1 && (stage.wires || []).length > 0),
+      stored: !!STORED,
+      collectGeometry,
+      tuneAvailable: !STORED && STAGES.some(stage => (stage.nodes || []).length > 1 && (stage.wires || []).length > 0),
       elkRetryVariants: ELK_RETRY_VARIANTS.map(variant => ({ ...variant })),
       elkWireRetryVariants: WIRE_RETRY_VARIANTS.map(variant => ({ ...variant })),
       tuneStrategies: TUNE_STRATEGIES.map(strategy => ({ ...strategy, routeOrder: [...strategy.routeOrder] })),
-      prepareElk,
+      prepareElk: STORED ? () => Promise.resolve() : prepareElk,
       layoutDiagnostics() { return { selfCheckScenarios: [...lastSelfCheckScenarios], reroutes: rerouteCount, layoutCacheSize: layoutCache.size, tunedLayoutCount: tunedLayouts.size, elkCacheSize: elkPositionCache.size, elkKeys: [...elkPositionCache.keys()], lastElkLookup, lastLayoutFallback }; },
-      retryElk,
+      retryElk: STORED ? () => Promise.reject(new Error("Tune layout runs when the diagram is built; this page carries stored geometry")) : retryElk,
       layoutStage,
       layoutFlow,
       selfCheck,
@@ -2521,6 +2611,8 @@
 
   global.DiagramEngine = {
     create,
+    packLayout,
+    unpackLayout,
     fontCoverage,
     fontScripts: () => FONT_SCRIPTS.map(entry => ({ ...entry })),
     layoutFlow(model, options) {
