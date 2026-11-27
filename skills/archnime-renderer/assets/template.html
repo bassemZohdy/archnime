@@ -238,7 +238,7 @@
   .bchip text { font-family: var(--font); font-size: 10px; font-weight: 650; fill: var(--boundary); letter-spacing: .02em; }
   .bchip.tone-security rect { fill: color-mix(in srgb, var(--security) 14%, var(--panel)); stroke: var(--security); }
   .bchip.tone-security text { fill: var(--security); }
-  body.presenter .bchip text { font-size: 12px; }
+  body.presenter:not(.stored-geometry) .bchip text { font-size: 12px; }
   body.presenter .node text.label { font-size: 16px; } body.presenter .node text.detail { font-size: 13px; }
   body.presenter .wire-label { font-size: 13px; stroke-width: 5px; } body.presenter .hint, body.presenter .search-tools { display: none; }
   body.presenter .card:not(.legend), body.presenter .breadcrumbs { display: none; }
@@ -371,6 +371,10 @@ const MODEL = {
       packages: { ...(MODEL.packages || {}), ...(shared.packages || {}), ...(view?.packages || {}) },
     };
   }
+  // FEAT-038: a page built with `build_bundle.py --geometry` carries its layouts. The engine then
+  // places nothing and the page loads neither dagre nor ELK; a state with no stored layout is an error.
+  const GEOMETRY = (() => { const element = document.getElementById("diagram-geometry"); return element ? JSON.parse(element.textContent) : null; })();
+  document.body.classList.toggle("stored-geometry", !!GEOMETRY);
   let ACTIVE_MODEL = materializeView(VIEW_BUNDLE.find(view => view.viewId === requestedView) || VIEW_BUNDLE[0] || MODEL);
   const BASE_LIBRARY = window.ARCHITECTURE_LIBRARY || { iconName: () => "service", icons: {}, styles: { flows: {} } };
   const SAFE_ICON_TAGS = new Set(["circle", "ellipse", "line", "path", "polygon", "polyline", "rect"]);
@@ -417,7 +421,7 @@ const MODEL = {
   function bindModel(model) {
     ACTIVE_MODEL = materializeView(model);
     LIB = typeof BASE_LIBRARY.withIcons === "function" ? BASE_LIBRARY.withIcons(ACTIVE_MODEL.meta?.icons) : BASE_LIBRARY;
-    ENGINE = DiagramEngine.create(ACTIVE_MODEL, { document: document.ownerDocument || document, tokenRoot: document.documentElement, presenterRoot: document.body });
+    ENGINE = DiagramEngine.create(ACTIVE_MODEL, { document: document.ownerDocument || document, tokenRoot: document.documentElement, presenterRoot: document.body, ...(GEOMETRY ? { geometry: GEOMETRY } : {}) });
     ({ meta: META, canvas: CANVAS, catalog: CATALOG, packages: PACKAGES, stages: STAGES } = ENGINE.model);
     FLOW = ENGINE.model.flow || null; FLOW_STEPS = FLOW?.steps || []; COMPARISON = ENGINE.model.comparison || null; IS_FLOW = !!FLOW; FLOW_RENDER = META.flow?.render || "stepwise"; FLOW_ALL_STEPS = FLOW_RENDER === "all-steps"; FLOW_SINGLE = FLOW_RENDER === "single"; IS_SCENARIOS = META.composition === "scenarios";
     ({ layoutStage, selfCheck: engineSelfCheck, setPackageOverride, invalidateLayoutCache, textWidth, wrappedTextLines, diagramTokens, nodeTextLayout, rectOf, ancestors, geomPoint, boundaryTitleBox, packageLabelBox, packageBounds, boundaryChipBox, presentationFor, isSecondaryWire, wireLayer } = ENGINE);

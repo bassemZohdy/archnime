@@ -75,6 +75,41 @@ Three targets are not met today and are recorded as known gaps, which the gate h
 - **Pause on a flow.** Pause stops the steps, but the animated dashes on the active wires keep moving. They cover too few pixels to trip the harness threshold, which is why the gate also counts animating elements.
 - **No loop.** Staged playback stops after the last stage; a flow loops only with `meta.flow.loop`. The harness measured a loop length, so the figure here is one run.
 
+## Stored geometry (FEAT-038, single-view models)
+
+`skills/archnime-renderer/scripts/store_geometry.mjs` computes the layouts in Node and `build_bundle.py --geometry` embeds them. It is opt-in: without `--geometry` the build and the page are unchanged.
+
+How it works:
+
+- **A stored layout is a cache entry.** The engine already kept each computed layout in a cache keyed by stage and expanded packages, and already rerouted a cached layout when the wire style changed. Stored geometry is that cache, filled at build time and written as JSON. With it the engine places nothing; `layoutStage` returns the stored layout or throws.
+- **Every state a click can reach is stored.** A click collapses a package with its descendants or expands one with its ancestors, so the reachable states are the default plus every set in which an expanded package has its ancestors expanded. Four packages nested as in `nested-three-levels` give 7 states per stage, not 16. The build fails above 64 states per stage (`--max-states`).
+- **Stale or missing geometry fails the build.** The file records a hash of the model and of the engine (`diagram-engine.js` and `architecture-library.js`), ignoring line endings. `build_bundle.py` refuses a mismatch and names the command to run. In the page a state with no stored layout is an error, not a layout.
+- **The build runs the self-check** on the stored layouts and fails on a finding unless `--allow-findings` is passed.
+
+Measured on seven fixtures (`tests/stored_geometry_check.mjs`, one machine, offline single-file pages):
+
+| Fixture | Engine | States stored | Geometry | Page, stored | Page, run time | Ready, stored | Ready, run time |
+|---|---|---|---|---|---|---|---|
+| `orders-failover-scenarios` | dagre | 3 | 34 KB | 769 KB | 2401 KB | 0.4 s | 1.0 s |
+| `free-form-mesh` | dagre | 2 | 71 KB | 809 KB | 2404 KB | 0.4 s | 1.1 s |
+| `checkout-flow` | dagre | 1 | 20 KB | 760 KB | 2405 KB | 0.4 s | 1.0 s |
+| `deep-nested-crosscut` | dagre | 5 | 124 KB | 861 KB | 2403 KB | 0.4 s | 1.7 s |
+| `orthogonal-routing` | ELK | 6 | 55 KB | 791 KB | 2402 KB | 0.4 s | 1.0 s |
+| `nested-three-levels` | ELK | 14 | 300 KB | 1039 KB | 2404 KB | 0.4 s | 7 to 8 s |
+| `force-mesh-packages` | force | 4 | 103 KB | 841 KB | 2403 KB | 0.4 s | 6.2 s |
+
+- On six fixtures the stored page equals the run-time page on every step walked: each stage, each wire style, and collapsing and expanding each package. Equal means the layout object and the painted node positions, wire paths and package outlines.
+- **The force layout is the exception, and it is a behaviour change.** At run time it starts each simulation from where the nodes last were, so the layout after a collapse depends on the clicks before it, and expanding again does not bring the first layout back. A stored page has one layout per state. The two agree until the first collapse; after it the stored page is the stable one.
+- Geometry holds complete layouts, about 15 to 25 KB per state, which is larger than the boxes-only form the parity matrix proposed. Complete layouts made the stored page equal to the run-time page with no new routing code path. Even so every stored page is under half the size of the run-time page, because ELK is 1.6 MB. Trimming to boxes plus rerouting in the page is still open if size matters.
+- Computing geometry in Node took 0.2 s to 7 s per fixture, except `nested-three-levels`, which took 48 s for its 14 ELK states. That is the build cost of the wait the run-time page imposes on every load.
+
+Not done in FEAT-038, and needed before TASK-039 can remove the run-time path:
+
+- multi-view bundles (`views`, comparison and deployment views): `store_geometry.mjs` refuses them;
+- the `<architecture-diagram>` element, which still lays out the model it is given;
+- Tune layout as a build option;
+- `export_svg.mjs` and the documentation exports still use a run-time page.
+
 ## Parity matrix (TASK-035)
 
 Status of every renderer feature once geometry is stored at build time and delivered diagrams no longer load dagre, ELK or the force layout. The statuses come from reading `template.html` and `diagram-engine.js` and from the spike above; none has been built. The owner agreed the four rows that needed a decision on 2026-11-27 (Tune layout, loading a specification with no build step, package expansion, presenter mode). A stored geometry belongs to one layout state: a stage and a set of expanded packages.

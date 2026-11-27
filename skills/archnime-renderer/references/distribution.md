@@ -39,6 +39,28 @@ python archnime-renderer/scripts/build_bundle.py --template archnime-renderer/as
 python archnime-renderer/scripts/build_bundle.py ... --offline --inline   # one self-contained file (about 2 MB)
 ```
 
+### Layout stored at build time
+
+```bash
+node archnime-renderer/scripts/store_geometry.mjs model.json --output model.geometry.json
+python archnime-renderer/scripts/build_bundle.py --template archnime-renderer/assets/template.html --model model.json --output diagram.html --geometry model.geometry.json --offline --inline   # about 0.8 to 1 MB
+```
+
+`store_geometry.mjs` (Node 24, no browser) lays out every stage in every package expansion state a
+click can reach, runs the self-check, and writes the layouts as JSON. `--geometry` embeds them: the
+page then places nothing, leaves the Dagre and ELK scripts out, and is ready in well under a second
+whatever the diagram. Wire-style switching, package expansion, perspectives, presenter mode and
+every export work from the stored layouts. The geometry is tied to the model and the engine by
+hash: the build fails with `geometry file ... is stale` or `... is missing` instead of falling back
+to layout in the page, and the page reports a state that has no stored layout instead of computing
+one. Geometry is derived, never edited: run `store_geometry.mjs` again after any model change.
+
+What differs from a page that lays out at run time: Tune layout is not offered; presenter mode
+keeps the boundary chip at its normal size, so it reuses the same layouts; and each state has one
+layout, where the run-time force layout could differ with the order of clicks. Not covered yet:
+multi-view bundles (`views`), the `<architecture-diagram>` element, and a build option for Tune.
+It is opt-in until those are done; without `--geometry` the build is unchanged.
+
 `--offline` replaces every CDN `<script>` with the vendored copy (placed in `vendor/` beside the
 output, or inlined with `--inline`), embeds the GIF worker source in the page, and removes the
 CDN-only `integrity`/`crossorigin` attributes: trust comes from the build re-checking each

@@ -223,6 +223,25 @@ equal one of the headless stages. Prints the headless and in-page layout time an
 fixture; `--out <dir>` keeps the JSON. The headless half needs no browser.
 Covers TASK-034 and TASK-036, the evidence for [build-time layout](../../../docs/build-time-layout.md).
 
+## `stored_geometry_check.mjs` and `stored_geometry.test.mjs` — layout computed at build time
+
+`stored_geometry_check.mjs` computes the geometry of seven fixtures with
+`scripts/store_geometry.mjs`, builds each page twice (the usual way, and with
+`build_bundle.py --geometry`) and drives both through the same steps: every
+stage, every wire style, collapsing and expanding each package, presenter mode.
+After each step the layout the page holds and what it painted must be identical.
+The stored page is offline with every network request refused and must have no
+`window.dagre` and no `window.ELK`; it must not offer Tune, and a state with no
+stored layout must fail with a message. One fixture uses the force layout, whose
+runtime result after a collapse depends on the clicks before it; there only the
+steps before the first collapse are compared, and the stored page must return to
+the layout the stage opened with. `stored_geometry.test.mjs` holds the same
+without a browser: stored equals computed for every reachable state, the stored
+engine runs with no layout library, reroutes and checks, and the state limit,
+multi-view bundles and a missing state fail clearly. `test_build_bundle.py`
+covers the builder: a missing, unreadable or stale geometry fails the build.
+Covers FEAT-038.
+
 ## `playback_gate_check.mjs` — pause, navigation, text size and run length
 
 The measurements of the comparison harness behind
