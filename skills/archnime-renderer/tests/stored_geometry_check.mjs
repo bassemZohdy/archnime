@@ -70,7 +70,7 @@ const WALK = async () => {
   const wait = ms => new Promise(done => setTimeout(done, ms));
   const settle = async () => { await wait(120); await new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))); };
   const until = async (settled, timeoutMs = 2500) => { const deadline = performance.now() + timeoutMs; while (performance.now() < deadline) { if (settled()) return true; await wait(40); } return settled(); };
-  const routing = document.getElementById("routing-select"), steps = [];
+  const routing = document.getElementById("routing-select"), steps = [], ignored = [];
   const boxes = () => JSON.stringify(window.__diagramLayoutForTest().nodes.map(node => [node.id, node.x, node.y, node.w, node.h]).sort());
   const record = (label, stageIndex) => {
     const layout = window.__diagramLayoutForTest();
@@ -98,7 +98,8 @@ const WALK = async () => {
       if (!hit) continue;
       hit.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
       // A click can be held back briefly to tell it from a double click, so wait for its effect.
-      if (!(await until(() => !window.__diagramLayoutForTest().expanded.has(id)))) continue;
+      // FIX-042: a collapse must take effect; in a flow view it used to wait for the next repaint.
+      if (!(await until(() => !window.__diagramLayoutForTest().expanded.has(id)))) { ignored.push(`${tag} collapse ${id}`); continue; }
       await settle();
       record(`${tag} collapse ${id}`, index);
       const node = document.querySelector(`g.nodes g.node[data-id="${id}"]`);
@@ -116,7 +117,7 @@ const WALK = async () => {
   const engine = window.__diagramEngineForTest();
   let missing = null;
   try { engine.layoutStage({ id: "no-such-stage", nodes: [], wires: [] }); missing = "returned a layout"; } catch (error) { missing = String(error.message || error); }
-  return { steps, presenterBoxes, exports: { documentation: (exports.documentation || "").slice(0, 5), documentationLength: (exports.documentation || "").length, animatedLength: (exports.animated || "").length }, stored: !!engine.stored, hasPlacementApi: ["collectGeometry", "retryElk", "prepareElk"].filter(name => name in engine), tuneShown: !!document.getElementById("btn-retry-elk"), dagre: typeof window.dagre, elk: typeof window.ELK, missing, findings: window.diagramSelfCheck({ displayed: true }).length };
+  return { steps, ignored, presenterBoxes, exports: { documentation: (exports.documentation || "").slice(0, 5), documentationLength: (exports.documentation || "").length, animatedLength: (exports.animated || "").length }, stored: !!engine.stored, hasPlacementApi: ["collectGeometry", "retryElk", "prepareElk"].filter(name => name in engine), tuneShown: !!document.getElementById("btn-retry-elk"), dagre: typeof window.dagre, elk: typeof window.ELK, missing, findings: window.diagramSelfCheck({ displayed: true }).length };
 };
 
 const work = mkdtempSync(join(tmpdir(), "stored-geometry-"));
@@ -155,6 +156,7 @@ try {
       if (walked.dagre !== "undefined" || walked.elk !== "undefined") fail(`the page has a layout library (dagre ${walked.dagre}, ELK ${walked.elk})`);
       if (walked.hasPlacementApi.length || walked.tuneShown) fail(`the page still offers placement (${walked.hasPlacementApi.join(", ") || "Tune button"})`);
       if (!/No stored geometry/.test(walked.missing)) fail(`a state with no stored layout did not fail clearly: ${walked.missing}`);
+      walked.ignored.forEach(step => fail(`"${step}" had no effect on the layout the page holds`));
       if (walked.findings) fail(`${walked.findings} self-check finding(s) in the displayed layout`);
       if (walked.exports.documentation !== "<svg " || walked.exports.documentationLength < 2000 || walked.exports.animatedLength < 2000) fail(`an export is empty: ${JSON.stringify(walked.exports)}`);
       if (walked.presenterBoxes.inside !== walked.presenterBoxes.outside) fail("presenter mode moved node boxes");

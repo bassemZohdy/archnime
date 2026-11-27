@@ -6,7 +6,6 @@
       "smallTextPercent": 31.9
     },
     "dsl/checkout-flow": {
-      "movingWhenPaused": 4,
       "minTextPx": 5.5,
       "smallTextPercent": 27
     }
