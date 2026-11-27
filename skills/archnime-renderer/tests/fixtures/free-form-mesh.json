@@ -1,0 +1,64 @@
+{
+  "meta": {
+    "title": "Free-form service mesh",
+    "subtitle": "Peers that call each other in cycles, with no lanes and no left-to-right order",
+    "layout": "auto",
+    "levels": ["Context", "Container", "Component"],
+    "gif": { "fps": 8, "maxDurationMs": 9000 }
+  },
+  "canvas": { "w": 1800, "h": 1100, "minWidth": 1000 },
+  "catalog": {
+    "catalogue": { "label": "Catalogue", "detail": "products and prices", "type": "service", "shape": "service", "kind": "existing", "w": 160, "h": 64, "level": "Container" },
+    "basket": { "label": "Basket", "detail": "open orders", "type": "service", "shape": "service", "kind": "existing", "w": 150, "h": 64, "level": "Container" },
+    "pricing": { "label": "Pricing", "detail": "offers and tax", "type": "service", "shape": "service", "kind": "existing", "w": 150, "h": 64, "level": "Container" },
+    "stock": { "label": "Stock", "detail": "reservations", "type": "service", "shape": "service", "kind": "existing", "w": 150, "h": 64, "level": "Container" },
+    "recommend": { "label": "Recommendations", "detail": "related products", "type": "service", "shape": "service", "kind": "existing", "w": 180, "h": 64, "level": "Container" },
+    "profile": { "label": "Profile", "detail": "customer preferences", "type": "service", "shape": "service", "kind": "existing", "w": 150, "h": 64, "level": "Container" },
+    "eventBus": { "label": "Event bus", "detail": "shared topics", "type": "topic", "shape": "queue", "kind": "existing", "w": 160, "h": 56, "level": "Component" },
+    "fraud": { "label": "Fraud scoring", "detail": "risk per basket", "type": "service", "shape": "service", "kind": "new", "w": 165, "h": 64, "level": "Container" }
+  },
+  "packages": {},
+  "stages": [
+    {
+      "id": "mesh",
+      "title": "Peers today",
+      "summary": "Seven peers call each other directly and through the event bus; no service is upstream of all the others.",
+      "nodes": [{ "id": "catalogue" }, { "id": "basket" }, { "id": "pricing" }, { "id": "stock" }, { "id": "recommend" }, { "id": "profile" }, { "id": "eventBus" }],
+      "wires": [
+        { "from": "basket", "to": "pricing", "type": "data", "label": "price basket", "flow": true },
+        { "from": "pricing", "to": "catalogue", "type": "data", "label": "list price", "flow": true },
+        { "from": "catalogue", "to": "stock", "type": "data", "label": "availability", "flow": true },
+        { "from": "stock", "to": "basket", "type": "data", "label": "reservation", "flow": true },
+        { "from": "recommend", "to": "catalogue", "type": "data", "label": "related items", "flow": false },
+        { "from": "profile", "to": "recommend", "type": "data", "label": "preferences", "flow": false },
+        { "from": "basket", "to": "profile", "type": "data", "label": "saved basket", "flow": false },
+        { "from": "stock", "to": "eventBus", "type": "data", "label": "stock changed", "flow": true },
+        { "from": "eventBus", "to": "recommend", "type": "data", "label": "stock changed", "flow": true },
+        { "from": "pricing", "to": "eventBus", "type": "data", "label": "price changed", "flow": false }
+      ],
+      "changed": []
+    },
+    {
+      "id": "mesh-with-fraud",
+      "title": "Fraud scoring joins",
+      "summary": "A new peer scores baskets from profile data and publishes its verdict on the event bus.",
+      "nodes": [{ "id": "catalogue" }, { "id": "basket" }, { "id": "pricing" }, { "id": "stock" }, { "id": "recommend" }, { "id": "profile" }, { "id": "eventBus" }, { "id": "fraud" }],
+      "wires": [
+        { "from": "basket", "to": "pricing", "type": "data", "label": "price basket", "flow": true },
+        { "from": "pricing", "to": "catalogue", "type": "data", "label": "list price", "flow": true },
+        { "from": "catalogue", "to": "stock", "type": "data", "label": "availability", "flow": true },
+        { "from": "stock", "to": "basket", "type": "data", "label": "reservation", "flow": true },
+        { "from": "recommend", "to": "catalogue", "type": "data", "label": "related items", "flow": false },
+        { "from": "profile", "to": "recommend", "type": "data", "label": "preferences", "flow": false },
+        { "from": "basket", "to": "profile", "type": "data", "label": "saved basket", "flow": false },
+        { "from": "stock", "to": "eventBus", "type": "data", "label": "stock changed", "flow": true },
+        { "from": "eventBus", "to": "recommend", "type": "data", "label": "stock changed", "flow": true },
+        { "from": "pricing", "to": "eventBus", "type": "data", "label": "price changed", "flow": false },
+        { "from": "basket", "to": "fraud", "type": "data", "label": "score basket", "flow": true },
+        { "from": "fraud", "to": "profile", "type": "data", "label": "customer history", "flow": false },
+        { "from": "fraud", "to": "eventBus", "type": "data", "label": "verdict", "flow": true }
+      ],
+      "changed": ["fraud"]
+    }
+  ]
+}
