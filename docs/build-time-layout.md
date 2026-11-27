@@ -1,6 +1,6 @@
 # Build-time layout: decision note
 
-**Status: decided on 2026-11-26, pending the parity gate.** Build-time layout is the direction, the current runtime layout will be archived, and the old runtime will not be kept as an option. Nothing in the renderer has changed yet: no code is removed until the parity gate (TASK-035 in `TODO.md`) passes.
+**Status: done in 3.0.0.** Layout is computed when a diagram is built and stored in the page. A delivered page places nothing: it loads no layout library and carries no placement code. The renderer that laid out in the page (releases up to 2.1.1) is archived as the tag `legacy-runtime-layout` and the branch `legacy/2.x`, for reference only. This note keeps the evidence, the decisions and what was built, in the order they happened; the sections before "3.0.0" describe the state at the time they were written.
 
 ## What was compared
 
@@ -77,7 +77,7 @@ Three targets are not met today and are recorded as known gaps, which the gate h
 
 ## Stored geometry (FEAT-038)
 
-`skills/archnime-renderer/scripts/store_geometry.mjs` computes the layouts in Node and `build_bundle.py --geometry` embeds them. It is opt-in: without `--geometry` the build and the page are unchanged.
+`skills/archnime-renderer/scripts/store_geometry.mjs` computes the layouts in Node and `build_bundle.py --geometry` embeds them. When this was built it was opt-in; since 3.0.0 it is the only path (see "3.0.0" below).
 
 How it works:
 
@@ -110,9 +110,29 @@ The rest of the parity matrix, done after the single-view part:
 - **Tune layout as a build option.** `store_geometry.mjs --tune` runs the page's Tune search for every state and stores the best placement, keeping the wire style. On `orthogonal-routing` it improved 2 of 6 states; two runs give the same file.
 - **The `<architecture-diagram>` element.** It takes the geometry file as `geometry-src` or an inline `data-geometry` script and then places nothing; the check runs it on a host page with neither dagre nor ELK. It has no model file to hash, so the engine refuses a stored layout whose nodes are not the ones the model shows. That catches a changed set of nodes, not a changed label; the builder's hash check catches both.
 
-Still to do in TASK-039, not here: make stored geometry the only path (today it is opt-in), remove placement from the delivered page, and switch the remaining tests and tools that build run-time pages.
 
 One thing the walk turned up in the current renderer, stored or not: in a flow view, collapsing a package is not painted until the next repaint, because the flow's layout is not refreshed on collapse as it is on expand.
+
+## 3.0.0: stored geometry is the only path (TASK-039)
+
+What changed:
+
+- **The builder always embeds geometry.** `build_bundle.py` runs `store_geometry.mjs` itself when no `--geometry` file is given, so a build is still one command; it needs Node.js 24 or newer and says so when Node is missing. Computed geometry is cached by model and engine in the system temporary folder (`ARCHNIME_GEOMETRY_CACHE=0` turns that off). `--tune` runs the Tune search during the build.
+- **The engine is one source and two files.** `diagram-engine.js` is the whole engine, loaded by the build step and by `translate.html`. `diagram-runtime.js` is generated from it by `scripts/gen_runtime_engine.mjs`: the regions marked as placement are dropped, then every function nothing left refers to. That removed 50 of 132 functions and took the file from 226 KB to 140 KB. A delivered page loads the runtime file only. `npm run check-runtime` fails when the generated file is out of date, and `tests/runtime_engine.test.mjs` holds that, from the same geometry, the runtime file gives exactly what the whole engine gives on every fixture and example.
+- **The page lost what placed nodes:** the dagre and ELK script tags, the Tune button with its strategy list and Keep wires box, and the layout refresh around printing. Opening `template.html` unbuilt shows a message instead of a diagram.
+- **Each state is laid out the way the self-check lays it out**: the fully expanded layout first, then every state seeded from its positions. What is stored is therefore what was checked. Before, the self-check validated layouts computed by a slightly different route than the one the page took.
+- **`translate.html`** computes the layout in the browser with the whole engine and embeds it in the page it produces. `tests/headless_layout_check.mjs` holds that Node and the browser compute identical geometry (eight fixtures, every state, numbers compared exactly).
+- **The `<architecture-diagram>` element** requires geometry and loads the runtime engine.
+- **The self-check in the page covers every stored state**, and the model checks (duplicate or unknown nodes, wire endpoints, flow steps) run with it.
+
+Measured after the change (offline single-file pages, `tests/stored_geometry_check.mjs`): pages are 675 to 954 KB against about 2.4 MB in 2.1.1, and ready in 0.3 to 0.4 s on all nine fixtures.
+
+What it costs:
+
+- **Node.js is needed to build.** Python alone no longer produces a page unless a geometry file already exists.
+- **Storing every reachable state surfaces findings the bounded matrix did not reach.** The Test System example reports 18 self-check findings in expansion states beyond the old matrix, and 8 in states the old matrix covered when it is checked outside a browser. The builder passes findings on as warnings; `store_geometry.mjs` fails on them unless `--allow-findings` is given.
+- **The test suite is slower**, because every page a test builds has its layout computed first; the geometry cache absorbs repeated builds.
+- **The runtime file is generated and checked in.** Editing the engine means running `npm run gen-runtime`.
 
 ## Parity matrix (TASK-035)
 

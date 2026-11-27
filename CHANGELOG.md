@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- **TASK-039** (feat, breaking): Layout is computed when a diagram is built and stored in the page; the page no longer lays anything out. `build_bundle.py` always embeds the geometry and computes it itself with `store_geometry.mjs` when no `--geometry` file is given, which needs Node.js 24 or newer; computed geometry is cached by model and engine. The delivered page loads `diagram-runtime.js`, generated from `diagram-engine.js` by `scripts/gen_runtime_engine.mjs` without any placement code (140 KB against 226 KB), and no dagre or ELK: offline single-file pages are 0.7 to 1 MB against about 2.4 MB and ready in about 0.4 s. `translate.html` computes the layout in the browser and embeds it in the page it produces. The `<architecture-diagram>` element requires a geometry file and the runtime engine. Each state is laid out the way the self-check lays it out, the page's self-check covers every stored state, and the model checks run with it. Tests that exercised layout in the page now run on stored pages or load the whole engine (`tests/full_engine.mjs`); `headless_layout_check.mjs` holds that Node and a browser compute identical geometry, and `runtime_engine.test.mjs` that the runtime engine matches the whole engine. Validated: `npm test`. Docs: updated README.md, docs/, the skills' SKILL.md and references/, skills/archnime-renderer/tests/README.md.
+
+### Removed
+
+- **TASK-039**: Layout in the page. The dagre and ELK script tags, the Tune layout button with its strategy list and Keep wires box (use `build_bundle.py --tune`), the layout refresh around printing, the larger boundary chip in presenter mode, and the `diagram-engine.js` sidecar of a built bundle (now `diagram-runtime.js`). A model with no geometry is not rendered: `template.html` opened unbuilt and an `<architecture-diagram>` without `geometry-src` show a message. The renderer that laid out in the page is archived as the tag `legacy-runtime-layout` and the branch `legacy/2.x`, for reference only.
+
 ### Added
 
 - **TASK-032** (docs): Record the build-time layout decision and its evidence in `docs/build-time-layout.md` (current renderer to be archived by tag and branch, old runtime not kept, removal gated on a parity check; no renderer change yet), link it from the README, and add the follow-up tasks to `TODO.md` under a `build-time-layout` lane. Validated: `npm run check-skills`. Docs: added docs/build-time-layout.md, updated README.md, TODO.md.

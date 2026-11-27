@@ -50,16 +50,21 @@ declared intent: a fixture may be expected to fail a specific check.
    For directional graphs, verify upstream/downstream rank order after
    cleanup and verify that explicit trust boundaries exclude foreign nodes.
    For every route mode, distinguish the requested wire family from the
-   actual painted geometry and record any fallback reason. When ELK is available, compare the same model under its selected automatic
-   or explicit ELK layout and the dagre fallback; a new issue class, missing
+   actual painted geometry and record any fallback reason. Layout is computed
+   when the diagram is built and stored in the page; the page loads no layout
+   library, so backend comparison is a build-time check. When ELK is available
+   to the build, compare the same model built under its selected automatic
+   or explicit ELK layout and under dagre; a new issue class, missing
    node, or changed semantic scope is a failure. If ELK is unavailable, report
    the backend parity check as an environment limitation rather than a pass.
 5. **Validate behavior.** Exercise the available controls and meaningful
    states: navigation, search/focus, hierarchy disclosure, perspective/filter
    changes, zoom/fit, keyboard access, reduced motion, responsive sizing,
-   exports, the ELK retry action, and embedded/static modes. After an ELK retry,
-   confirm node identity, package/boundary membership, wire endpoints, and
-   self-check status are unchanged or improved. Do not claim browser validation
+   exports, and embedded/static modes. Tune layout is a build option
+   (`build_bundle.py --tune` or `store_geometry.mjs --tune`), not a control in
+   the page: after a tuned build, confirm node identity, package/boundary
+   membership, wire endpoints, and self-check status are unchanged or improved
+   compared with the untuned build. Do not claim browser validation
    when the required browser runtime is unavailable.
 6. **Validate documentation fidelity.** For any documentation handoff,
    validate the static documentation SVG independently from the interactive
@@ -87,7 +92,7 @@ tool for the input contract:
 | Architecture YAML | `python3 archnime-dsl/scripts/validate_transition_diagram.py <source.yaml> --format json` | schema/lint findings and exit code |
 | Arbitrary YAML/JSON/HTML artifact | `python3 archnime-validation/scripts/validate_artifact.py <path> --format json` | machine-readable `PASS`, `FAIL`, `SKIP`, or `UNSUPPORTED` report |
 | Validated YAML to model | `python3 archnime-dsl/scripts/translate_transition_diagram.py <source.yaml> --output <model.json>` | normalized IDs, wires, views, and stages |
-| Portable model to HTML | `python3 archnime-renderer/scripts/build_bundle.py --template archnime-renderer/assets/template.html --model <model.json> --output <diagram.html>` | reproducible bundle plus sidecars or explicit inline delivery mode |
+| Portable model to HTML | `python3 archnime-renderer/scripts/build_bundle.py --template archnime-renderer/assets/template.html --model <model.json> --output <diagram.html>` | reproducible bundle with the layouts stored in it (computed at build time; needs Node.js 24+ on `PATH`), plus sidecars or explicit inline delivery mode; self-check findings are printed as warnings |
 | Rendered artifact | `node archnime-renderer/tests/render_check.mjs [name]` | self-check, geometry, interaction, and backend results |
 | Browser translation/parity | `node archnime-renderer/tests/translate_check.mjs` | positive examples, expected invalid findings, and model parity |
 | Expected failure | run the canonical validator against the declared fixture | the named error is expected; unrelated errors are not |
@@ -113,7 +118,7 @@ renderer browser harness is run.
   assumptions about paths, package managers, browsers, containers, or layout
   engines.
 - Treat D3 as a presentation/runtime concern and ELK, dagre, or force as
-  replaceable layout backends. Validation should compare their semantic and
+  replaceable build-time layout backends. Validation should compare their semantic and
   geometry contracts, not require one backend's coordinates.
 - Report unsupported checks separately from failures. A skipped browser or
   container check is an environment limitation, not a passing result.
