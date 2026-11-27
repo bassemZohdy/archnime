@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [3.0.2] - 2026-11-27
+
 ### Fixed
 
 - **FIX-043** (fix): The page opens fitted to what the stages draw, not to the whole 1600 x 900 canvas, so text on diagrams that fill a small part of the canvas is larger: at 1280 px the smallest text is 7.5 px (was 6.1) on `strangler-migration` and 6.5 px (was 5.5) on `checkout-flow`. The `Fit` button now fits in canvas units too; it had mixed window pixels with canvas units. The 12 px target is still not met and the gate holds the new values: reaching it needs larger fonts, which change every stored layout. From: TASK-037. Validated: `node skills/archnime-renderer/tests/playback_gate_check.mjs` (the recorded floors were raised first and failed), `npm test`. Docs: updated docs/archnime-renderer.md, docs/build-time-layout.md.
@@ -88,7 +90,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **FIX-008** (fix): Make the browser validator and translator agree with the Python reference on valid, invalid and malformed input. Ref: architecture-diagram-dsl/references/runtime.md. Validated: `node architecture-diagram-dsl/tests/browser_validator_check.mjs`. Docs: updated architecture-diagram-dsl/references/dsl-reference.md. Includes: FIX-008.1, FIX-008.2, FIX-008.3.
 - **FIX-007** (fix): Measure documentation SVG bounds with the presenter viewport transform removed so pan/zoom cannot shift the rounded viewBox. Ref: architecture-diagram-renderer/references/documentation-export.md. Validated: `node architecture-diagram-renderer/tests/render_check.mjs checkout-flow`.
 
-[Unreleased]: https://github.com/bassemZohdy/archnime/compare/v3.0.1...HEAD
+[Unreleased]: https://github.com/bassemZohdy/archnime/compare/v3.0.2...HEAD
+[3.0.2]: https://github.com/bassemZohdy/archnime/compare/v3.0.1...v3.0.2
 [3.0.1]: https://github.com/bassemZohdy/archnime/compare/v3.0.0...v3.0.1
 [3.0.0]: https://github.com/bassemZohdy/archnime/compare/v2.1.1...v3.0.0
 [2.1.1]: https://github.com/bassemZohdy/archnime/compare/v2.1.0...v2.1.1
