@@ -1,0 +1,65 @@
+{
+  "meta": {
+    "title": "Three levels of nested packages",
+    "subtitle": "A platform holding two domains, one of which holds a further package, with wires that cross every level",
+    "layout": "auto",
+    "direction": "LR",
+    "levels": ["Context", "Container", "Component"],
+    "gif": { "fps": 8, "maxDurationMs": 9000 }
+  },
+  "canvas": { "w": 2200, "h": 1200, "minWidth": 1180 },
+  "catalog": {
+    "shopper": { "label": "Shopper", "detail": "web and mobile", "type": "actor", "shape": "actor", "kind": "existing", "w": 150, "h": 58, "level": "Context" },
+    "gateway": { "label": "API gateway", "detail": "routing", "type": "gateway", "shape": "gateway", "kind": "existing", "w": 160, "h": 68, "level": "Container" },
+    "orders": { "label": "Orders", "detail": "order lifecycle", "type": "service", "shape": "service", "kind": "existing", "w": 150, "h": 64, "level": "Container" },
+    "orderDb": { "label": "Order store", "detail": "source of truth", "type": "database", "shape": "db", "kind": "existing", "w": 160, "h": 80, "level": "Component" },
+    "outbox": { "label": "Outbox relay", "detail": "publishes changes", "type": "service", "shape": "service", "kind": "new", "w": 160, "h": 64, "level": "Component" },
+    "payments": { "label": "Payments", "detail": "authorise and capture", "type": "service", "shape": "service", "kind": "existing", "w": 160, "h": 64, "level": "Container" },
+    "ledger": { "label": "Ledger", "detail": "double entry", "type": "database", "shape": "db", "kind": "existing", "w": 150, "h": 80, "level": "Component" },
+    "events": { "label": "Order events", "detail": "durable topic", "type": "topic", "shape": "queue", "kind": "existing", "w": 165, "h": 56, "level": "Component" },
+    "reporting": { "label": "Reporting", "detail": "daily figures", "type": "service", "shape": "service", "kind": "existing", "w": 150, "h": 64, "level": "Container" }
+  },
+  "packages": {
+    "persistence": { "label": "Order persistence", "detail": "store and relay", "level": "Component", "children": ["orderDb", "outbox"] },
+    "orderDomain": { "label": "Order domain", "detail": "service and its persistence", "level": "Container", "children": ["orders", "persistence"] },
+    "paymentDomain": { "label": "Payment domain", "detail": "service and ledger", "level": "Container", "children": ["payments", "ledger"] },
+    "platform": { "label": "Commerce platform", "detail": "both domains", "level": "Container", "children": ["orderDomain", "paymentDomain"] }
+  },
+  "stages": [
+    {
+      "id": "current",
+      "title": "Orders write straight to the topic",
+      "summary": "The order service stores the order and publishes the event itself.",
+      "nodes": [{ "id": "shopper" }, { "id": "gateway" }, { "id": "orders" }, { "id": "orderDb" }, { "id": "payments" }, { "id": "ledger" }, { "id": "events" }, { "id": "reporting" }],
+      "expandedPackages": ["platform", "orderDomain", "paymentDomain", "persistence"],
+      "wires": [
+        { "from": "shopper", "to": "gateway", "type": "data", "label": "place order", "flow": true },
+        { "from": "gateway", "to": "orders", "type": "data", "label": "create order", "flow": true },
+        { "from": "orders", "to": "orderDb", "type": "data", "label": "store order", "flow": true },
+        { "from": "orders", "to": "payments", "type": "data", "label": "authorise", "flow": true },
+        { "from": "payments", "to": "ledger", "type": "data", "label": "post entry", "flow": false },
+        { "from": "orders", "to": "events", "type": "data", "label": "order placed", "flow": true },
+        { "from": "events", "to": "reporting", "type": "data", "label": "order placed", "flow": false }
+      ],
+      "changed": []
+    },
+    {
+      "id": "outbox",
+      "title": "An outbox relay publishes the event",
+      "summary": "The relay inside the innermost package reads the store and publishes, so the wire to the topic now leaves three levels of nesting.",
+      "nodes": [{ "id": "shopper" }, { "id": "gateway" }, { "id": "orders" }, { "id": "orderDb" }, { "id": "outbox" }, { "id": "payments" }, { "id": "ledger" }, { "id": "events" }, { "id": "reporting" }],
+      "expandedPackages": ["platform", "orderDomain", "paymentDomain", "persistence"],
+      "wires": [
+        { "from": "shopper", "to": "gateway", "type": "data", "label": "place order", "flow": true },
+        { "from": "gateway", "to": "orders", "type": "data", "label": "create order", "flow": true },
+        { "from": "orders", "to": "orderDb", "type": "data", "label": "store order", "flow": true },
+        { "from": "orders", "to": "payments", "type": "data", "label": "authorise", "flow": true },
+        { "from": "payments", "to": "ledger", "type": "data", "label": "post entry", "flow": false },
+        { "from": "orderDb", "to": "outbox", "type": "data", "label": "read changes", "flow": true },
+        { "from": "outbox", "to": "events", "type": "data", "label": "order placed", "flow": true },
+        { "from": "events", "to": "reporting", "type": "data", "label": "order placed", "flow": false }
+      ],
+      "changed": ["outbox"]
+    }
+  ]
+}

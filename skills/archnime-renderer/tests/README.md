@@ -213,15 +213,15 @@ improvement rather than treated as parity drift.
 
 Loads the vendored D3, dagre and ELK, the library and `diagram-engine.js` into a
 plain Node context with no `document`, runs `DiagramEngine.layoutStage` for every
-stage of five fixtures (flat, nested packages, flow, one laid out by ELK, one by
-the force engine) and writes the geometry as JSON: node, package and boundary
+stage of seven fixtures (flat, nested packages, flow, one laid out by ELK, one by
+the force engine, a free-form mesh and three levels of packages) and writes the geometry as JSON: node, package and boundary
 boxes, wire routes and label positions, canvas and engine. It then builds the
 offline page for each fixture, asks the engine in that page for the same stages
 with the options `template.html` uses, and fails when any value differs (numbers
 are compared exactly, not rounded). The layout the page painted on load must
-equal one of the headless stages. Prints the headless time and geometry size per
+equal one of the headless stages. Prints the headless and in-page layout time and the geometry size per
 fixture; `--out <dir>` keeps the JSON. The headless half needs no browser.
-Covers TASK-034, the evidence for [build-time layout](../../../docs/build-time-layout.md).
+Covers TASK-034 and TASK-036, the evidence for [build-time layout](../../../docs/build-time-layout.md).
 
 ## `routing_stability_check.mjs` — wire-style switches keep placement
 
@@ -298,6 +298,8 @@ Run `npm run check-fixtures` in CI and before rendering a changed translator.
 | `force-mesh-packages.json` | hand-authored | `force` layout with two expanded packages and disjoint boundaries |
 | `stage-scoped-collapse.json` | hand-authored | per-stage expansion defaults and interactive-override isolation across a 3-state transition |
 | `wire-routing-style.json` | hand-authored | explicit parallel-wire lanes, bundled secondary routes, all routing styles, node-over-wire paint order, and Tune layout |
+| `free-form-mesh.json` | hand-authored (TASK-036) | a flat peer mesh with call cycles and no lane or rank order, across two stages; checks layout on a diagram that is not lane-aligned |
+| `nested-three-levels.json` | hand-authored (TASK-036) | packages nested three deep under `auto` (ELK), with a second stage whose new wire leaves the innermost package |
 
 The `assets/examples/boundary-label-collision-model.json` model is a
 cross-cutting-boundary acceptance fixture. Decision: shared membership across

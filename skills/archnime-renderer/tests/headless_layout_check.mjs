@@ -8,7 +8,7 @@
  * the two geometries differ. It also compares the layout the page actually
  * painted on load with the headless geometry of that stage.
  *
- * Reports, per fixture: headless layout time, geometry size, and whether the
+ * Reports, per fixture: layout time headless and in the page, geometry size, and whether the
  * headless result equals the in-page result.
  *
  *   node skills/archnime-renderer/tests/headless_layout_check.mjs [--out <dir>]
@@ -37,6 +37,9 @@ const FIXTURES = [
   // Beyond the three the task names: the two layout engines the others do not reach.
   { name: "orthogonal-routing", shape: "nested packages, ELK" },
   { name: "force-mesh-packages", shape: "nested packages, force" },
+  // TASK-036: shapes the lane-aligned comparison diagram did not have.
+  { name: "free-form-mesh", shape: "free-form, no lanes" },
+  { name: "nested-three-levels", shape: "three levels of packages" },
 ];
 const required = process.env.REQUIRE_BROWSER_TESTS === "1";
 const outFlag = process.argv.indexOf("--out");
@@ -107,11 +110,10 @@ try {
   for (const { name, shape } of FIXTURES) {
     const model = JSON.parse(readFileSync(join(HERE, "fixtures", `${name}.json`), "utf8"));
     const started = performance.now();
-    const DiagramEngine = loadHeadlessEngine();
-    const stages = [];
-    for (let index = 0; index < model.stages.length; index += 1) {
-      stages.push({ stage: model.stages[index].id, geometry: geometryOf(await DiagramEngine.layoutStage(model, index)) });
-    }
+    // One engine per model, as a build step would use it: prepare once, then every stage.
+    const engine = loadHeadlessEngine().create(model);
+    await engine.ready;
+    const stages = engine.model.stages.map(stage => ({ stage: stage.id, geometry: geometryOf(engine.layoutStage(stage)) }));
     const ms = performance.now() - started, json = JSON.stringify({ fixture: name, stages });
     writeFileSync(join(work, `${name}.geometry.json`), json);
     stages.forEach(({ stage, geometry }) => { if (!geometry.nodes.length) failures.push(`${name}/${stage}: headless layout returned no nodes`); });
@@ -140,10 +142,11 @@ try {
         const geometryOf = ${GEOMETRY_SOURCE};
         // The same options template.html passes when it creates its engine.
         const options = { document, tokenRoot: document.documentElement, presenterRoot: document.body };
-        const stages = [];
-        for (let index = 0; index < model.stages.length; index += 1) stages.push(geometryOf(await window.DiagramEngine.layoutStage(model, index, options)));
+        const started = performance.now(), engine = window.DiagramEngine.create(model, options);
+        await engine.ready;
+        const stages = engine.model.stages.map(stage => geometryOf(engine.layoutStage(stage))), ms = performance.now() - started;
         const painted = window.__diagramLayoutForTest && window.__diagramLayoutForTest();
-        return { stages, painted: painted ? { stage: painted.stage?.id ?? painted.stageId ?? null, geometry: geometryOf(painted) } : null };
+        return { stages, ms, painted: painted ? { stage: painted.stage?.id ?? painted.stageId ?? null, geometry: geometryOf(painted) } : null };
       })(${JSON.stringify(model)})`);
       await page.close();
       errors.forEach(error => failures.push(`${row.name}: page error ${error}`));
@@ -159,6 +162,7 @@ try {
         diffs.push(`painted layout matches no headless stage; nearest ${nearest.stage} differs at ${nearest.first}`);
       }
       row.equal = diffs.length ? "NO" : "yes";
+      row.pageMs = inPage.ms;
       diffs.forEach(diff => failures.push(`${row.name}/${diff}`));
     }
   }
@@ -167,7 +171,7 @@ try {
   if (!keep) rmSync(work, { recursive: true, force: true });
 }
 
-for (const row of rows) console.log(`${row.name} (${row.shape}): ${row.stages} stage(s), ${row.nodes} node(s), engine ${row.engine}, headless ${row.ms.toFixed(0)} ms, geometry ${row.bytes} bytes, equals in-page: ${row.equal}`);
+for (const row of rows) console.log(`${row.name} (${row.shape}): ${row.stages} stage(s), ${row.nodes} node(s), engine ${row.engine}, headless ${row.ms.toFixed(0)} ms${row.pageMs === undefined ? "" : `, in-page ${row.pageMs.toFixed(0)} ms`}, geometry ${row.bytes} bytes, equals in-page: ${row.equal}`);
 if (keep) console.log(`geometry written to ${keep}`);
 if (failures.length) {
   failures.forEach(failure => console.log(`FAIL ${failure}`));

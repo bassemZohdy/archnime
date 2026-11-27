@@ -81,7 +81,17 @@
       "orthogonal": 0,
       "direct": 0
     },
+    "fixtures/free-form-mesh": {
+      "curved": 0,
+      "orthogonal": 0,
+      "direct": 0
+    },
     "fixtures/min-wire-length": {
+      "curved": 0,
+      "orthogonal": 0,
+      "direct": 0
+    },
+    "fixtures/nested-three-levels": {
       "curved": 0,
       "orthogonal": 0,
       "direct": 0
