@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- **TASK-040** (docs): Close the optional GSAP spike without a prototype and record why in `docs/build-time-layout.md`: the GSAP licence is proprietary, revocable and restricts no-code animation tools, so GSAP cannot be vendored in this repository, and the regression gate could not have shown a gain. The page keeps its own animation. Validated: `npm run check-skills`. Docs: updated docs/build-time-layout.md, TODO.md.
+
 ## [3.0.0] - 2026-11-27
 
 ### Changed

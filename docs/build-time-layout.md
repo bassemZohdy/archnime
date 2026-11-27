@@ -134,6 +134,19 @@ What it costs:
 - **The test suite is slower**, because every page a test builds has its layout computed first; the geometry cache absorbs repeated builds.
 - **The runtime file is generated and checked in.** Editing the engine means running `npm run gen-runtime`.
 
+## GSAP as the animation layer: not adopted (TASK-040)
+
+The comparison left one question open: would a GSAP animation layer on the stored geometry do better than the page's own animation? The task said to read the GSAP licence first. That reading settled it, and no prototype was built. This is a reading of the licence text, not legal advice.
+
+The licence is the GSAP "Standard No Charge License", owned by Webflow, effective 30 April 2025 and last modified 30 May 2025, read on 2026-11-27 at <https://gsap.com/community/standard-license/>.
+
+- **It is not an open-source licence.** It grants a licence to use, reproduce, display and implement GSAP for permitted uses, and all rights stay with Webflow. This repository vendors each library it delivers with its licence file, so pages work offline, and is published under MIT and Apache-2.0. GSAP could not be shipped on those terms.
+- **It can be revoked and changed.** Webflow may terminate it for non-compliance and may amend it by posting new terms; staying on an earlier version means taking no updates.
+- **Its prohibited use is wider than "a visual builder".** It covers tools that let users build visual animations without code and that help create something competing with Webflow's animation building. archnime produces animated diagrams from a YAML specification with no animation code. It probably does not compete, but the licence leaves that judgement to Webflow, and its FAQ says to ask when unsure.
+- **The gate could not have shown much.** Of the four measurements in the regression gate (TASK-037), text size and run length do not depend on the animation library. The one animation defect the gate found, flow dashes that keep moving after Pause, is a fix in the page's own CSS.
+
+Decision, agreed with the owner on 2026-11-27: GSAP is not adopted and was not measured. The page keeps its own animation (D3 transitions and CSS keyframes). Reopen only if GSAP is offered under an open-source licence, or if a measured need appears that the page's own animation cannot meet.
+
 ## Parity matrix (TASK-035)
 
 Status of every renderer feature once geometry is stored at build time and delivered diagrams no longer load dagre, ELK or the force layout. The statuses come from reading `template.html` and `diagram-engine.js` and from the spike above; none has been built. The owner agreed the four rows that needed a decision on 2026-11-27 (Tune layout, loading a specification with no build step, package expansion, presenter mode). A stored geometry belongs to one layout state: a stage and a set of expanded packages.
@@ -180,9 +193,9 @@ The canonical YAML, the validators, the SVG documentation export, the aggregator
 - Opening a specification directly in the page with no build step would no longer be laid out. The parity matrix must say whether that use is dropped or served some other way.
 - Stored geometry can drift from the model; the hash check turns drift into a build failure.
 - Does the same approach hold on a free-form, non-lane-aligned diagram?
-- Would a GSAP animation layer on the same layout do better than the plain Web Animations runtime? Not tested.
+- Would a GSAP animation layer on the same layout do better than the plain Web Animations runtime? Not tested, and closed on the licence: see "GSAP as the animation layer" above.
 - Any change to the renderer needs the existing renderer tests, fixtures and browser checks to pass (see `AGENTS.md`).
 
 ## Plan
 
-The tasks are in [TODO.md](../TODO.md), under the `build-time-layout` lane: archive, spike, parity gate, fixtures and regression gate, stored geometry, then the 3.0.0 release that removes the old runtime. Optional GSAP spike after the release.
+The tasks are in [TODO.md](../TODO.md), under the `build-time-layout` lane: archive, spike, parity gate, fixtures and regression gate, stored geometry, then the 3.0.0 release that removes the old runtime. The optional GSAP spike was closed on its licence without a prototype.
