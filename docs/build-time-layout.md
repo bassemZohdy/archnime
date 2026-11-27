@@ -27,9 +27,30 @@ One run per option, so these are leads to test, not proven rankings.
 
 ## How this relates to archnime today
 
-As described in [archnime-renderer.md](archnime-renderer.md), archnime lays diagrams out in the page with ELK, dagre or force (chosen by `meta.layout`), and the interactive HTML loads D3, dagre, ELK and GIF libraries from pinned runtime URLs. The layout and self-check engine, `assets/diagram-engine.js`, is also used outside the page so geometry can be validated without rendering. That suggests geometry could be produced before the page is built, but this has not been tried.
+As described in [archnime-renderer.md](archnime-renderer.md), archnime lays diagrams out in the page with ELK, dagre or force (chosen by `meta.layout`), and the interactive HTML loads D3, dagre, ELK and GIF libraries from pinned runtime URLs. The layout and self-check engine, `assets/diagram-engine.js`, is also used outside the page so geometry can be validated without rendering. That suggests geometry could be produced before the page is built; the spike below tried it.
 
 The evidence above came from a deliberately small, lane-aligned diagram. archnime serves larger and more varied models (nested packages, trust boundaries, perspectives, tuning), so it does not show that the same approach carries over.
+
+## Spike: the engine without a page (TASK-034)
+
+`skills/archnime-renderer/tests/headless_layout_check.mjs` runs `DiagramEngine.layoutStage` in plain Node, with no browser and no `document`, and compares the result with what the engine computes inside the built page. One run on one machine (Windows, Node 24), default expansion state only:
+
+| Fixture | Shape | Engine | Stages | Headless time | Geometry JSON | Equals in-page |
+|---|---|---|---|---|---|---|
+| `orders-failover-scenarios` | flat | dagre | 3 | 0.3 s | 20.8 KB | yes |
+| `deep-nested-crosscut` | nested packages | dagre | 1 | 3.0 s | 21.0 KB | yes |
+| `checkout-flow` | flow | dagre | 1 | 0.2 s | 12.9 KB | yes |
+| `orthogonal-routing` | nested packages | ELK | 2 | 0.6 s | 25.1 KB | yes |
+| `force-mesh-packages` | nested packages | force | 1 | 15.9 s | 26.1 KB | yes |
+
+What this shows and what it does not:
+
+- Equal means every number is identical, not rounded: node, package and boundary boxes, wire routes, label positions and canvas. The layout each page painted on load also equals a headless stage.
+- The engine needed no change. Text is measured from the pinned Inter advance table and sizes come from the static tokens, which match the page's CSS tokens outside presenter mode.
+- Geometry is 6 to 25 KB per stage uncompressed, most of it wire routes. A page with many stages and expansion states stores one geometry per state it can show.
+- The ELK bundle runs in Node only when the context has no `self`; with `self` and no `document` it takes itself for a web worker. A build step has to load it that way.
+- The force layout took 16 s headless for nine nodes. Build time for force diagrams is a cost to measure before FEAT-038.
+- Not covered: presenter mode (it changes the chip size token, so its geometry is a separate state), package expansion states other than the default, tuned layouts, perspectives, comparison and deployment views, and custom `measureContext` fonts. These are rows for the parity matrix (TASK-035).
 
 ## Decision
 

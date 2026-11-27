@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - **TASK-032** (docs): Record the build-time layout decision and its evidence in `docs/build-time-layout.md` (current renderer to be archived by tag and branch, old runtime not kept, removal gated on a parity check; no renderer change yet), link it from the README, and add the follow-up tasks to `TODO.md` under a `build-time-layout` lane. Validated: `npm run check-skills`. Docs: added docs/build-time-layout.md, updated README.md, TODO.md.
+- **TASK-034** (test): Add `headless_layout_check.mjs`, which runs `DiagramEngine.layoutStage` in plain Node with no page on five fixtures (flat, nested packages, flow, ELK, force), writes the geometry as JSON and fails when it differs from what the engine computes in the built page; wired into `npm run test:browser`. Result recorded in `docs/build-time-layout.md`: identical geometry on all five, 0.2 to 16 s, 13 to 26 KB. No renderer change. Validated: `node skills/archnime-renderer/tests/headless_layout_check.mjs`, `npm test`. Docs: updated docs/build-time-layout.md, skills/archnime-renderer/tests/README.md.
 
 ## [2.1.1] - 2026-11-22
 
