@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [3.0.1] - 2026-11-27
+
 ### Fixed
 
 - **FIX-041** (fix): Pause now freezes the animated flow dashes too. In a flow walkthrough the dashes on the active wires kept moving after Pause; they stop until Play is pressed or another step is opened. From: TASK-037. Validated: `node skills/archnime-renderer/tests/playback_gate_check.mjs` (the `movingWhenPaused` known gap is removed), `npm test`. Docs: updated docs/build-time-layout.md.
@@ -82,7 +84,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **FIX-008** (fix): Make the browser validator and translator agree with the Python reference on valid, invalid and malformed input. Ref: architecture-diagram-dsl/references/runtime.md. Validated: `node architecture-diagram-dsl/tests/browser_validator_check.mjs`. Docs: updated architecture-diagram-dsl/references/dsl-reference.md. Includes: FIX-008.1, FIX-008.2, FIX-008.3.
 - **FIX-007** (fix): Measure documentation SVG bounds with the presenter viewport transform removed so pan/zoom cannot shift the rounded viewBox. Ref: architecture-diagram-renderer/references/documentation-export.md. Validated: `node architecture-diagram-renderer/tests/render_check.mjs checkout-flow`.
 
-[Unreleased]: https://github.com/bassemZohdy/archnime/compare/v3.0.0...HEAD
+[Unreleased]: https://github.com/bassemZohdy/archnime/compare/v3.0.1...HEAD
+[3.0.1]: https://github.com/bassemZohdy/archnime/compare/v3.0.0...v3.0.1
 [3.0.0]: https://github.com/bassemZohdy/archnime/compare/v2.1.1...v3.0.0
 [2.1.1]: https://github.com/bassemZohdy/archnime/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/bassemZohdy/archnime/releases/tag/v2.1.0
