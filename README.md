@@ -28,6 +28,7 @@ This repository is one plugin, `archnime`, that holds all five skills in `skills
 | GitHub Copilot (CLI and VS Code) | `copilot plugin marketplace add bassemZohdy/archnime`, then `copilot plugin install archnime@archnime` |
 | Cursor and other Agent Plugins hosts | Add `https://github.com/bassemZohdy/archnime` as a plugin source; the root `plugin.json` follows the [Agent Plugins](https://agent-plugins.org/) standard |
 | Any Agent Skills tool | `npx skills add bassemZohdy/archnime` |
+| GitHub CLI (`gh skill`, preview) | `gh skill install bassemZohdy/archnime --all`, then pick the agent with `--agent` and the place with `--scope`; it installs the latest tagged release. Without `--all` it lists the five skills |
 
 ### One command, no plugin system
 
@@ -37,7 +38,7 @@ npx --yes github:bassemZohdy/archnime
 
 This copies the five skills into `~/.claude/skills` (Claude Code, for you). Add `--project` for `./.claude/skills` (this project only), `--target agents` for `~/.agents/skills` (tools that read the shared Agent Skills folder), `--dest <folder>` for any other skills folder, and `--dry-run` to see what would be copied. It copies each skill without its tests, replaces only folders an earlier run of it wrote (`--force` to replace others), downloads nothing beyond the package itself, and then tells you whether Python with `pyyaml` and `jsonschema` is ready. From a clone, `node scripts/install.mjs` does the same. Tested: a dry run and an install into a temporary folder (`npm run test:install`) and `npx` on a local checkout; the `github:` form runs the same `bin` once the branch is pushed.
 
-Evidence, so you know what was run: `claude plugin validate . --strict` passes for the plugin and for `.claude-plugin/marketplace.json`; `codex plugin marketplace add` accepts `.agents/plugins/marketplace.json` and lists it; `gemini extensions validate .` passes. Installing from a published copy into Cursor was not run, so that route follows the vendor documentation only.
+Evidence, so you know what was run: `claude plugin validate . --strict` passes for the plugin and for `.claude-plugin/marketplace.json`; `codex plugin marketplace add` accepts `.agents/plugins/marketplace.json` and lists it; `gemini extensions validate .` passes. `gh skill install bassemZohdy/archnime` finds all five skills at the latest release tag, and `gh skill publish --dry-run` passes; the install itself was not run. Installing from a published copy into Cursor was not run, so that route follows the vendor documentation only.
 
 Commands inside each `SKILL.md` and its `references/` are written relative to the folder that holds the skills (`skills/` in this repository, the skills install folder elsewhere), so `archnime-dsl/scripts/...` works in both places. Commands in this README and in `docs/` are relative to the repository root.
 
