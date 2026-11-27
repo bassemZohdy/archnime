@@ -117,7 +117,10 @@ instead of `src` for an inline model. `stage` is one-based and also selects a
 flow step or scenario variant according to the model. `mode="static"` freezes
 the presentation and hides interaction chrome. `controls` accepts `full`,
 `minimal`, or `none`; `perspective` selects one of the renderer's available
-perspectives. The component keeps DOM queries, D3 selection, token lookup,
+perspectives. Add `geometry-src="orders.model.geometry.json"` (the file
+`store_geometry.mjs` writes, or an inline `application/json` script marked
+`data-geometry`) and the element shows those layouts without placing anything, so
+the page needs no Dagre or ELK script. The component keeps DOM queries, D3 selection, token lookup,
 keyboard listeners, layout cache, and exported helper methods inside its
 shadow root so multiple diagrams can coexist on one page.
 

@@ -8,6 +8,12 @@
  * Required globals, loaded in this order by the host page:
  *   architecture-library.js, d3, dagre (optional), elkjs (optional),
  *   diagram-engine.js, architecture-diagram-element.js
+ *
+ * Stored geometry (FEAT-038): give the element the file store_geometry.mjs wrote,
+ * as a `geometry-src` attribute or an `application/json` child script marked
+ * `data-geometry`, and it shows those layouts and places nothing, so the host
+ * page needs neither dagre nor elkjs. A geometry that does not belong to the
+ * model is reported as an error; the element does not fall back to layout.
  */
 (function (global) {
   "use strict";
@@ -16,10 +22,10 @@
     ? new URL(".", global.document.currentScript.src)
     : new URL(".", global.document.baseURI);
   const templateUrl = new URL("./template.html", scriptBase);
-  const observed = ["src", "stage", "mode", "perspective", "controls"];
+  const observed = ["src", "geometry-src", "stage", "mode", "perspective", "controls"];
 
   function modelFromInline(element) {
-    const script = element.querySelector('script[type="application/json"]');
+    const script = element.querySelector('script[type="application/json"]:not([data-geometry])');
     if (!script) return null;
     return JSON.parse(script.textContent || "{}");
   }
@@ -151,6 +157,19 @@
       throw new Error("provide a src attribute or an application/json child script");
     }
 
+    async loadGeometry() {
+      const source = this.getAttribute("geometry-src");
+      if (source) {
+        let response;
+        const url = new URL(source, this.ownerDocument.baseURI);
+        try { response = await fetch(url); } catch (error) { throw new Error(`could not fetch geometry ${url}: ${error.message || error}`); }
+        if (!response.ok) throw new Error(`could not load geometry (${response.status})`);
+        return response.json();
+      }
+      const inline = this.querySelector('script[type="application/json"][data-geometry]');
+      return inline ? JSON.parse(inline.textContent || "{}") : null;
+    }
+
     async render() {
       const token = ++this._renderToken;
       this.diagramStatus = "loading";
@@ -158,7 +177,7 @@
       this._runtime?.localWindow.diagramDispose?.();
       this._runtime = null;
       try {
-        const model = await this.loadModel();
+        const model = await this.loadModel(), geometry = await this.loadGeometry();
         let templateResponse;
         try { templateResponse = await fetch(templateUrl); } catch (error) { throw new Error(`could not fetch renderer template ${templateUrl}: ${error.message || error}`); }
         if (!templateResponse.ok) throw new Error(`could not load renderer template (${templateResponse.status})`);
@@ -170,6 +189,13 @@
         body.innerHTML = html;
         const style = this.ownerDocument.createElement("style");
         style.textContent = `${css}\n:host{display:block;contain:content}\nbody.element-static .controls,body.element-static .flow-timeline{display:none!important}\nbody.element-static .node,body.element-static .package-hit{pointer-events:none!important;cursor:default}\nbody.controls-none .controls,body.controls-none .flow-timeline{display:none!important}\nbody.controls-minimal .perspective-tools,body.controls-minimal .search-tools,body.controls-minimal #btn-presenter,body.controls-minimal #btn-print,body.controls-minimal #btn-export-png,body.controls-minimal #btn-export-jpeg,body.controls-minimal #btn-export-gif,body.controls-minimal .hint{display:none!important}`;
+        if (geometry) {
+          // The renderer looks its geometry up by id in its own document, here the shadow root.
+          const holder = this.ownerDocument.createElement("script");
+          holder.type = "application/json"; holder.id = "diagram-geometry";
+          holder.textContent = JSON.stringify(geometry.views ? { views: geometry.views } : { states: geometry.states, layouts: geometry.layouts });
+          body.appendChild(holder);
+        }
         this.shadowRoot.replaceChildren(style, body);
         const doc = scopedDocument(this.shadowRoot, body, this.ownerDocument);
         const state = Object.create(null);

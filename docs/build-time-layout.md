@@ -75,7 +75,7 @@ Three targets are not met today and are recorded as known gaps, which the gate h
 - **Pause on a flow.** Pause stops the steps, but the animated dashes on the active wires keep moving. They cover too few pixels to trip the harness threshold, which is why the gate also counts animating elements.
 - **No loop.** Staged playback stops after the last stage; a flow loops only with `meta.flow.loop`. The harness measured a loop length, so the figure here is one run.
 
-## Stored geometry (FEAT-038, single-view models)
+## Stored geometry (FEAT-038)
 
 `skills/archnime-renderer/scripts/store_geometry.mjs` computes the layouts in Node and `build_bundle.py --geometry` embeds them. It is opt-in: without `--geometry` the build and the page are unchanged.
 
@@ -103,12 +103,16 @@ Measured on seven fixtures (`tests/stored_geometry_check.mjs`, one machine, offl
 - Geometry holds complete layouts, about 15 to 25 KB per state, which is larger than the boxes-only form the parity matrix proposed. Complete layouts made the stored page equal to the run-time page with no new routing code path. Even so every stored page is under half the size of the run-time page, because ELK is 1.6 MB. Trimming to boxes plus rerouting in the page is still open if size matters.
 - Computing geometry in Node took 0.2 s to 7 s per fixture, except `nested-three-levels`, which took 48 s for its 14 ELK states. That is the build cost of the wait the run-time page imposes on every load.
 
-Not done in FEAT-038, and needed before TASK-039 can remove the run-time path:
+The rest of the parity matrix, done after the single-view part:
 
-- multi-view bundles (`views`, comparison and deployment views): `store_geometry.mjs` refuses them;
-- the `<architecture-diagram>` element, which still lays out the model it is given;
-- Tune layout as a build option;
-- `export_svg.mjs` and the documentation exports still use a run-time page.
+- **Multi-view bundles.** The geometry file holds one geometry per view id. The function that merges a view with what the bundle shares moved from the page into the engine (`DiagramEngine.materializeView`), so the build step and the page merge a view with the same code. `commerce-views` (context, deployment and flow views, 10 states, 53 KB) and `comparison-views` (two options, 4 states, 28 KB) equal the run-time page on every step, view by view.
+- **Exports.** The documentation SVG and the animated SVG a stored page exports are byte-identical to those of the run-time page, on the eight fixtures where the two pages are compared to the end (all but the force fixture). `export_svg.mjs` is itself a build-time tool that lays out in its own headless page; it is unchanged.
+- **Tune layout as a build option.** `store_geometry.mjs --tune` runs the page's Tune search for every state and stores the best placement, keeping the wire style. On `orthogonal-routing` it improved 2 of 6 states; two runs give the same file.
+- **The `<architecture-diagram>` element.** It takes the geometry file as `geometry-src` or an inline `data-geometry` script and then places nothing; the check runs it on a host page with neither dagre nor ELK. It has no model file to hash, so the engine refuses a stored layout whose nodes are not the ones the model shows. That catches a changed set of nodes, not a changed label; the builder's hash check catches both.
+
+Still to do in TASK-039, not here: make stored geometry the only path (today it is opt-in), remove placement from the delivered page, and switch the remaining tests and tools that build run-time pages.
+
+One thing the walk turned up in the current renderer, stored or not: in a flow view, collapsing a package is not painted until the next repaint, because the flow's layout is not refreshed on collapse as it is on expand.
 
 ## Parity matrix (TASK-035)
 

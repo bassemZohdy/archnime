@@ -4,9 +4,15 @@
  * For each fixture it computes the geometry (`store_geometry.mjs`), builds the
  * page twice, once the usual way and once with `--geometry`, and drives both
  * through the same steps: every stage, every wire style, collapsing and
- * expanding each package, presenter mode. After each step the layout the page
- * holds and what it painted (node positions, wire paths, package outlines) must
- * be identical in both.
+ * expanding each package, presenter mode, then the documentation SVG and the
+ * animated SVG exports. After each step the layout the page holds and what it
+ * painted (node positions, wire paths, package outlines) must be identical in
+ * both, and so must the exported files. A multi-view bundle is walked view by
+ * view.
+ *
+ * Last, the `<architecture-diagram>` element is given a model and its geometry on
+ * a host page that loads neither dagre nor ELK: it must show the stored layout,
+ * and report a geometry that belongs to another model instead of laying out.
  *
  * The stored page is offline and inline, every network request is refused, and
  * `window.dagre` and `window.ELK` must be undefined: it renders with the layout
@@ -16,9 +22,10 @@
  *   node skills/archnime-renderer/tests/stored_geometry_check.mjs [fixture-name]
  */
 import { execFileSync, execSync } from "node:child_process";
-import { mkdtempSync, rmSync, statSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { extname, join, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { PYTHON } from "../../../scripts/python_command.mjs";
 import { retainWork } from "./retain_artifacts.mjs";
@@ -40,6 +47,9 @@ const FIXTURES = [
   { name: "orthogonal-routing" },
   { name: "nested-three-levels" },
   { name: "force-mesh-packages", historyDependent: true },
+  // Multi-view bundles: context, deployment and flow views; and a comparison of two options.
+  { name: "commerce-views" },
+  { name: "comparison-views", directory: resolve(HERE, "../assets/examples") },
 ].filter(fixture => !process.argv[2] || fixture.name.includes(process.argv[2]));
 const required = process.env.REQUIRE_BROWSER_TESTS === "1";
 
@@ -61,6 +71,7 @@ if (!chromium) {
 const WALK = async () => {
   const wait = ms => new Promise(done => setTimeout(done, ms));
   const settle = async () => { await wait(120); await new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))); };
+  const until = async (settled, timeoutMs = 2500) => { const deadline = performance.now() + timeoutMs; while (performance.now() < deadline) { if (settled()) return true; await wait(40); } return settled(); };
   const box = item => [item.id, item.x, item.y, item.w, item.h];
   const snapshot = () => {
     const layout = window.__diagramLayoutForTest();
@@ -74,7 +85,8 @@ const WALK = async () => {
     });
   };
   const steps = [], record = label => steps.push([label, snapshot()]);
-  const stageButtons = () => [...document.querySelectorAll("#pills button")].filter(button => !button.hidden && button.offsetParent !== null);
+  // In a comparison the pills switch views, not stages; views are walked by the caller.
+  const stageButtons = () => [...document.querySelectorAll("#pills button")].filter(button => !button.hidden && button.offsetParent !== null && !button.dataset.viewId);
   const count = Math.max(1, stageButtons().length), routing = document.getElementById("routing-select");
   for (let index = 0; index < count; index += 1) {
     if (stageButtons()[index]) { stageButtons()[index].click(); await settle(); }
@@ -93,16 +105,26 @@ const WALK = async () => {
     for (const id of expanded) {
       const hit = [...document.querySelectorAll("g.package-hit")].find(element => element.__data__?.id === id);
       if (!hit) continue;
-      hit.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 })); await settle();
+      hit.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+      // A click can be held back briefly to tell it from a double click, so wait for its effect.
+      if (!(await until(() => !window.__diagramLayoutForTest().expanded.has(id)))) continue;
+      await settle();
       record(`${tag} collapse ${id}`);
       const node = document.querySelector(`g.nodes g.node[data-id="${id}"]`);
       if (!node) continue;
-      node.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 })); await wait(450); await settle();
+      node.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+      await until(() => window.__diagramLayoutForTest().expanded.has(id));
+      await settle();
       record(`${tag} expand ${id}`);
     }
   }
   const presenter = document.getElementById("btn-presenter");
-  if (presenter) { presenter.click(); await settle(); steps.push(["presenter boxes", JSON.stringify(window.__diagramLayoutForTest().nodes.map(box).sort())]); presenter.click(); await settle(); }
+  // Presenter mode on, then off again: the boxes are read in both, after the repaint each toggle causes.
+  const boxes = () => JSON.stringify(window.__diagramLayoutForTest().nodes.map(box).sort());
+  if (presenter) { presenter.click(); await settle(); steps.push(["presenter boxes", boxes()]); presenter.click(); await settle(); steps.push(["after presenter boxes", boxes()]); }
+  // Exports are made from the layouts, so they must not differ either.
+  if (window.serializeDocumentationSvg) steps.push(["documentation svg", window.serializeDocumentationSvg()]);
+  if (window.serializeAnimatedSvg) steps.push(["animated svg", await window.serializeAnimatedSvg()]);
   const engine = window.__diagramEngineForTest();
   let missing = null;
   try { engine.layoutStage({ id: "no-such-stage", nodes: [], wires: [] }); missing = "returned a layout"; } catch (error) { missing = String(error.message || error); }
@@ -116,13 +138,14 @@ try {
   browser = await chromium.launch(process.env.BROWSER_EXECUTABLE ? { executablePath: process.env.BROWSER_EXECUTABLE } : undefined);
   for (const fixture of FIXTURES) {
     const fail = message => failures.push(`${fixture.name}: ${message}`);
-    const model = join(HERE, "fixtures", `${fixture.name}.json`), geometry = join(work, `${fixture.name}.geometry.json`);
+    const model = join(fixture.directory || join(HERE, "fixtures"), `${fixture.name}.json`), geometry = join(work, `${fixture.name}.geometry.json`);
     const runtimeHtml = join(work, `${fixture.name}.runtime.html`), storedHtml = join(work, `${fixture.name}.stored.html`);
     execFileSync(process.execPath, [STORE, model, "--output", geometry], { stdio: "pipe" });
     execFileSync(PYTHON, [BUILDER, "--template", TEMPLATE, "--model", model, "--output", runtimeHtml, "--inline", "--offline"], { stdio: "pipe" });
     execFileSync(PYTHON, [BUILDER, "--template", TEMPLATE, "--model", model, "--output", storedHtml, "--inline", "--offline", "--geometry", geometry], { stdio: "pipe" });
 
-    const run = async (html, blockNetwork) => {
+    const bundle = JSON.parse(readFileSync(model, "utf8")), viewIds = Array.isArray(bundle.views) ? bundle.views.map(view => view.viewId) : [null];
+    const run = async (html, blockNetwork, viewId) => {
       // Reduced motion makes every transition instant, so a snapshot is the settled state.
       const page = await browser.newPage({ viewport: { width: 1600, height: 1000 }, reducedMotion: "reduce" });
       const errors = [], requests = [];
@@ -130,7 +153,7 @@ try {
       page.on("console", message => { if (message.type() === "error") errors.push(message.text()); });
       if (blockNetwork) await page.route(url => !/^(file|data|blob):/.test(url.href), route => { requests.push(route.request().url()); return route.abort(); });
       const started = Date.now();
-      await page.goto(pathToFileURL(html).href, { waitUntil: "load", timeout: 120000 });
+      await page.goto(pathToFileURL(html).href + (viewId ? `?view=${encodeURIComponent(viewId)}` : ""), { waitUntil: "load", timeout: 120000 });
       await page.waitForFunction(() => window.diagramReady && document.querySelector("g.nodes g.node"), null, { timeout: 120000 });
       await page.evaluate(() => window.diagramReady);
       const readyMs = Date.now() - started;
@@ -139,7 +162,10 @@ try {
       await page.close();
       return { ...result, errors, requests, readyMs };
     };
-    const runtime = await run(runtimeHtml, false), stored = await run(storedHtml, true);
+    let totalCompared = 0, totalSteps = 0, storedReady = 0, runtimeReady = 0;
+    for (const viewId of viewIds) {
+    const fail = message => failures.push(`${fixture.name}${viewId ? ` view ${viewId}` : ""}: ${message}`);
+    const runtime = await run(runtimeHtml, false, viewId), stored = await run(storedHtml, true, viewId);
 
     stored.errors.forEach(error => fail(`stored page error: ${error}`));
     stored.requests.forEach(url => fail(`stored page asked the network for ${url}`));
@@ -167,9 +193,54 @@ try {
     const stageShot = new Map(stored.steps.filter(([label]) => /^stage \d+$/.test(label)));
     stored.steps.filter(([label]) => / expand /.test(label)).forEach(([label, shot]) => { if (shot !== stageShot.get(label.replace(/ expand .*/, ""))) fail(`"${label}" on the stored page is not the layout the stage opened with`); });
     // Presenter mode reuses the stored geometry: boxes do not move.
-    const presenter = stored.steps.find(([label]) => label === "presenter boxes"), last = stored.steps.filter(([label]) => label !== "presenter boxes").at(-1);
-    if (presenter && last && presenter[1] !== JSON.stringify(JSON.parse(last[1]).nodes)) fail("presenter mode moved node boxes on the stored page");
-    lines.push(`${fixture.name}: ${compared} of ${stored.steps.length - 1} steps compared with the runtime page, all equal${fixture.historyDependent ? " (runtime depends on click history after a collapse)" : ""}; ready in ${stored.readyMs} ms stored, ${runtime.readyMs} ms runtime; page ${(statSync(storedHtml).size / 1024).toFixed(0)} KB stored, ${(statSync(runtimeHtml).size / 1024).toFixed(0)} KB runtime; geometry ${(statSync(geometry).size / 1024).toFixed(0)} KB`);
+    const presenter = stored.steps.find(([label]) => label === "presenter boxes"), after = stored.steps.find(([label]) => label === "after presenter boxes");
+    if (presenter && after && presenter[1] !== after[1]) fail(`presenter mode moved node boxes on the stored page: ${presenter[1].slice(0, 200)} against ${after[1].slice(0, 200)} outside it`);
+    totalCompared += compared; totalSteps += stored.steps.length - 1; storedReady = Math.max(storedReady, stored.readyMs); runtimeReady = Math.max(runtimeReady, runtime.readyMs);
+    }
+    lines.push(`${fixture.name}: ${viewIds.length > 1 ? `${viewIds.length} views, ` : ""}${totalCompared} of ${totalSteps} steps compared with the runtime page, all equal${fixture.historyDependent ? " (runtime depends on click history after a collapse)" : ""}; ready in ${storedReady} ms stored, ${runtimeReady} ms runtime; page ${(statSync(storedHtml).size / 1024).toFixed(0)} KB stored, ${(statSync(runtimeHtml).size / 1024).toFixed(0)} KB runtime; geometry ${(statSync(geometry).size / 1024).toFixed(0)} KB`);
+  }
+
+  // The <architecture-diagram> element with stored geometry, on a host page with no layout library.
+  if (!process.argv[2]) {
+    const SKILLS = resolve(HERE, "../.."), name = "nested-three-levels", other = "deep-nested-crosscut";
+    for (const fixture of [name, other]) execFileSync(process.execPath, [STORE, join(HERE, "fixtures", `${fixture}.json`), "--output", join(work, `${fixture}.element.geometry.json`)], { stdio: "pipe" });
+    const host = (geometryName) => `<!doctype html><meta charset="utf-8"><title>host</title>
+<script src="/skills/archnime-renderer/assets/architecture-library.js"></script>
+<script src="/skills/archnime-renderer/assets/vendor/d3.min.js"></script>
+<script src="/skills/archnime-renderer/assets/diagram-engine.js"></script>
+<script src="/skills/archnime-renderer/assets/architecture-diagram-element.js"></script>
+<architecture-diagram id="diagram" src="/skills/archnime-renderer/tests/fixtures/${name}.json" geometry-src="/work/${geometryName}.element.geometry.json"></architecture-diagram>`;
+    const server = createServer((request, response) => {
+      const pathname = decodeURIComponent(new URL(request.url, "http://127.0.0.1").pathname);
+      if (pathname.startsWith("/host/")) { response.writeHead(200, { "Content-Type": "text/html" }); response.end(host(pathname.slice(6))); return; }
+      const base = pathname.startsWith("/work/") ? work : pathname.startsWith("/skills/") ? SKILLS : null, path = base && resolve(base, `.${pathname.replace(/^\/(work|skills)/, "")}`);
+      if (!path || !path.startsWith(`${base}${sep}`) || !existsSync(path)) { response.writeHead(404); response.end(); return; }
+      response.writeHead(200, { "Content-Type": { ".html": "text/html", ".js": "text/javascript", ".json": "application/json" }[extname(path)] || "application/octet-stream", "Cache-Control": "no-store" });
+      response.end(readFileSync(path));
+    });
+    await new Promise(done => server.listen(0, "127.0.0.1", done));
+    try {
+      const open = async geometryName => {
+        const page = await browser.newPage({ viewport: { width: 1600, height: 1000 }, reducedMotion: "reduce" });
+        await page.goto(`http://127.0.0.1:${server.address().port}/host/${geometryName}`, { waitUntil: "load" });
+        await page.waitForFunction(() => ["ready", "error"].includes(document.getElementById("diagram").diagramStatus), null, { timeout: 60000 });
+        const result = await page.evaluate(() => {
+          const element = document.getElementById("diagram"), runtime = element._runtime?.localWindow, layout = runtime?.__diagramLayoutForTest?.();
+          return { status: element.diagramStatus, error: element.diagramError, dagre: typeof window.dagre, elk: typeof window.ELK, stored: !!runtime?.__diagramEngineForTest?.().stored, painted: element.shadowRoot.querySelectorAll("g.nodes g.node").length, nodes: layout ? JSON.stringify(layout.nodes.map(node => [node.id, node.x, node.y, node.w, node.h]).sort()) : null, findings: element.diagramStatus === "ready" ? element.diagramSelfCheck().length : null };
+        });
+        await page.close();
+        return result;
+      };
+      const good = await open(name), stale = await open(other);
+      const expected = JSON.parse(readFileSync(join(work, `${name}.element.geometry.json`), "utf8")), first = expected.layouts[Object.values(expected.states)[0][Object.keys(Object.values(expected.states)[0])[0]]];
+      if (good.status !== "ready") failures.push(`element: status ${good.status} (${good.error})`);
+      if (good.dagre !== "undefined" || good.elk !== "undefined") failures.push("element: the host page has a layout library, so the check proves nothing");
+      if (!good.stored) failures.push("element: its engine does not report stored geometry");
+      if (good.nodes !== JSON.stringify(first.nodes.map(node => [node.id, node.x, node.y, node.w, node.h]).sort())) failures.push("element: the layout shown is not the stored layout of the first stage");
+      if (!good.painted || good.findings !== 0) failures.push(`element: painted ${good.painted} node(s), ${good.findings} self-check finding(s)`);
+      if (stale.status !== "error" || !/Stored geometry|No stored geometry/.test(stale.error || "")) failures.push(`element: a geometry of another model gave status ${stale.status} (${stale.error}), expected a stored-geometry error`);
+      lines.push(`element: ${good.painted} nodes from stored geometry with no dagre or ELK on the page; another model's geometry is refused: ${String(stale.error).slice(0, 90)}`);
+    } finally { server.close(); }
   }
   crashed = false;
 } finally {

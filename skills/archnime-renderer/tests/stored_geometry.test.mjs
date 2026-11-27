@@ -82,9 +82,57 @@ test("FEAT-038 a state with no stored layout throws instead of laying out", asyn
   await assert.rejects(stored.collectGeometry(), /computes layout/);
 });
 
-test("FEAT-038 the state limit and multi-view bundles fail with a message", async () => {
+test("FEAT-038 the state limit fails with a message", async () => {
   await assert.rejects(computeGeometry(fixture("deep-nested-crosscut"), { maxStatesPerStage: 3 }), /more than 3 package expansion states/);
-  await assert.rejects(computeGeometry(fixture("commerce-views")), /multi-view bundles/);
+});
+
+test("FEAT-038 a multi-view bundle stores one geometry per view, merged as the page merges it", async () => {
+  const bundle = read("commerce-views"), { geometry, findings } = await computeGeometry(fixture("commerce-views"));
+  assert.deepEqual(findings, []);
+  assert.deepEqual(Object.keys(geometry.views), bundle.views.map(view => view.viewId));
+  assert.equal(geometry.states, undefined);
+  const DiagramEngine = loadHeadlessEngine();
+  for (const view of bundle.views) {
+    const merged = DiagramEngine.materializeView(bundle, view);
+    // Shared catalog entries reach the view, and the view's own win.
+    assert.ok(Object.keys(merged.catalog).length >= Object.keys(bundle.shared?.catalog || {}).length);
+    const stored = DiagramEngine.create(merged, { geometry: geometry.views[view.viewId], dagre: null, elk: null }), computing = DiagramEngine.create(merged);
+    await computing.ready;
+    for (const stage of stored.model.stages) assert.deepEqual(DiagramEngine.packLayout(stored.layoutStage(stage)), DiagramEngine.packLayout(computing.layoutStage(stage)), `${view.viewId}/${stage.id}`);
+  }
+  // A view's geometry is not another view's.
+  const [first, second] = bundle.views;
+  const wrong = DiagramEngine.create(DiagramEngine.materializeView(bundle, first), { geometry: geometry.views[second.viewId] });
+  assert.throws(() => wrong.layoutStage(wrong.model.stages[0]), /stored geometry/i);
+});
+
+test("FEAT-038 a stored layout whose nodes are not the model's is refused as stale", async () => {
+  const model = read("orders-failover-scenarios"), { geometry } = await computeGeometry(fixture("orders-failover-scenarios"));
+  const DiagramEngine = loadHeadlessEngine(), stage = model.stages[0];
+  const changed = structuredClone(model), removed = changed.stages[0].nodes.pop(), removedId = typeof removed === "string" ? removed : removed.id;
+  changed.stages[0].wires = changed.stages[0].wires.filter(wire => wire.from !== removedId && wire.to !== removedId);
+  const stored = DiagramEngine.create(changed, { geometry });
+  assert.throws(() => stored.layoutStage(stored.model.stages[0]), new RegExp(`Stored geometry for stage "${stage.id}" is stale`));
+});
+
+test("FEAT-038 --tune stores the result of the Tune search, reproducibly and no worse", async () => {
+  const model = read("orthogonal-routing");
+  const plain = await computeGeometry(fixture("orthogonal-routing")), tuned = await computeGeometry(fixture("orthogonal-routing"), { tune: true }), again = await computeGeometry(fixture("orthogonal-routing"), { tune: true });
+  assert.equal(tuned.geometry.tuned, true);
+  assert.equal(plain.geometry.tuned, undefined);
+  assert.deepEqual(tuned.geometry, again.geometry, "two tuned runs differ");
+  assert.deepEqual(Object.keys(tuned.geometry.states), Object.keys(plain.geometry.states));
+  assert.ok(tuned.findings.length <= plain.findings.length);
+  // Tune keeps the wire style and still yields a layout the stored engine accepts for every state.
+  const DiagramEngine = loadHeadlessEngine(), stored = DiagramEngine.create(model, { geometry: tuned.geometry, dagre: null, elk: null });
+  for (const stage of stored.model.stages) for (const key of Object.keys(tuned.geometry.states[stage.id])) {
+    const layout = stored.layoutStage(stage, false, new Set(key ? key.split(",") : []));
+    assert.equal(layout.routing, stored.routing);
+    assert.ok(layout.nodes.length > 0);
+  }
+  // It changed something here: at least one state has a different layout from the untuned one.
+  assert.ok(tuned.tuned.length > 0, "the search improved no state of this fixture, so the test proves nothing");
+  assert.notDeepEqual(tuned.geometry.layouts, plain.geometry.layouts);
 });
 
 test("FEAT-038 the model hash ignores line endings and follows content", async () => {

@@ -169,6 +169,19 @@ class BuildBundleTests(unittest.TestCase):
             with self.assertRaises(module.GeometryError):
                 module.build_bundle(TEMPLATE, MODEL, output, geometry_path=unreadable)
 
+    def test_feat038_bundle_geometry_is_embedded_per_view(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "diagram.html"
+            layout = {"nodes": [], "wires": []}
+            views = {"context": {"states": {"s": {"": 0}}, "layouts": [layout]}, "flow": {"states": {"f": {"": 0}}, "layouts": [layout]}}
+            module.build_bundle(TEMPLATE, MODEL, output, geometry_path=self._geometry(directory, views=views))
+            embedded = output.read_text(encoding="utf-8").split('id="diagram-geometry">')[1].split("</script>")[0]
+            self.assertEqual(set(json.loads(embedded)), {"views"})
+            self.assertEqual(set(json.loads(embedded)["views"]), {"context", "flow"})
+            with self.assertRaises(module.GeometryError) as raised:
+                module.build_bundle(TEMPLATE, MODEL, output, geometry_path=self._geometry(directory, views={"context": {"states": {}, "layouts": []}}))
+            self.assertIn("holds no layouts", str(raised.exception))
+
     def test_feat038_model_hash_ignores_line_endings(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             unix, windows = Path(directory) / "unix.json", Path(directory) / "windows.json"
