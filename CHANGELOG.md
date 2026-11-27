@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-11-27
+
 ### Changed
 
 - **TASK-039** (feat, breaking): Layout is computed when a diagram is built and stored in the page; the page no longer lays anything out. `build_bundle.py` always embeds the geometry and computes it itself with `store_geometry.mjs` when no `--geometry` file is given, which needs Node.js 24 or newer; computed geometry is cached by model and engine. The delivered page loads `diagram-runtime.js`, generated from `diagram-engine.js` by `scripts/gen_runtime_engine.mjs` without any placement code (140 KB against 226 KB), and no dagre or ELK: offline single-file pages are 0.7 to 1 MB against about 2.4 MB and ready in about 0.4 s. `translate.html` computes the layout in the browser and embeds it in the page it produces. The `<architecture-diagram>` element requires a geometry file and the runtime engine. Each state is laid out the way the self-check lays it out, the page's self-check covers every stored state, and the model checks run with it. Tests that exercised layout in the page now run on stored pages or load the whole engine (`tests/full_engine.mjs`); `headless_layout_check.mjs` holds that Node and a browser compute identical geometry, and `runtime_engine.test.mjs` that the runtime engine matches the whole engine. Validated: `npm test`. Docs: updated README.md, docs/, the skills' SKILL.md and references/, skills/archnime-renderer/tests/README.md.
@@ -71,6 +73,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **FIX-008** (fix): Make the browser validator and translator agree with the Python reference on valid, invalid and malformed input. Ref: architecture-diagram-dsl/references/runtime.md. Validated: `node architecture-diagram-dsl/tests/browser_validator_check.mjs`. Docs: updated architecture-diagram-dsl/references/dsl-reference.md. Includes: FIX-008.1, FIX-008.2, FIX-008.3.
 - **FIX-007** (fix): Measure documentation SVG bounds with the presenter viewport transform removed so pan/zoom cannot shift the rounded viewBox. Ref: architecture-diagram-renderer/references/documentation-export.md. Validated: `node architecture-diagram-renderer/tests/render_check.mjs checkout-flow`.
 
-[Unreleased]: https://github.com/bassemZohdy/archnime/compare/v2.1.1...HEAD
+[Unreleased]: https://github.com/bassemZohdy/archnime/compare/v3.0.0...HEAD
+[3.0.0]: https://github.com/bassemZohdy/archnime/compare/v2.1.1...v3.0.0
 [2.1.1]: https://github.com/bassemZohdy/archnime/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/bassemZohdy/archnime/releases/tag/v2.1.0
