@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- **TASK-046** (task): Add the plugin icon `.claude-plugin/icon.png` (1024 x 1024 PNG, 16 KB), which the Claude directory's validation asked for. It is a node and wire sketch in the colours of the sibling `progress-bar-skills` icon. Validated: `npm run check-skills`, `claude plugin validate . --strict`.
 - **DOC-045** (docs): Add the GitHub CLI route to the README install table: `gh skill install bassemZohdy/archnime --all`. `gh skill install` without `--all` lists the five skills at the latest release tag and `gh skill publish --dry-run` passes, so the route follows the repository layout; the install itself was not run. Validated: `npm run check-skills`. Docs: updated README.md.
 
 ### Changed
