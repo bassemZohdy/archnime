@@ -209,6 +209,20 @@ model because backend choice must not change semantic scope or introduce a new
 self-check issue class, or add findings. Fewer ELK findings are recorded as an
 improvement rather than treated as parity drift.
 
+## `headless_layout_check.mjs` — layout without a page equals layout in the page
+
+Loads the vendored D3, dagre and ELK, the library and `diagram-engine.js` into a
+plain Node context with no `document`, runs `DiagramEngine.layoutStage` for every
+stage of five fixtures (flat, nested packages, flow, one laid out by ELK, one by
+the force engine) and writes the geometry as JSON: node, package and boundary
+boxes, wire routes and label positions, canvas and engine. It then builds the
+offline page for each fixture, asks the engine in that page for the same stages
+with the options `template.html` uses, and fails when any value differs (numbers
+are compared exactly, not rounded). The layout the page painted on load must
+equal one of the headless stages. Prints the headless time and geometry size per
+fixture; `--out <dir>` keeps the JSON. The headless half needs no browser.
+Covers TASK-034, the evidence for [build-time layout](../../../docs/build-time-layout.md).
+
 ## `routing_stability_check.mjs` — wire-style switches keep placement
 
 Builds the canonical Test System DSL into HTML, then cycles the template's
