@@ -72,7 +72,7 @@ What this shows and what it does not:
 Three targets are not met today and are recorded as known gaps, which the gate holds at their current values:
 
 - **Text size.** At 1280 px wide the diagram is scaled to about 0.55 to fit, so 11 to 13 px labels paint at 6 px. Roughly a third of the text is under 12 px.
-- **Pause on a flow.** Pause stops the steps, but the animated dashes on the active wires keep moving. They cover too few pixels to trip the harness threshold, which is why the gate also counts animating elements.
+- **Pause on a flow** (fixed after 3.0.0 by FIX-041; the table shows the state when the gate was added). Pause stopped the steps, but the animated dashes on the active wires kept moving. They cover too few pixels to trip the harness threshold, which is why the gate also counts animating elements.
 - **No loop.** Staged playback stops after the last stage; a flow loops only with `meta.flow.loop`. The harness measured a loop length, so the figure here is one run.
 
 ## Stored geometry (FEAT-038)
@@ -111,7 +111,7 @@ The rest of the parity matrix, done after the single-view part:
 - **The `<architecture-diagram>` element.** It takes the geometry file as `geometry-src` or an inline `data-geometry` script and then places nothing; the check runs it on a host page with neither dagre nor ELK. It has no model file to hash, so the engine refuses a stored layout whose nodes are not the ones the model shows. That catches a changed set of nodes, not a changed label; the builder's hash check catches both.
 
 
-One thing the walk turned up in the current renderer, stored or not: in a flow view, collapsing a package is not painted until the next repaint, because the flow's layout is not refreshed on collapse as it is on expand.
+One thing the walk turned up in the current renderer, stored or not: in a flow view, collapsing a package is not painted until the next repaint, because the flow's layout is not refreshed on collapse as it is on expand. Fixed after 3.0.0 by FIX-042.
 
 ## 3.0.0: stored geometry is the only path (TASK-039)
 

@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- **FIX-041** (fix): Pause now freezes the animated flow dashes too. In a flow walkthrough the dashes on the active wires kept moving after Pause; they stop until Play is pressed or another step is opened. From: TASK-037. Validated: `node skills/archnime-renderer/tests/playback_gate_check.mjs` (the `movingWhenPaused` known gap is removed), `npm test`. Docs: updated docs/build-time-layout.md.
+- **FIX-042** (fix): In a flow view, collapsing a package is painted at once. The flow layout was refreshed on expand and not on collapse, so the collapse showed only after the next repaint. From: FEAT-038. Validated: `node skills/archnime-renderer/tests/stored_geometry_check.mjs` (a collapse click with no effect now fails), `npm test`.
+
 ### Changed
 
 - **TASK-040** (docs): Close the optional GSAP spike without a prototype and record why in `docs/build-time-layout.md`: the GSAP licence is proprietary, revocable and restricts no-code animation tools, so GSAP cannot be vendored in this repository, and the regression gate could not have shown a gain. The page keeps its own animation. Validated: `npm run check-skills`. Docs: updated docs/build-time-layout.md, TODO.md.
