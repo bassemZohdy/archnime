@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **DOC-045** (docs): Add the GitHub CLI route to the README install table: `gh skill install bassemZohdy/archnime --all`. `gh skill install` without `--all` lists the five skills at the latest release tag and `gh skill publish --dry-run` passes, so the route follows the repository layout; the install itself was not run. Validated: `npm run check-skills`. Docs: updated README.md.
+
 ### Changed
 
 - **TASK-044** (docs): Record that staged playback stopping after the last stage, with Play restarting it from stage 1, is intended, and that only flows loop (`meta.flow.loop`, opt-in). No switch is added for staged diagrams, so a presenter can stop on the final stage. Validated: `npm run check-skills`. Docs: updated docs/build-time-layout.md, TODO.md.
