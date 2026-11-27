@@ -2362,17 +2362,26 @@
       for (const stage of STAGES) {
         states[stage.id] = {};
         const expansions = reachableExpansions(stage, limit);
+        // Each state is laid out the way the self-check lays it out, so what is stored is what was
+        // checked: the fully expanded layout first, then every state seeded from its positions.
+        const snapshot = new Map(lastPositions), restore = () => { lastPositions.clear(); snapshot.forEach((value, id) => lastPositions.set(id, value)); };
+        const all = allPackagesForStage(stage);
+        if (usesElk && all.size) { const scenario = elkScenarioKey(stage, all); if (!prepared.has(scenario)) { await prepareElkItem({ stage, expanded: all }); prepared.add(scenario); } }
+        restore();
+        const master = all.size ? new Map(computeLayout(stage, true, null).nodes.map(node => [node.id, { x: node.x, y: node.y }])) : null;
         for (let index = 0; index < expansions.length; index += 1) {
-          const expanded = expansions[index], scenario = elkScenarioKey(stage, expanded);
+          const expanded = expansions[index], scenario = elkScenarioKey(stage, expanded), override = index === 0 ? null : expanded;
           if (usesElk && !prepared.has(scenario)) { await prepareElkItem({ stage, expanded }); prepared.add(scenario); }
+          if (master) applyMasterSeed(stage, master); else restore();
+          let layout = computeLayout(stage, false, override);
           // Tune at build time: the search the page's Tune button ran, keeping the wire style, so
-          // the stored layout is the best placement found. It commits its result for this state.
-          if (opts.tune && tuneAvailable(stage)) { const result = await retryElk(stage, false, index === 0 ? null : expanded, { variantCount: 3, wireVariantCount: 1, restartCount: 3, strategy: opts.tune === true ? "all" : opts.tune }); if (result.improved) tuned.push(`${stage.id}|${expansionKey(expanded)}`); }
-          // The first is the state the page opens on, laid out through the same call the page makes.
-          const text = JSON.stringify(packLayout(index === 0 ? layoutStage(stage) : layoutStage(stage, false, expanded)));
+          // the stored layout is the best placement found.
+          if (opts.tune && tuneAvailable(stage)) { const result = await retryElk(stage, false, override, { variantCount: 3, wireVariantCount: 1, restartCount: 3, strategy: opts.tune === true ? "all" : opts.tune }); if (result.improved) { layout = result.layout; tuned.push(`${stage.id}|${expansionKey(expanded)}`); } }
+          const text = JSON.stringify(packLayout(layout));
           if (!known.has(text)) { known.set(text, layouts.length); layouts.push(JSON.parse(text)); }
           states[stage.id][expansionKey(expanded)] = known.get(text);
         }
+        restore();
       }
       return opts.tune ? { states, layouts, tuned } : { states, layouts };
     }

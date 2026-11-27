@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { PYTHON } from "../../../scripts/python_command.mjs";
+import { injectFullEngine } from "./full_engine.mjs";
 import { retainWork } from "./retain_artifacts.mjs";
 
 const HERE = resolve(fileURLToPath(new URL(".", import.meta.url)));
@@ -39,6 +40,8 @@ try {
   page = await browser.newPage({ viewport: { width: 1600, height: 1000 }, reducedMotion: "reduce" });
   await page.goto(pathToFileURL(html).href, { waitUntil: "domcontentloaded", timeout: 120000 });
   await page.waitForFunction(() => window.diagramReady && document.querySelector("g.nodes g.node"), null, { timeout: 120000 });
+  // The check lays the model out itself: that needs the whole engine, which a delivered page does not carry.
+  await injectFullEngine(page);
   const result = await page.evaluate(async () => {
     const source = JSON.parse(document.getElementById("diagram-model").textContent);
     const failures = [], summaries = [];

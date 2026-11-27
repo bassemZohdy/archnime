@@ -128,7 +128,23 @@ try {
       if (presented !== pythonSequence) problems.push("the presenter's Mermaid sequence differs from the translator's");
       if (!/alt password matches\n {8}api-->>browser: 200 · session\n {4}else\n/.test(result.sequence)) problems.push("the alt and its else branch were not written");
     }
-    if (!result.html.includes("diagram-engine.js (inlined by translate.html)")) problems.push("engine was not inlined");
+    if (!result.html.includes("diagram-runtime.js (inlined by translate.html)")) problems.push("the runtime engine was not inlined");
+    // TASK-039: translate.html computes the layout with the whole engine and stores it in the page it
+    // produces. That page carries no placement code and no layout library, and shows the stored layout.
+    if (!result.html.includes('type="application/json" id="diagram-geometry"')) problems.push("the produced page carries no stored geometry");
+    for (const placement of ["function dagreLayout", "function forceLayout", "function computeLayout", "function retryElk", "elkjs@", "dagre@", "btn-retry-elk"]) if (result.html.includes(placement)) problems.push(`the produced page still carries placement code or a layout library (${placement})`);
+    {
+      const produced = await browser.newPage(), producedErrors = [];
+      produced.on("pageerror", error => producedErrors.push(String(error)));
+      await produced.setContent(result.html, { waitUntil: "domcontentloaded" });
+      try {
+        await produced.waitForFunction(() => window.diagramReady && document.querySelector("g.nodes g.node"), null, { timeout: 60000 });
+        const shown = await produced.evaluate(async () => { await window.diagramReady; const engine = window.__diagramEngineForTest(); return { stored: !!engine.stored, dagre: typeof window.dagre, elk: typeof window.ELK, nodes: document.querySelectorAll("g.nodes g.node").length, findings: window.diagramSelfCheck({ displayed: true }).length }; });
+        if (!shown.stored || shown.dagre !== "undefined" || shown.elk !== "undefined") problems.push(`the produced page does not run from stored geometry alone (${JSON.stringify(shown)})`);
+        if (!shown.nodes || shown.findings) problems.push(`the produced page painted ${shown.nodes} node(s) with ${shown.findings} finding(s) in the displayed layout`);
+      } catch (error) { problems.push(`the produced page did not render: ${String(error.message || error).split("\n")[0]} ${producedErrors.join(" | ")}`); }
+      await produced.close();
+    }
     if (problems.length) {
       failures++;
       const geometry = (result.geometry || []).map(issue => `${issue.type}: ${issue.detail}`).join(" | ");
