@@ -84,6 +84,8 @@ Publishing the plugin to the provider directories, and what only the repository 
 
 Whether layout could be computed at build time and stored in the page, with the evidence and the plan: [docs/build-time-layout.md](docs/build-time-layout.md) (decided, pending a parity gate).
 
+The renderer that computes layout in the page (releases up to 2.1.1) is archived as the git tag `legacy-runtime-layout` and the branch `legacy/2.x`. The branch takes fixes only; it is not maintained for features.
+
 ## Work tracking
 
 This repository follows the [todo-skills task-tree convention](https://github.com/bassemZohdy/todo-skills) for planned improvements: see [TODO.md](TODO.md). Each task has an executable acceptance check; completed work is archived in [CHANGELOG.md](CHANGELOG.md). The former roadmap is consolidated into this single backlog.
