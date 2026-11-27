@@ -14,7 +14,7 @@ Five portable Agent Skills (four domain skills and one aggregator) for **interac
 
 **Pipeline:** interview → canonical DSL → validate/translate → interactive HTML → documentation-safe SVG.
 
-The canonical DSL, not any SVG geometry, is the architecture source of truth. The renderer supports D3, Dagre, ELK, and force layouts. The browser outputs include search, zoom, disclosure, perspectives, and stage/flow playback.
+The canonical DSL, not any SVG geometry, is the architecture source of truth. The renderer supports Dagre, ELK, and force layouts, computed when the diagram is built and stored in the page, with D3 for rendering. The browser outputs include search, zoom, disclosure, perspectives, and stage/flow playback.
 
 ## Install
 
@@ -70,7 +70,7 @@ python skills/archnime-dsl/scripts/translate_transition_diagram.py skills/archni
 python skills/archnime-renderer/scripts/build_bundle.py --template skills/archnime-renderer/assets/template.html --model checkout-model.json --output checkout.html
 ```
 
-Open `checkout.html` in a browser. By default it loads pinned D3/ELK/Dagre/GIF runtime scripts over the network; `--inline` only inlines the renderer's local sidecars and is **not** a fully offline bundle.
+Open `checkout.html` in a browser. Layout is computed at build time and stored in the page, so the build needs Node.js 24+ on `PATH` and the page loads no layout library. By default the page loads pinned D3 and GIF runtime scripts over the network; `--inline` only inlines the renderer's local sidecars and is **not** a fully offline bundle. Add `--offline` to use the vendored copies instead.
 
 ## Presentation vs documentation
 
@@ -82,7 +82,7 @@ How archnime compares with Mermaid and archgram, and when to use each: [docs/com
 
 Publishing the plugin to the provider directories, and what only the repository owner can do: [docs/publishing.md](docs/publishing.md).
 
-Whether layout could be computed at build time and stored in the page, with the evidence and the plan: [docs/build-time-layout.md](docs/build-time-layout.md) (decided, pending a parity gate).
+Layout is computed at build time and stored in the page; this is how the renderer works since 3.0.0. The evidence and the plan behind it: [docs/build-time-layout.md](docs/build-time-layout.md).
 
 The renderer that computes layout in the page (releases up to 2.1.1) is archived as the git tag `legacy-runtime-layout` and the branch `legacy/2.x`. The branch takes fixes only; it is not maintained for features.
 

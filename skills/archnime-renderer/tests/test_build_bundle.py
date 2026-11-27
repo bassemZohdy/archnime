@@ -30,9 +30,9 @@ class BuildBundleTests(unittest.TestCase):
             module.build_bundle(TEMPLATE, MODEL, output)
             html = output.read_text(encoding="utf-8")
             self.assertIn('<script src="./architecture-library.js"></script>', html)
-            self.assertIn('<script src="./diagram-engine.js"></script>', html)
+            self.assertIn('<script src="./diagram-runtime.js"></script>', html)
             self.assertTrue(output.with_name("architecture-library.js").is_file())
-            self.assertTrue(output.with_name("diagram-engine.js").is_file())
+            self.assertTrue(output.with_name("diagram-runtime.js").is_file())
 
     def test_inline_mode_has_no_sibling_sidecars(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -40,18 +40,18 @@ class BuildBundleTests(unittest.TestCase):
             module.build_bundle(TEMPLATE, MODEL, output, inline=True)
             html = output.read_text(encoding="utf-8")
             self.assertNotIn('<script src="./architecture-library.js"></script>', html)
-            self.assertNotIn('<script src="./diagram-engine.js"></script>', html)
+            self.assertNotIn('<script src="./diagram-runtime.js"></script>', html)
             self.assertIn("architecture-library.js (inlined)", html)
-            self.assertIn("diagram-engine.js (inlined)", html)
+            self.assertIn("diagram-runtime.js (inlined)", html)
             self.assertFalse(output.with_name("architecture-library.js").exists())
-            self.assertFalse(output.with_name("diagram-engine.js").exists())
+            self.assertFalse(output.with_name("diagram-runtime.js").exists())
 
     def test_inline_delivery_documents_runtime_dependency_boundary(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "diagram.html"
             module.build_bundle(TEMPLATE, MODEL, output, inline=True)
             html = output.read_text(encoding="utf-8")
-            self.assertIn("diagram-engine.js (inlined)", html)
+            self.assertIn("diagram-runtime.js (inlined)", html)
             self.assertIn("https://", html)
             self.assertIn("not an offline guarantee", (ROOT / "archnime-renderer" / "references" / "distribution.md").read_text(encoding="utf-8"))
 
@@ -85,11 +85,11 @@ class BuildBundleTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "diagram.html"
             module.build_bundle(TEMPLATE, MODEL, output)
-            original = {path.name: path.read_bytes() for path in (output, output.with_name("architecture-library.js"), output.with_name("diagram-engine.js"))}
+            original = {path.name: path.read_bytes() for path in (output, output.with_name("architecture-library.js"), output.with_name("diagram-runtime.js"))}
             real_replace = module.os.replace
 
             def fail_engine(source, target):
-                if Path(target).name == "diagram-engine.js":
+                if Path(target).name == "diagram-runtime.js":
                     raise OSError("simulated sidecar publish failure")
                 return real_replace(source, target)
 
@@ -98,7 +98,7 @@ class BuildBundleTests(unittest.TestCase):
                     module.build_bundle(TEMPLATE, MODEL, output)
             self.assertEqual(output.read_bytes(), original["diagram.html"])
             self.assertEqual(output.with_name("architecture-library.js").read_bytes(), original["architecture-library.js"])
-            self.assertEqual(output.with_name("diagram-engine.js").read_bytes(), original["diagram-engine.js"])
+            self.assertEqual(output.with_name("diagram-runtime.js").read_bytes(), original["diagram-runtime.js"])
 
     def test_queue_visual_contract_uses_distinct_glyph_and_matching_radius(self) -> None:
         library = (ROOT / "archnime-renderer" / "assets" / "architecture-library.js").read_text(encoding="utf-8")
@@ -137,10 +137,16 @@ class BuildBundleTests(unittest.TestCase):
             # The payload cannot close its script element.
             self.assertNotIn("</script><b>", html)
             self.assertIn("\\u003c/script\\u003e\\u003cb\\u003e", html)
-            plain = Path(directory) / "plain.html"
-            module.build_bundle(TEMPLATE, MODEL, plain)
-            self.assertNotIn('id="diagram-geometry">', plain.read_text(encoding="utf-8"))
-            self.assertIn("elkjs", plain.read_text(encoding="utf-8"))
+            # TASK-039: without --geometry the builder computes the layout itself, and the page is the same kind of page.
+            computed = Path(directory) / "computed.html"
+            module.build_bundle(TEMPLATE, MODEL, computed, inline=True)
+            page = computed.read_text(encoding="utf-8")
+            embedded = json.loads(page.split('id="diagram-geometry">')[1].split("</script>")[0])
+            self.assertTrue(embedded["layouts"] and embedded["states"])
+            for placement in ("elkjs", "dagre.min.js", "function dagreLayout", "function forceLayout", "function retryElk", "function computeLayout", "btn-retry-elk"):
+                self.assertNotIn(placement, page)
+            self.assertIn("diagram-runtime.js (inlined)", page)
+            self.assertIn("function storedLayout", page)
 
     def test_feat038_missing_or_stale_geometry_fails_the_build(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -168,6 +174,30 @@ class BuildBundleTests(unittest.TestCase):
             unreadable.write_text("{not json", encoding="utf-8")
             with self.assertRaises(module.GeometryError):
                 module.build_bundle(TEMPLATE, MODEL, output, geometry_path=unreadable)
+
+    def test_task039_builder_needs_node_or_a_geometry_file(self) -> None:
+        with tempfile.TemporaryDirectory() as directory, patch.dict("os.environ", {"ARCHNIME_GEOMETRY_CACHE": "0"}), patch.object(module.shutil, "which", return_value=None):
+            output = Path(directory) / "diagram.html"
+            with self.assertRaises(module.GeometryError) as raised:
+                module.build_bundle(TEMPLATE, MODEL, output)
+            self.assertIn("Node.js 24", str(raised.exception))
+            self.assertIn("--geometry", str(raised.exception))
+            self.assertFalse(output.exists())
+            # A geometry file needs no Node.
+            module.build_bundle(TEMPLATE, MODEL, output, geometry_path=self._geometry(directory))
+            self.assertTrue(output.is_file())
+            with self.assertRaises(module.GeometryError):
+                module.build_bundle(TEMPLATE, MODEL, output, geometry_path=self._geometry(directory), tune=True)
+
+    def test_task039_computed_geometry_is_cached_by_model_and_engine(self) -> None:
+        with tempfile.TemporaryDirectory() as directory, patch.dict("os.environ", {"ARCHNIME_GEOMETRY_CACHE": str(Path(directory) / "cache")}):
+            first = module._compute_geometry(MODEL, TEMPLATE.parent, False)
+            with patch.object(module.subprocess, "run", side_effect=AssertionError("the cached geometry was not reused")):
+                self.assertEqual(module._compute_geometry(MODEL, TEMPLATE.parent, False), first)
+            changed = Path(directory) / "changed.json"
+            changed.write_text(MODEL.read_text(encoding="utf-8").replace("Checkout", "Check-out"), encoding="utf-8")
+            self.assertNotEqual(module._compute_geometry(changed, TEMPLATE.parent, False), first)
+            self.assertNotEqual(module._compute_geometry(MODEL, TEMPLATE.parent, True), first)
 
     def test_feat038_bundle_geometry_is_embedded_per_view(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

@@ -14,6 +14,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { PYTHON } from "../../../scripts/python_command.mjs";
+import { injectFullEngine } from "./full_engine.mjs";
 import { retainWork } from "./retain_artifacts.mjs";
 
 const HERE = resolve(fileURLToPath(new URL(".", import.meta.url)));
@@ -73,6 +74,8 @@ try {
   await page.goto(pathToFileURL(html).href, { waitUntil: "domcontentloaded", timeout: 120000 });
   await page.waitForFunction(() => window.diagramReady && document.querySelector("g.nodes g.node"), null, { timeout: 120000 });
   await page.waitForFunction(() => !document.getAnimations().some(animation => animation.playState === "running" && animation.transitionProperty), null, { timeout: 30000 });
+  // Part 2 places fixtures and runs the Tune search through the engine API: that needs the whole engine.
+  await injectFullEngine(page);
 
   // 1. Template control on the displayed artifact.
   const ui = await page.evaluate(`(() => {

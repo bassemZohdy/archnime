@@ -17,17 +17,19 @@ import { fileURLToPath } from "node:url";
 
 export const ASSETS = resolve(dirname(fileURLToPath(import.meta.url)), "../assets");
 const SCRIPTS = ["vendor/d3.min.js", "vendor/dagre.min.js", "vendor/elk.bundled.js", "architecture-library.js", "diagram-engine.js"];
+// What a delivered page loads: no layout library, and the runtime part of the engine.
+const RUNTIME_SCRIPTS = ["vendor/d3.min.js", "architecture-library.js", "diagram-runtime.js"];
 // What a stored geometry depends on besides the model: the code that computed it.
 const ENGINE_SOURCES = ["diagram-engine.js", "architecture-library.js"];
 
-export function loadHeadlessEngine(assets = ASSETS) {
+export function loadHeadlessEngine(assets = ASSETS, { runtime = false } = {}) {
   // Reads fall through to Node's globals (ELK looks up `Error` and timers on its window); writes stay private.
   const scope = Object.create(globalThis);
-  for (const file of SCRIPTS) {
+  for (const file of runtime ? RUNTIME_SCRIPTS : SCRIPTS) {
     const source = readFileSync(join(assets, file), "utf8");
     new Function("window", "globalThis", "self", "document", `${source}\n//# sourceURL=${file}`)(scope, scope, undefined, undefined);
   }
-  for (const name of ["d3", "dagre", "ELK", "ARCHITECTURE_LIBRARY", "DiagramEngine"]) {
+  for (const name of runtime ? ["d3", "ARCHITECTURE_LIBRARY", "DiagramEngine"] : ["d3", "dagre", "ELK", "ARCHITECTURE_LIBRARY", "DiagramEngine"]) {
     if (!scope[name]) throw new Error(`headless engine: ${name} did not load from ${assets}`);
   }
   return scope.DiagramEngine;

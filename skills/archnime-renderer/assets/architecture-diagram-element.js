@@ -6,14 +6,14 @@
  * functions local to each element instead of addressing the host page.
  *
  * Required globals, loaded in this order by the host page:
- *   architecture-library.js, d3, dagre (optional), elkjs (optional),
- *   diagram-engine.js, architecture-diagram-element.js
+ *   architecture-library.js, d3, diagram-runtime.js, architecture-diagram-element.js
  *
- * Stored geometry (FEAT-038): give the element the file store_geometry.mjs wrote,
- * as a `geometry-src` attribute or an `application/json` child script marked
- * `data-geometry`, and it shows those layouts and places nothing, so the host
- * page needs neither dagre nor elkjs. A geometry that does not belong to the
- * model is reported as an error; the element does not fall back to layout.
+ * The element shows layouts that were computed when the diagram was built and
+ * places nothing, so the host page needs neither dagre nor elkjs. Give it the
+ * file store_geometry.mjs wrote for the model, as a `geometry-src` attribute or
+ * an `application/json` child script marked `data-geometry`. Without geometry,
+ * or with the geometry of another model, it reports an error: it does not fall
+ * back to layout.
  */
 (function (global) {
   "use strict";
@@ -211,7 +211,7 @@
         if (mode === "static") body.classList.add("element-static");
         if (controls === "none") body.classList.add("controls-none");
         if (controls === "minimal") body.classList.add("controls-minimal");
-        if (!global.DiagramEngine) throw new Error("diagram-engine.js must be loaded before architecture-diagram-element.js");
+        if (!global.DiagramEngine) throw new Error("diagram-runtime.js must be loaded before architecture-diagram-element.js");
         new Function("document", "MODEL", "window", "location", "history", "d3", `${rendererFromTemplate(template)}\n//# sourceURL=architecture-diagram-element-renderer.js`)(doc, model, localWindow, scopedUrl, { replaceState() {} }, scopedD3(this.shadowRoot));
         if (token !== this._renderToken || !this.isConnected) { localWindow.diagramDispose?.(); return; }
         this._runtime = { localWindow, doc, body };

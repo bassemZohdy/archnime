@@ -1,15 +1,15 @@
 # Documentation-safe architecture exports
 
-The **canonical YAML/JSON model is authoritative**. Use the D3/ELK/Dagre
-renderer to create the interactive presentation and export documentation from
-that same settled geometry. Do not run a second renderer for documentation:
+The **canonical YAML/JSON model is authoritative**. Use the renderer (layout by
+ELK, Dagre or force at build time, D3 in the page) to create the interactive
+presentation and export documentation from that same stored geometry. Do not run a second renderer for documentation:
 re-layout could change the apparent relationships, grouping, or trust scope.
 
 ## Choose the delivery format
 
 | Destination | Deliver | Guarantees and limitations |
 | --- | --- | --- |
-| Presentation or live demonstration | Interactive HTML and its required assets | Zoom, search, stage playback, drill-down, and perspectives; a one-file `--inline` build still requires CDN runtime scripts unless vendored separately |
+| Presentation or live demonstration | Interactive HTML and its required assets | Zoom, search, stage playback, drill-down, and perspectives; a one-file `--inline` build still loads D3 and gif.js from the CDN unless built with `--offline` |
 | GitHub README / Markdown | **SVG (documentation)** plus a hyperlink to the interactive viewer | Static SVG with its own Inter font, explicit background, full content bounds, and no dependence on presenter zoom |
 | HTML documentation site | The same static SVG, or Animated SVG after target testing; link to interactive HTML | SVG image embedding does **not** provide JavaScript-driven controls |
 | Word / Google Docs / PDF | Documentation SVG if accepted by the target; otherwise a PNG made from that artifact | No dependable interaction or animated playback after conversion |

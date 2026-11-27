@@ -97,7 +97,7 @@ structure and `contains` drill-down when the same view should expand in place.
 | --- | --- | --- | --- |
 | `title` | string | -- | required |
 | `subtitle` | string | -- | optional |
-| `layout` | `auto`\|`dagre`\|`elk`\|`force`\|`manual` | `auto` | renderer `auto` selects asynchronous ELK for deeply nested compound derivatives; explicit ELK callers must await preparation |
+| `layout` | `auto`\|`dagre`\|`elk`\|`force`\|`manual` | `auto` | renderer `auto` selects ELK for deeply nested compound derivatives; the engine runs when the diagram is built and the page shows the stored layout |
 | `minWireLen` | positive number | `72` | minimum visible wire length in logical pixels; scales with density |
 | `perspectives` | list of perspective IDs | `all`, `data`, `security`, `migration`, `devops` | authoritative perspective dropdown options in order; `All` is always added as the reset; `control`, `compat`, `neutral`, and `zones` remain advanced IDs |
 | `direction` | `LR`\|`TB` | `LR` | layered direction for dagre and ELK |

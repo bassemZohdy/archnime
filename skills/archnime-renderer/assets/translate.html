@@ -71,6 +71,7 @@
           <li>Run the browser port of the DSL schema and lint rules.</li>
           <li>Map YAML to the portable renderer MODEL.</li>
           <li>Run <code>DiagramEngine.selfCheck()</code> across every stage.</li>
+          <li>Compute the layout of every state a click can reach and store it in the page.</li>
           <li>Inline the local renderer sidecars when available and enable download.</li>
         </ol>
       </div>
@@ -119,7 +120,8 @@
   }
 
   async function inlineSidecars(html) {
-    const sidecars = ["architecture-library.js", "diagram-engine.js"], warnings = [];
+    // The page that is delivered loads the runtime part of the engine; this page loads the whole engine to compute the layout.
+    const sidecars = ["architecture-library.js", "diagram-runtime.js"], warnings = [];
     for (const name of sidecars) {
       const tag = `<script src="./${name}"><` + "/script>";
       if (!html.includes(tag)) continue;
@@ -133,25 +135,19 @@
     return { html, warnings };
   }
 
-  function embedModel(template, model) {
+  function embedModel(template, model, storedGeometry) {
     const start = template.indexOf("const MODEL =");
     const renderer = template.indexOf("(function () {", start);
     const scriptOpen = template.lastIndexOf("<script>", start);
     if (start < 0 || renderer < 0 || scriptOpen < 0) throw new Error("template.html does not contain the expected MODEL and renderer markers");
     const payload = JSON.stringify(model, null, 2).replace(/</g, "\\u003c");
     const dataClose = "<" + "/script>";
-    return `${template.slice(0, scriptOpen)}<script type="application/json" id="diagram-model">\n${payload}\n${dataClose}\n${template.slice(scriptOpen, start)}const MODEL = JSON.parse(document.getElementById("diagram-model").textContent);\n\n${template.slice(renderer)}`;
+    // The layouts computed here are embedded with the model: the delivered page places nothing.
+    const geometryPayload = JSON.stringify(storedGeometry).replace(/</g, "\\u003c").replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
+    return `${template.slice(0, scriptOpen)}<script type="application/json" id="diagram-geometry">${geometryPayload}${dataClose}\n<script type="application/json" id="diagram-model">\n${payload}\n${dataClose}\n${template.slice(scriptOpen, start)}const MODEL = JSON.parse(document.getElementById("diagram-model").textContent);\n\n${template.slice(renderer)}`;
   }
-  function materializeBundleView(bundle, view) {
-    const shared = bundle.shared || {};
-    return {
-      ...view,
-      meta: { ...(bundle.meta || {}), ...(view.meta || {}) },
-      canvas: { ...(bundle.canvas || {}), ...(view.canvas || {}) },
-      catalog: { ...(bundle.catalog || {}), ...(shared.catalog || {}), ...(view.catalog || {}) },
-      packages: { ...(bundle.packages || {}), ...(shared.packages || {}), ...(view.packages || {}) },
-    };
-  }
+  // One view merged with what the bundle shares, by the engine's own function, as the delivered page does it.
+  function materializeBundleView(bundle, view) { return window.DiagramEngine.materializeView(bundle, view); }
 
   async function convertSource() {
     resetOutput();
@@ -168,13 +164,17 @@
     let model;
     try { model = window.TransitionDiagramTranslator.translateDocument(doc); }
     catch (error) { showIssues(error.findings || [{ rule: "translation", message: error.message, path: "$" }]); setStatus("Translation failed.", "bad"); return; }
-    let geometry = [];
+    let geometry = [], stored = null;
     try {
       const candidates = Array.isArray(model.views) ? model.views.map(view => materializeBundleView(model, view)) : [model];
       for (const candidate of candidates) {
         const engine = window.DiagramEngine.create(candidate);
         await engine.ready;
         geometry.push(...engine.selfCheck().map(issue => candidate.viewId ? { ...issue, viewId: candidate.viewId } : issue));
+        // Every layout a click can reach, for the page this produces. A fresh engine, so the
+        // self-check above cannot have influenced a placement.
+        const collected = await window.DiagramEngine.create(candidate).collectGeometry();
+        if (Array.isArray(model.views)) (stored ||= { views: {} }).views[candidate.viewId] = collected; else stored = collected;
       }
     } catch (error) {
       setStatus(`Geometry preparation failed: ${error.message || error}`, "bad");
@@ -185,7 +185,7 @@
     const advisoryGeometry = geometry.filter(item => item.type === "edge-route-fallback");
     if (blockingGeometry.length) { showIssues(geometry.map(item => ({ rule: item.type, message: item.detail, path: "renderer" }))); setStatus(`Geometry validation failed with ${blockingGeometry.length} blocking finding(s).`, "bad"); window.lastTranslation = { doc, model, structural, geometry }; return; }
     try {
-      const prepared = embedModel(await loadTemplate(), model), inlined = await inlineSidecars(prepared);
+      const prepared = embedModel(await loadTemplate(), model, stored), inlined = await inlineSidecars(prepared);
       generatedHtml = inlined.html;
       download.disabled = false;
       generatedSequence = model.flow ? window.TransitionDiagramTranslator.sequenceMermaid(model) : "";

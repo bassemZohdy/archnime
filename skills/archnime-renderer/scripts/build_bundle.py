@@ -1,21 +1,25 @@
 """Build an interactive architecture HTML bundle from a template and JSON model.
 
-The template loads two scripts by relative path — ``architecture-library.js``
-(icons, visual tokens) and ``diagram-engine.js`` (layout, self-check). By
-default this builder keeps those links and copies the sidecars beside the
-output for an editable multi-file bundle. Pass ``--inline`` for single-file
-delivery with no local sidecars. The canonical template still loads D3, dagre,
-ELK, GIF, and the GIF worker from configured runtime URLs, so inline output is
-not intrinsically offline. Pass ``--offline`` to use the vendored copies in
-``<template dir>/vendor`` instead (each checked against its pinned hash), with the GIF
-worker embedded in the page: nothing is then loaded from the network. ``--offline``
-combines with ``--inline`` for one self-contained file.
+The page shows layouts that are computed here, at build time, and embedded in
+it: the page itself places nothing and loads no layout library. Unless
+``--geometry`` names a file ``store_geometry.mjs`` already wrote for this model,
+the builder runs that script (Node.js 24 or newer) and keeps the result in a
+cache keyed by the model and the engine, so building the same model again is
+immediate. ``--tune`` makes it search for a better placement, as the Tune layout
+button used to. A geometry that was not computed from exactly this model and
+this engine fails the build; there is no fall-back to layout in the page.
 
-Pass ``--geometry`` with the file ``store_geometry.mjs`` wrote for this model to
-embed its layouts. The page then computes no placement and its dagre and ELK
-script tags are left out. The geometry must have been computed from exactly this
-model and this engine: a missing, unreadable or stale file fails the build, and
-there is no fall-back to layout in the page.
+The template loads two scripts by relative path: ``architecture-library.js``
+(icons, visual tokens) and ``diagram-runtime.js`` (the runtime part of the
+engine: stored layouts, wire rerouting, layout check). By default this builder
+keeps those links and copies the sidecars beside the output for an editable
+multi-file bundle. Pass ``--inline`` for single-file delivery with no local
+sidecars. The canonical template still loads D3 and GIF from configured runtime
+URLs, so inline output is not intrinsically offline. Pass ``--offline`` to use
+the vendored copies in ``<template dir>/vendor`` instead (each checked against
+its pinned hash), with the GIF worker embedded in the page: nothing is then
+loaded from the network. ``--offline`` combines with ``--inline`` for one
+self-contained file.
 """
 
 from __future__ import annotations
@@ -27,6 +31,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -34,7 +39,7 @@ from pathlib import Path
 
 DATA_MARKER = "/* DATA"
 RENDERER_START = "(function () {"
-SIDECARS = ("architecture-library.js", "diagram-engine.js")
+SIDECARS = ("architecture-library.js", "diagram-runtime.js")
 
 
 def _model_id(entry: object) -> str | None:
@@ -117,9 +122,9 @@ def _inline_sidecars(prefix: str, template_dir: Path) -> str:
 
 
 GEOMETRY_FORMAT = "archnime-geometry/1"
-# The libraries that only place nodes. A page with stored geometry does not load them.
-LAYOUT_SCRIPT_RE = re.compile(r'<script src="https://[^"]*(?:dagre|elkjs)[^"]*"[^>]*></script>\r?\n?')
+# What a geometry is computed by: the whole engine, which the page does not load.
 ENGINE_SOURCES = ("diagram-engine.js", "architecture-library.js")
+STORE_GEOMETRY = Path(__file__).resolve().with_name("store_geometry.mjs")
 
 
 class GeometryError(ValueError):
@@ -155,6 +160,38 @@ def _load_geometry(geometry_path: Path, model_path: Path, template_dir: Path) ->
     if "views" in geometry:
         return {"views": {view_id: {"states": part["states"], "layouts": part["layouts"]} for view_id, part in geometry["views"].items()}}
     return {"states": geometry["states"], "layouts": geometry["layouts"]}
+
+
+def _compute_geometry(model_path: Path, template_dir: Path, tune: bool) -> Path:
+    """Run store_geometry.mjs for this model, or reuse what it computed for the same model and engine."""
+    cache_setting = os.environ.get("ARCHNIME_GEOMETRY_CACHE", "")
+    use_cache = cache_setting.lower() not in {"0", "off", "false", "no"}
+    cache_dir = Path(cache_setting) if use_cache and cache_setting else Path(tempfile.gettempdir()) / "archnime-geometry-cache"
+    libraries = [path for path in (template_dir / "vendor" / name for name in ("manifest.json",)) if path.is_file()]
+    key = hashlib.sha256("|".join([_content_hash(model_path), _content_hash(*(template_dir / name for name in ENGINE_SOURCES)), _content_hash(*libraries) if libraries else "", "tune" if tune else "plain"]).encode("ascii")).hexdigest()
+    cached = cache_dir / f"{key}.geometry.json"
+    if use_cache and cached.is_file():
+        return cached
+    node = shutil.which("node")
+    if node is None:
+        raise GeometryError("Node.js 24 or newer is needed to compute the diagram's layout at build time and was not found on PATH; install it, or pass --geometry with a file store_geometry.mjs wrote for this model")
+    if not STORE_GEOMETRY.is_file():
+        raise GeometryError(f"cannot compute the layout: {STORE_GEOMETRY} is missing")
+    target_dir = cache_dir if use_cache else Path(tempfile.mkdtemp(prefix="archnime-geometry-"))
+    target_dir.mkdir(parents=True, exist_ok=True)
+    partial = target_dir / f"{key}.{os.getpid()}.partial.json"
+    # Self-check findings do not stop a build (validation reports them); they are passed on as warnings.
+    command = [node, str(STORE_GEOMETRY), str(model_path), "--output", str(partial), "--allow-findings", *(["--tune"] if tune else [])]
+    result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    if result.returncode != 0 or not partial.is_file():
+        partial.unlink(missing_ok=True)
+        detail = (result.stderr or result.stdout or "").strip().splitlines()
+        raise GeometryError(f"could not compute the layout of {model_path}: {detail[-1] if detail else 'store_geometry.mjs failed'}")
+    for line in (result.stderr or "").strip().splitlines():
+        print(f"warning: {line}", file=sys.stderr)
+    final = target_dir / f"{key}.geometry.json"
+    os.replace(partial, final)
+    return final
 
 
 def _safe_compact_json(value: object) -> str:
@@ -231,7 +268,7 @@ def _offline_prefix(prefix: str, template_dir: Path, inline: bool) -> tuple[str,
     return prefix, ([] if inline else [item for item in used if not item[1].endswith("gif.worker.js")])
 
 
-def build_bundle(template_path: Path, model_path: Path, output_path: Path, *, inline: bool = False, link: bool | None = None, offline: bool = False, geometry_path: Path | None = None) -> None:
+def build_bundle(template_path: Path, model_path: Path, output_path: Path, *, inline: bool = False, link: bool | None = None, offline: bool = False, geometry_path: Path | None = None, tune: bool = False) -> None:
     # ``link`` is retained as a small API compatibility shim for callers of the
     # pre-F3 builder. New callers should use the positive ``inline`` flag.
     if link is not None:
@@ -239,7 +276,10 @@ def build_bundle(template_path: Path, model_path: Path, output_path: Path, *, in
     template = template_path.read_text(encoding="utf-8")
     model = json.loads(model_path.read_text(encoding="utf-8"))
     _validate_portable_model(model)
-    geometry = _load_geometry(geometry_path, model_path, template_path.parent) if geometry_path is not None else None
+    if geometry_path is not None and tune:
+        raise GeometryError("--tune asks the builder to compute the layout; with --geometry the layout is already computed (run store_geometry.mjs --tune instead)")
+    # Layout is always computed before the page exists. Without a geometry file the builder computes it.
+    geometry = _load_geometry(geometry_path if geometry_path is not None else _compute_geometry(model_path, template_path.parent, tune), model_path, template_path.parent)
 
     if template.count(DATA_MARKER) != 1 or template.count(RENDERER_START) != 1:
         raise ValueError("template must contain exactly one DATA marker and renderer start")
@@ -255,12 +295,7 @@ def build_bundle(template_path: Path, model_path: Path, output_path: Path, *, in
     renderer = template[renderer_index:renderer_end]
     suffix = template[renderer_end:]
     payload = _safe_json_payload(model)
-    geometry_script = ""
-    if geometry is not None:
-        if not LAYOUT_SCRIPT_RE.search(prefix):
-            raise GeometryError("template has no dagre or ELK script tag to leave out; is this the archnime-renderer template?")
-        prefix = LAYOUT_SCRIPT_RE.sub("", prefix)
-        geometry_script = f'<script type="application/json" id="diagram-geometry">{_safe_compact_json(geometry)}</script>\n'
+    geometry_script = f'<script type="application/json" id="diagram-geometry">{_safe_compact_json(geometry)}</script>\n'
     bundle = (
         f"{geometry_script}"
         '<script type="application/json" id="diagram-model">\n'
@@ -340,11 +375,12 @@ def main() -> None:
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--inline", action="store_true", help="inline the engine and library into one self-contained HTML file")
     group.add_argument("--link", action="store_true", help="deprecated compatibility alias; linked sidecars are the default")
-    parser.add_argument("--geometry", type=Path, help="embed the layouts store_geometry.mjs computed for this model; the page then loads no dagre or ELK and computes no placement. A missing or stale file fails the build")
+    parser.add_argument("--geometry", type=Path, help="embed the layouts store_geometry.mjs already computed for this model, instead of computing them now. A missing or stale file fails the build")
+    parser.add_argument("--tune", action="store_true", help="when computing the layout, search for a better placement for every state (slower); the result is stored like any other layout")
     parser.add_argument("--offline", action="store_true", help="use the vendored libraries in <template dir>/vendor instead of CDN scripts, so the bundle needs no network (combine with --inline for one file)")
     args = parser.parse_args()
     try:
-        build_bundle(args.template, args.model, args.output, inline=args.inline, offline=args.offline, geometry_path=args.geometry)
+        build_bundle(args.template, args.model, args.output, inline=args.inline, offline=args.offline, geometry_path=args.geometry, tune=args.tune)
     except (OSError, ValueError, json.JSONDecodeError) as error:
         print(f"build failed: {error}", file=sys.stderr)
         raise SystemExit(2)

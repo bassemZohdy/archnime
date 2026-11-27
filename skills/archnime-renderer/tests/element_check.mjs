@@ -81,7 +81,15 @@ try {
     console.error(`Node text sizing regression: ${JSON.stringify(textSizing)}`);
   } else console.log("✓ node text sizing: two-line labels, collapsed-package details, width cap, and authored widths");
   await page.addScriptTag({ url: `http://127.0.0.1:${port}/archnime-renderer/assets/architecture-diagram-element.js` });
-  await page.evaluate(({ port, model }) => {
+  // The element shows stored layouts. This page is translate.html, which has the whole engine, so the
+  // geometry of each model is computed here and handed to the element as an inline data-geometry script.
+  await page.evaluate(async ({ port, model }) => {
+    const withGeometry = async (element, diagramModel) => {
+      const collected = await window.DiagramEngine.create(diagramModel).collectGeometry();
+      const holder = document.createElement("script");
+      holder.type = "application/json"; holder.setAttribute("data-geometry", ""); holder.textContent = JSON.stringify(collected);
+      element.appendChild(holder);
+    };
     const src = document.createElement("architecture-diagram");
     src.id = "from-src";
     src.setAttribute("src", `http://127.0.0.1:${port}/archnime-renderer/assets/examples/portable-transition-model.json`);
@@ -89,6 +97,7 @@ try {
     src.setAttribute("mode", "static");
     src.setAttribute("perspective", "security");
     src.setAttribute("controls", "none");
+    await withGeometry(src, await (await fetch(src.getAttribute("src"))).json());
     document.body.appendChild(src);
     const inline = document.createElement("architecture-diagram");
     inline.id = "from-inline";
@@ -103,6 +112,7 @@ try {
     script.type = "application/json";
     script.textContent = JSON.stringify(customModel);
     inline.appendChild(script);
+    await withGeometry(inline, customModel);
     document.body.appendChild(inline);
     const broken = document.createElement("architecture-diagram");
     broken.id = "broken-src";

@@ -73,7 +73,8 @@ review the validation report before copying any artifact into the project.
 - **Layout hints** stay renderer-neutral: use `meta.layout: auto` by default;
   the renderer selects ELK for deeply nested compound packages, dagre for
   acyclic fan-out/reconvergence backbones, and force for genuinely peer-like
-  meshes with irreducible cycles. Use an
+  meshes with irreducible cycles. The engine runs when the HTML is built
+  (Node.js 24 or newer on `PATH`); the page shows the stored layout. Use an
   explicit layout only when the presentation constraint is part of the
   diagram's intent; never put renderer coordinates in the DSL.
 - **Sources** tie the drawing to the code: `source` on a catalog entry, node override, wire mapping or flow step names the file (and optionally the line and a few quoted words) behind it, relative to the project root. The validator refuses absolute, root-escaping, `.git` and secret-file paths; `scripts/check_sources.py` reports a source whose file or words are gone.

@@ -2,8 +2,9 @@
  *
  * `build_bundle.py --offline` replaces every CDN script with the vendored copy (checked against
  * its pinned hash at build time) and embeds the GIF worker, so the page needs nothing from the
- * network. These tests build such a bundle, then open it with every non-file request blocked
- * and prove that layout, playback, zoom, search, routing and GIF export still work, that no
+ * network. Its layouts are computed at build time and stored in it, so it carries no layout
+ * library either. These tests build such a bundle, then open it with every non-file request blocked
+ * and prove that the stored layout, playback, zoom, search, routing and GIF export still work, that no
  * request leaves the machine, and that a missing or altered asset fails clearly instead of
  * giving a blank page.
  */
@@ -27,7 +28,7 @@ const scratch = () => { const path = mkdtempSync(join(tmpdir(), "offline-test-")
 /** Copy the template and its sidecars somewhere writable so a test can damage the assets. */
 function stagedTemplate() {
   const directory = scratch();
-  for (const name of ["template.html", "architecture-library.js", "diagram-engine.js"]) copyFileSync(join(ASSETS, name), join(directory, name));
+  for (const name of ["template.html", "architecture-library.js", "diagram-engine.js", "diagram-runtime.js"]) copyFileSync(join(ASSETS, name), join(directory, name));
   mkdirSync(join(directory, "vendor"));
   for (const name of readdirSync(join(ASSETS, "vendor"))) copyFileSync(join(ASSETS, "vendor", name), join(directory, "vendor", name));
   copyFileSync(join(ASSETS, "cdn-integrity.json"), join(directory, "cdn-integrity.json"));
@@ -63,7 +64,10 @@ test("the offline bundle references no network resource at all", () => {
   assert.doesNotMatch(html, /\bintegrity="|crossorigin=/, "local scripts must not carry CDN-only attributes");
   assert.doesNotMatch(html, /cdn\.jsdelivr\.net|cdnjs\.cloudflare\.com/, "a CDN host is still mentioned");
   assert.match(html, /id="gif-worker-source"/);
-  for (const name of ["d3.min.js", "dagre.min.js", "elk.bundled.js", "gif.js"]) assert.ok(existsSync(join(output, "..", "vendor", name)), `vendor/${name} was not placed beside the bundle`);
+  for (const name of ["d3.min.js", "gif.js"]) assert.ok(existsSync(join(output, "..", "vendor", name)), `vendor/${name} was not placed beside the bundle`);
+  // TASK-039: the page places nothing, so the layout libraries are not delivered with it.
+  for (const name of ["dagre.min.js", "elk.bundled.js"]) assert.ok(!existsSync(join(output, "..", "vendor", name)), `vendor/${name} was delivered although the page computes no layout`);
+  assert.ok(existsSync(join(output, "..", "diagram-runtime.js")) && !existsSync(join(output, "..", "diagram-engine.js")), "the bundle should carry the runtime part of the engine only");
 });
 
 test("blocked network: layout, playback, zoom, search and routing all work", { skip }, async () => {
@@ -99,7 +103,7 @@ test("blocked network: layout, playback, zoom, search and routing all work", { s
   } finally { await session.browser.close(); }
 });
 
-test("blocked network: ELK and Dagre both lay out a dense model", { skip }, async () => {
+test("blocked network: a dense model shows its stored layout with no layout library (TASK-039)", { skip }, async () => {
   const { status, output, stderr } = build(join(EXAMPLES, "dense-mesh-model.json"));
   assert.equal(status, 0, stderr);
   const session = await openOffline(output);
@@ -107,7 +111,8 @@ test("blocked network: ELK and Dagre both lay out a dense model", { skip }, asyn
     const { page } = session;
     await ready(page);
     const engines = await page.evaluate(() => ({ elk: typeof ELK, dagre: typeof dagre, d3: typeof d3, selfCheck: window.diagramSelfCheck().length }));
-    assert.deepEqual({ elk: engines.elk, dagre: engines.dagre, d3: engines.d3 }, { elk: "function", dagre: "object", d3: "object" });
+    assert.deepEqual({ elk: engines.elk, dagre: engines.dagre, d3: engines.d3 }, { elk: "undefined", dagre: "undefined", d3: "object" });
+    assert.ok(await page.evaluate(() => document.querySelectorAll("g.nodes g.node").length) >= 5);
     assert.equal(engines.selfCheck, 0, "the dense layout has self-check findings offline");
     assert.deepEqual(session.external, []);
   } finally { await session.browser.close(); }
@@ -140,7 +145,8 @@ test("a single-file offline bundle (--inline) needs no sibling files", { skip },
   assert.equal(status, 0, stderr);
   assert.deepEqual(readdirSync(directory), ["single.html"], "an inline offline build must not write sidecar files");
   const html = readFileSync(output, "utf8");
-  assert.ok(html.length > 1_500_000, "the libraries should be inlined");
+  assert.ok(html.length > 400_000, "the libraries should be inlined");
+  assert.ok(html.length < 1_500_000, "the page should not carry ELK");
   const session = await openOffline(output);
   try {
     await ready(session.page);
@@ -158,10 +164,10 @@ test("a missing or altered vendored file fails the build with a clear message", 
   assert.match(gone.stderr, /offline build failed: .*d3\.min\.js.* is missing/);
 
   const altered = stagedTemplate();
-  writeFileSync(join(altered, "vendor", "dagre.min.js"), `${readFileSync(join(altered, "vendor", "dagre.min.js"), "utf8")}\n/* tampered */`);
+  writeFileSync(join(altered, "vendor", "gif.js"), `${readFileSync(join(altered, "vendor", "gif.js"), "utf8")}\n/* tampered */`);
   const changed = build(model, { template: join(altered, "template.html") });
   assert.notEqual(changed.status, 0);
-  assert.match(changed.stderr, /offline build failed: .*dagre\.min\.js.* does not match its pinned hash/);
+  assert.match(changed.stderr, /offline build failed: .*gif\.js.* does not match its pinned hash/);
 
   const noManifest = stagedTemplate();
   rmSync(join(noManifest, "vendor", "manifest.json"));

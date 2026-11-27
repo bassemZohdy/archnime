@@ -8,8 +8,13 @@ collapse/expand leaves in the DOM. This harness closes that gap.
 
 For every model in [`../assets/examples/`](../assets/examples) and
 [`fixtures/`](fixtures) it builds an HTML bundle with
-[`../scripts/build_bundle.py`](../scripts/build_bundle.py), loads it in
-headless Chromium, and checks:
+[`../scripts/build_bundle.py`](../scripts/build_bundle.py) (which computes the
+layout and stores it in the page), loads it in headless Chromium, and checks
+the items below. A delivered page carries only the runtime engine
+(`diagram-runtime.js`), so for the checks that place a model themselves (the
+auto-engine probe, the corridor regressions and the Tune search) the harness
+loads the whole engine, with the vendored dagre and ELK, into the page with
+[`full_engine.mjs`](full_engine.mjs).
 
 - `diagramSelfCheck()` returns no findings
 - declared `meta.validation.expectedIssueTypes` are present and no unrelated
@@ -42,15 +47,18 @@ headless Chromium, and checks:
   recommendation badge, and per-option tradeoffs without playback controls
 - compact v2 bundles resolve shared catalog/package entries in the page itself;
   the harness does not supply that merge to the renderer
-- every model is rebuilt with both `dagre` and `elk`; the harness awaits
-  `engine.ready`, compares self-check issue classes, and fails on a new ELK
-  class or layout runtime error. Curved ELK paths are also checked for
+- every model is rebuilt with both `dagre` and `elk` (the build computes and
+  stores each layout); the harness opens both pages, compares self-check issue
+  classes, and fails on a new ELK class or a page error. Curved ELK paths are also checked for
   unrelated node, package, and boundary crossings; they may use the explicit
   orthogonal safety fallback, but must not silently retain a crossing curve
 - the `wire-routing-style` fixture keeps same-pair wires in distinct lanes,
   applies every routing choice to bundled secondary wires, verifies that
-  blocks remain painted above routes, and confirms Tune layout performs a
-  multi-start search
+  blocks remain painted above routes, and confirms the Tune search performs a
+  multi-start search. Tune layout is a build option now, not a button in the
+  page: the regressions that were found through the button run the same search
+  on the whole engine loaded with `full_engine.mjs`, for the stage and wire
+  style the old test had on screen
 
 ## `*.test.mjs` — documentation-export tests (`npm run test:documentation`)
 
@@ -102,9 +110,11 @@ toolbar uses. A missing browser skips them locally and fails them under
   recognisable licence text, and nothing unlisted beside them.
 
 - `offline_presenter.test.mjs` — `build_bundle.py --offline` (also `--inline`) produces a page
-  with no network reference; with every non-file request blocked, Dagre and ELK layout, playback,
-  zoom, search, routing and GIF export work and no request leaves the page; a missing, altered
-  or unlisted vendored file fails the build clearly, and a library that goes missing later shows
+  with no network reference and no ELK or Dagre (the page computes no layout: `vendor/` beside it
+  holds d3 and gif.js only, and the sidecar is `diagram-runtime.js`, not `diagram-engine.js`); with
+  every non-file request blocked, the stored layout, playback, zoom, search, routing and GIF export
+  work and no request leaves the page; a missing or altered vendored file or a missing manifest
+  fails the build clearly, and a library that goes missing later shows
   an alert instead of a blank page.
 
 - `multilingual_font.test.mjs` — a label the pinned font cannot paint (Arabic, Hebrew, Han,
@@ -143,7 +153,7 @@ toolbar uses. A missing browser skips them locally and fails them under
 
 ## `script_integrity_check.mjs` — pinned CDN scripts
 
-Every external script the pages load (D3, Dagre, ELK, gif.js and js-yaml) carries a
+Every external script the pages load (D3 and gif.js in `template.html`; D3, Dagre, ELK and js-yaml in `translate.html`) carries a
 `sha384` Subresource Integrity hash and `crossorigin="anonymous"`, and the gif worker,
 which is fetched rather than loaded by a tag, passes its hash to `fetch()`.
 `assets/cdn-integrity.json` is the one list of those hashes; the check is static and
@@ -197,6 +207,10 @@ can fetch `template.html` and its local sidecars. It converts the system,
 transition, steps, scenarios, flow, and v2 views DSL examples, confirms
 download is enabled only after a clean geometry check, and compares the browser
 validator's rule names with the Python validator for every invalid fixture.
+It also opens every produced page and checks that it carries stored geometry
+and the inlined runtime engine, has no placement code and no layout library
+(`window.dagre` and `window.ELK` are undefined), paints nodes, and has no
+finding in the displayed layout.
 
 The DSL translator's `--sequence` companion is covered by the Python unit
 suite and emits Mermaid without changing the renderer JSON output path.
@@ -204,48 +218,57 @@ suite and emits Mermaid without changing the renderer JSON output path.
 `render_check.mjs` prints the current ELK parity result for each model. Nested
 compound models are expected to select
 ELK under `auto`; flat directional models may remain dagre and peer meshes may
-remain force. The harness still compares explicit dagre and ELK runs for every
+remain force. The harness still compares explicit dagre and ELK builds for every
 model because backend choice must not change semantic scope or introduce a new
 self-check issue class, or add findings. Fewer ELK findings are recorded as an
 improvement rather than treated as parity drift.
 
-## `headless_layout_check.mjs` — layout without a page equals layout in the page
+## `headless_layout_check.mjs` — layout computed in Node equals layout computed in a browser
 
-Loads the vendored D3, dagre and ELK, the library and `diagram-engine.js` into a
-plain Node context with no `document`, runs `DiagramEngine.layoutStage` for every
-stage of seven fixtures (flat, nested packages, flow, one laid out by ELK, one by
-the force engine, a free-form mesh and three levels of packages) and writes the geometry as JSON: node, package and boundary
-boxes, wire routes and label positions, canvas and engine. It then builds the
-offline page for each fixture, asks the engine in that page for the same stages
-with the options `template.html` uses, and fails when any value differs (numbers
-are compared exactly, not rounded). The layout the page painted on load must
-equal one of the headless stages. Prints the headless and in-page layout time and the geometry size per
-fixture; `--out <dir>` keeps the JSON. The headless half needs no browser.
-Covers TASK-034 and TASK-036, the evidence for [build-time layout](../../../docs/build-time-layout.md).
+Layout is computed where a diagram is built: `scripts/store_geometry.mjs` runs
+the whole engine in plain Node with no `document`, and `translate.html` runs it
+in a browser. For eight fixtures (flat, nested packages, flow, ELK, force, a
+free-form mesh, three levels of packages and a three-view bundle) this check
+computes the geometry in Node, builds the page, loads the whole engine into it
+(`full_engine.mjs`) and computes the same geometry there with the page's CSS
+tokens. Any differing value fails; numbers are compared exactly. It also holds
+that the geometry embedded in the page is the one Node computed and that the
+layout painted on load is its opening state, and prints the time each side took
+and the geometry size. Covers TASK-034, TASK-036 and TASK-039.
 
-## `stored_geometry_check.mjs` and `stored_geometry.test.mjs` — layout computed at build time
+## `stored_geometry_check.mjs`, `stored_geometry.test.mjs` and `runtime_engine.test.mjs` — a page shows stored layouts and places nothing
 
-`stored_geometry_check.mjs` computes the geometry of nine fixtures, two of them
-multi-view bundles walked view by view, with
-`scripts/store_geometry.mjs`, builds each page twice (the usual way, and with
-`build_bundle.py --geometry`) and drives both through the same steps: every
-stage, every wire style, collapsing and expanding each package, presenter mode,
-then the documentation SVG and animated SVG exports. After each step the layout
-the page holds and what it painted must be identical, and so must the exports.
-The stored page is offline with every network request refused and must have no
-`window.dagre` and no `window.ELK`; it must not offer Tune, and a state with no
-stored layout must fail with a message. One fixture uses the force layout, whose
-runtime result after a collapse depends on the clicks before it; there only the
-steps before the first collapse are compared, and the stored page must return to
-the layout the stage opened with. `stored_geometry.test.mjs` holds the same
-without a browser: stored equals computed for every reachable state, the stored
-engine runs with no layout library, reroutes and checks, a bundle stores one
-geometry per view, `--tune` is reproducible and no worse, and the state limit, a
-missing state and a geometry of another model fail clearly. The check also runs
-the `<architecture-diagram>` element from stored geometry on a host page with no
-layout library. `test_build_bundle.py`
-covers the builder: a missing, unreadable or stale geometry fails the build.
-Covers FEAT-038.
+`stored_geometry_check.mjs` builds the offline single-file page of nine fixtures,
+two of them multi-view bundles walked view by view, and walks each: every stage,
+every wire style, collapsing and expanding each package, presenter mode, then
+the documentation SVG and animated SVG exports. The page must load with every
+network request refused, have no `window.dagre` and no `window.ELK`, and carry
+no placement code. After each step the layout the page holds must be exactly
+what the runtime engine gives in Node for the same stage, expanded packages and
+wire style from the same geometry, and the painted wires must be that layout's.
+Expanding a package again must bring back the layout the stage opened with,
+presenter mode must move no box, and a state with no stored layout must fail
+with a message. Last, the `<architecture-diagram>` element runs from a geometry
+file on a host page with the runtime engine and no layout library, and refuses a
+model with no geometry or with another model's.
+
+`stored_geometry.test.mjs` holds, without a browser, that a stored layout is the
+computed layout for every reachable state, that the stored engine reroutes and
+checks with no layout library, that a bundle stores one geometry per view, that
+`--tune` is reproducible and no worse, and that the state limit, a missing state
+and a geometry of another model fail clearly.
+
+`runtime_engine.test.mjs` holds that `assets/diagram-runtime.js` is what
+`scripts/gen_runtime_engine.mjs` generates from `diagram-engine.js`, that it
+carries no placement code and refuses to create an engine without geometry, and
+that from the same geometry it gives exactly what the whole engine gives: every
+state in each wire style, the layout check and the self-check, on every fixture
+and shipped example. `test_build_bundle.py` covers the builder: it computes and
+caches geometry when none is given, needs Node or a geometry file, and fails on
+a missing, unreadable or stale file. Covers FEAT-038 and TASK-039.
+
+`full_engine.mjs` is the helper the engine-level harnesses use to load the whole
+engine and the layout libraries into a page, since a delivered page has neither.
 
 ## `playback_gate_check.mjs` — pause, navigation, text size and run length
 
@@ -268,7 +291,10 @@ value gets worse and when the target is met, so the entry cannot go stale.
 Builds the canonical Test System DSL into HTML, then cycles the template's
 wire-style selector Curved → Orthogonal → Direct → Curved. It also drives
 `engine.setRouting` over routing fixtures in default and fully expanded states
-and after a committed Tune. Every switch must keep node, package, and boundary
+and after a Tune search. That second part places the fixtures and runs the Tune
+search through the engine API, so the harness loads the whole engine into the
+page with `full_engine.mjs`; a delivered page carries only the runtime engine.
+Every switch must keep node, package, and boundary
 boxes and the expansion state; every visible wire must report the selected
 `requestedRouting`; and returning to the starting style must reproduce its
 wire geometry exactly. Immediately after each switch (no waiting), every
@@ -310,7 +336,9 @@ template embeds the same font, so geometry is identical on every host.
 `npm run check-fonts` (`scripts/gen_font_assets.mjs --check`) verifies the
 embedded font bytes and the table; run `node scripts/gen_font_assets.mjs`
 after changing either. `test_system_layout_check.mjs` agrees to the pixel on
-Windows and in the Linux CI image.
+Windows and in the Linux CI image. It lays the Test System model out itself,
+so it loads the whole engine into the built page with `full_engine.mjs`; a
+delivered page carries only the runtime engine.
 
 ## Failure evidence
 
@@ -337,7 +365,7 @@ Run `npm run check-fixtures` in CI and before rendering a changed translator.
 | `flow-single.json` | hand-authored | single-step flow presentation, including an intro offset |
 | `force-mesh-packages.json` | hand-authored | `force` layout with two expanded packages and disjoint boundaries |
 | `stage-scoped-collapse.json` | hand-authored | per-stage expansion defaults and interactive-override isolation across a 3-state transition |
-| `wire-routing-style.json` | hand-authored | explicit parallel-wire lanes, bundled secondary routes, all routing styles, node-over-wire paint order, and Tune layout |
+| `wire-routing-style.json` | hand-authored | explicit parallel-wire lanes, bundled secondary routes, all routing styles, node-over-wire paint order, and the Tune search |
 | `free-form-mesh.json` | hand-authored (TASK-036) | a flat peer mesh with call cycles and no lane or rank order, across two stages; checks layout on a diagram that is not lane-aligned |
 | `nested-three-levels.json` | hand-authored (TASK-036) | packages nested three deep under `auto` (ELK), with a second stage whose new wire leaves the innermost package |
 

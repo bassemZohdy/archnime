@@ -30,6 +30,14 @@
  * nothing: `layoutStage` returns the stored layout for the requested state and
  * throws when there is none, so it needs neither dagre nor ELK nor the force
  * layout. Wire rerouting and `checkLayout` still work on a stored layout.
+ *
+ * Two files, one source. This file is the whole engine: the build step
+ * (scripts/store_geometry.mjs) and translate.html load it to compute layout.
+ * A delivered page loads `diagram-runtime.js`, which scripts/gen_runtime_engine.mjs
+ * generates from this file by dropping everything that places nodes: the code
+ * between `@placement:begin` and `@placement:end`, and then every function
+ * nothing left refers to. A `// @runtime:` comment is code only the runtime file
+ * gets. `npm run check-runtime` fails when the generated file is out of date.
  *   DiagramEngine.selfCheck(model[, options]) -> Promise<issues>              (one-shot)
  *
  * `model` is the portable `{ meta, canvas, catalog, packages, stages }` shape
@@ -98,10 +106,13 @@
 
   function create(model, options) {
     options = options || {};
+    // @runtime: if (!options.geometry) throw new Error("This diagram has no stored geometry. Layout is computed when the diagram is built, not in the page: build it with build_bundle.py, or give the <architecture-diagram> element a geometry-src.");
     const d3 = options.d3 || global.d3;
     if (!d3) throw new Error("DiagramEngine.create requires d3 (pass options.d3 or load d3 globally)");
+    /* @placement:begin */
     const dagre = options.dagre !== undefined ? options.dagre : global.dagre;
     const elkSource = options.elk !== undefined ? options.elk : global.ELK;
+    /* @placement:end */
     const doc = options.document || (typeof document !== "undefined" ? document : null);
     const tokenRoot = options.tokenRoot || (doc ? doc.documentElement : null);
     const presenterRoot = options.presenterRoot || (doc ? doc.body : null);
@@ -146,9 +157,13 @@
 
     /* --- per-instance mutable layout state --- */
     let rerouteCount = 0, lastSelfCheckScenarios = [];
-    const packageOverrides = new Map(), lastPositions = new Map(), elkRetrySeeds = new Map(), tunedLayouts = new Map();
+    const packageOverrides = new Map(), lastPositions = new Map();
+    /* @placement:begin */
+    const elkRetrySeeds = new Map(), tunedLayouts = new Map();
     let tuneRunCount = 0;
+    /* @placement:end */
     let activeLayoutTrial = 0, layoutReserve = null, activeRankMap = null;
+    /* @placement:begin */
     const layoutCache = new Map(), masterPositionCache = new Map(), elkPositionCache = new Map(), LAYOUT_CACHE_LIMIT = 48, ELK_CACHE_LIMIT = 512;
     const ELK_RETRY_VARIANTS = [
       // Longest-path is the safest default for architecture graphs with
@@ -171,6 +186,7 @@
     ];
     const elkRetryOverrides = new Map();
     let elkInstance = null, lastElkLookup = null, lastLayoutFallback = null;
+    /* @placement:end */
 
     function tuneStrategiesFor(opts = {}) {
       const requested = String(opts.strategy || opts.strategyId || "").trim();
@@ -2154,7 +2170,10 @@
       while (tunedLayouts.size > LAYOUT_CACHE_LIMIT) tunedLayouts.delete(tunedLayouts.keys().next().value);
       return value;
     }
+    // @runtime: function invalidateLayoutCache() {}
+    /* @placement:begin */
     function invalidateLayoutCache(clearTuned = false) { layoutCache.clear(); masterPositionCache.clear(); if (clearTuned) tunedLayouts.clear(); }
+    /* @placement:end */
     function tunedLayoutKey(stage, forceAllExpanded, expanded) {
       return `${stage.id}|${forceAllExpanded ? "all" : "sel"}|${presenterKey()}|${[...expanded].sort().join(",")}`;
     }
@@ -2295,6 +2314,7 @@
     function layoutStage(stage, forceAllExpanded = false, expansionOverride = null, opts = {}) {
       const expanded = expandedPackages(stage, forceAllExpanded, expansionOverride);
       if (STORED) return storedLayout(stage, expanded);
+      /* @placement:begin */
       if (opts.bypassCache) return computeLayout(stage, forceAllExpanded, expansionOverride);
       const key = `${stage.id}|${forceAllExpanded ? "all" : "sel"}|${presenterKey()}|${[...expanded].sort().join(",")}`;
       const restoreCanvas = layout => { if (layout.canvas) { CANVAS.w = layout.canvas.w; CANVAS.h = layout.canvas.h; } return layout; };
@@ -2302,6 +2322,7 @@
       if (layoutCache.has(key)) return restoreCanvas(routedFor(layoutCache.get(key)));
       if (!forceAllExpanded && allPackagesForStage(stage).size) applyMasterSeed(stage, masterPositions(stage));
       return restoreCanvas(cacheLayout(key, computeLayout(stage, forceAllExpanded, expansionOverride)));
+      /* @placement:end */
     }
     function storedLayout(stage, expanded) {
       const key = `${stage.id}|${expansionKey(expanded)}`;
@@ -2341,17 +2362,26 @@
       for (const stage of STAGES) {
         states[stage.id] = {};
         const expansions = reachableExpansions(stage, limit);
+        // Each state is laid out the way the self-check lays it out, so what is stored is what was
+        // checked: the fully expanded layout first, then every state seeded from its positions.
+        const snapshot = new Map(lastPositions), restore = () => { lastPositions.clear(); snapshot.forEach((value, id) => lastPositions.set(id, value)); };
+        const all = allPackagesForStage(stage);
+        if (usesElk && all.size) { const scenario = elkScenarioKey(stage, all); if (!prepared.has(scenario)) { await prepareElkItem({ stage, expanded: all }); prepared.add(scenario); } }
+        restore();
+        const master = all.size ? new Map(computeLayout(stage, true, null).nodes.map(node => [node.id, { x: node.x, y: node.y }])) : null;
         for (let index = 0; index < expansions.length; index += 1) {
-          const expanded = expansions[index], scenario = elkScenarioKey(stage, expanded);
+          const expanded = expansions[index], scenario = elkScenarioKey(stage, expanded), override = index === 0 ? null : expanded;
           if (usesElk && !prepared.has(scenario)) { await prepareElkItem({ stage, expanded }); prepared.add(scenario); }
+          if (master) applyMasterSeed(stage, master); else restore();
+          let layout = computeLayout(stage, false, override);
           // Tune at build time: the search the page's Tune button ran, keeping the wire style, so
-          // the stored layout is the best placement found. It commits its result for this state.
-          if (opts.tune && tuneAvailable(stage)) { const result = await retryElk(stage, false, index === 0 ? null : expanded, { variantCount: 3, wireVariantCount: 1, restartCount: 3, strategy: opts.tune === true ? "all" : opts.tune }); if (result.improved) tuned.push(`${stage.id}|${expansionKey(expanded)}`); }
-          // The first is the state the page opens on, laid out through the same call the page makes.
-          const text = JSON.stringify(packLayout(index === 0 ? layoutStage(stage) : layoutStage(stage, false, expanded)));
+          // the stored layout is the best placement found.
+          if (opts.tune && tuneAvailable(stage)) { const result = await retryElk(stage, false, override, { variantCount: 3, wireVariantCount: 1, restartCount: 3, strategy: opts.tune === true ? "all" : opts.tune }); if (result.improved) { layout = result.layout; tuned.push(`${stage.id}|${expansionKey(expanded)}`); } }
+          const text = JSON.stringify(packLayout(layout));
           if (!known.has(text)) { known.set(text, layouts.length); layouts.push(JSON.parse(text)); }
           states[stage.id][expansionKey(expanded)] = known.get(text);
         }
+        restore();
       }
       return opts.tune ? { states, layouts, tuned } : { states, layouts };
     }
@@ -2497,10 +2527,31 @@
       try { checkLayoutIssues(stage, layout, (type, detail) => issues.push({ type, detail }), tag); } finally { CANVAS.w = canvas.w; CANVAS.h = canvas.h; }
       return issues;
     }
+    // Checks of the model itself, not of a layout: the full self-check and the stored one both run them.
+    function checkStageModel(stage, push) {
+      const ids = (stage.nodes || []).map(nodeEntryId), local = new Set(); ids.forEach(id => { if (local.has(id)) push("duplicate-node", `${stage.id}: ${id}`); local.add(id); if (!CATALOG[id] && !PACKAGES[id]) push("unknown-node", `${stage.id}: ${id}`); });
+      const rawIds = new Set(ids); (stage.wires || []).forEach(wire => { if (!rawIds.has(wire.from) || !rawIds.has(wire.to)) push("wire-unknown-endpoint", `${stage.id}: ${wire.from} → ${wire.to}`); if (wire.from === wire.to) push("wire-self", `${stage.id}: ${wire.from}`); }); (stage.changed || []).forEach(id => { if (!rawIds.has(id)) push("changed-missing", `${stage.id}: ${id}`); });
+    }
+    function checkFlowSteps(push) {
+      const known = new Set((FLOW.wires || []).map(wire => `${wire.from}>${wire.to}`)), seenCalls = new Set();
+      const checkStep = (step, path) => {
+        const kind = step?.kind || "call", edges = Array.isArray(step?.edges) ? step.edges : [];
+        if (kind === "intro") return;
+        if (!edges.length) { push("flow-step-empty", `${path}: no edge, group, or parallel item`); return; }
+        edges.forEach(edge => {
+          const edgeKind = edge.kind || kind, key = `${edge.from}>${edge.to}`, reverse = `${edge.to}>${edge.from}`, syntheticLoop = edgeKind === "loop" && edge.from === edge.to;
+          if (!known.has(key) && !((edgeKind === "return" || edgeKind === "refused") && known.has(reverse)) && !syntheticLoop) push("flow-step-unknown-edge", `${path}: ${edge.from} → ${edge.to}`);
+          if ((edgeKind === "return" || edgeKind === "refused") && !seenCalls.has(reverse)) push("flow-return-no-forward", `${path}: ${edge.from} → ${edge.to}`);
+          else if (edgeKind !== "return" && edgeKind !== "refused" && known.has(key)) seenCalls.add(key);
+        });
+      };
+      (FLOW.steps || []).forEach((step, index) => checkStep(step, `flow.steps[${index}]`));
+    }
     function storedSelfCheck() {
       const issues = [], push = (type, detail) => issues.push({ type, detail }), canvas = { w: CANVAS.w, h: CANVAS.h }, evaluated = [];
       try {
         STAGES.forEach(stage => {
+          if (!FLOW) checkStageModel(stage, push);
           const configured = expansionKey(expandedPackages(stage, false, null, true));
           Object.keys(STORED.states[stage.id] || {}).forEach(key => {
             const layout = storedLayout(stage, new Set(key ? key.split(",") : []));
@@ -2509,12 +2560,14 @@
             evaluated.push(`${stage.id}:${key === configured ? "default" : key || "collapsed"}`);
           });
         });
+        if (FLOW) checkFlowSteps(push);
       } finally { CANVAS.w = canvas.w; CANVAS.h = canvas.h; }
       lastSelfCheckScenarios = evaluated;
       return issues;
     }
     function selfCheck() {
       if (STORED) return storedSelfCheck();
+      /* @placement:begin */
       const issues = [], push = (type, detail) => issues.push({ type, detail });
       const restorePositions = snapshot => { lastPositions.clear(); snapshot.forEach((v, k) => lastPositions.set(k, v)); };
       const canvasSnapshot = { w: CANVAS.w, h: CANVAS.h }, restoreCanvas = () => { CANVAS.w = canvasSnapshot.w; CANVAS.h = canvasSnapshot.h; };
@@ -2533,26 +2586,14 @@
           evaluated.push(scenario.label);
         });
         lastSelfCheckScenarios = evaluated;
-        const checkStep = (step, path) => {
-          const kind = step?.kind || "call", edges = Array.isArray(step?.edges) ? step.edges : [];
-          if (kind === "intro") return;
-          if (!edges.length) { push("flow-step-empty", `${path}: no edge, group, or parallel item`); return; }
-          edges.forEach(edge => {
-            const edgeKind = edge.kind || kind, key = `${edge.from}>${edge.to}`, reverse = `${edge.to}>${edge.from}`, syntheticLoop = edgeKind === "loop" && edge.from === edge.to;
-            if (!known.has(key) && !((edgeKind === "return" || edgeKind === "refused") && known.has(reverse)) && !syntheticLoop) push("flow-step-unknown-edge", `${path}: ${edge.from} → ${edge.to}`);
-            if ((edgeKind === "return" || edgeKind === "refused") && !seenCalls.has(reverse)) push("flow-return-no-forward", `${path}: ${edge.from} → ${edge.to}`);
-            else if (edgeKind !== "return" && edgeKind !== "refused" && known.has(key)) seenCalls.add(key);
-          });
-        };
-        (FLOW.steps || []).forEach((step, index) => checkStep(step, `flow.steps[${index}]`));
+        checkFlowSteps(push);
         restorePositions(positionsSnapshot);
         restoreCanvas();
         return issues;
       }
       const evaluatedAll = [];
       STAGES.forEach(stage => {
-        const ids = (stage.nodes || []).map(nodeEntryId), local = new Set(); ids.forEach(id => { if (local.has(id)) push("duplicate-node", `${stage.id}: ${id}`); local.add(id); if (!CATALOG[id] && !PACKAGES[id]) push("unknown-node", `${stage.id}: ${id}`); });
-        const rawIds = new Set(ids); (stage.wires || []).forEach(wire => { if (!rawIds.has(wire.from) || !rawIds.has(wire.to)) push("wire-unknown-endpoint", `${stage.id}: ${wire.from} → ${wire.to}`); if (wire.from === wire.to) push("wire-self", `${stage.id}: ${wire.from}`); }); (stage.changed || []).forEach(id => { if (!rawIds.has(id)) push("changed-missing", `${stage.id}: ${id}`); });
+        checkStageModel(stage, push);
         const positionsSnapshot = new Map(lastPositions), scenarios = expansionScenarios(stage);
         const ordered = [...scenarios].sort((a, b) => (b.label === "all") - (a.label === "all"));
         let masterSnapshot = null;
@@ -2574,8 +2615,10 @@
       lastSelfCheckScenarios = evaluatedAll;
       restoreCanvas();
       return issues;
+      /* @placement:end */
     }
 
+    /* @placement:begin */
     const explicitElk = META.layout === "elk" || STAGES.some(stage => stage.layout === "elk");
     const autoElk = !!elkSource && STAGES.some(stage => {
       const configured = expandedPackages(stage, false, null);
@@ -2584,14 +2627,17 @@
     });
     const usesElk = explicitElk || autoElk;
     const ready = !STORED && usesElk ? prepareElk() : Promise.resolve();
+    /* @placement:end */
+    // @runtime: const ready = Promise.resolve();
 
     return {
       model: { meta: META, canvas: CANVAS, catalog: CATALOG, packages: PACKAGES, stages: STAGES, ...(FLOW ? { flow: FLOW } : {}), ...(DEPLOYMENT ? { deployment: DEPLOYMENT } : {}), ...(COMPARISON ? { comparison: COMPARISON } : {}) },
       LAYOUT_POLICY,
       ready,
+      stored: !!STORED,
+      /* @placement:begin */
       usesElk,
       elkAvailable: !!elkSource,
-      stored: !!STORED,
       collectGeometry,
       tuneAvailable: !STORED && STAGES.some(stage => (stage.nodes || []).length > 1 && (stage.wires || []).length > 0),
       elkRetryVariants: ELK_RETRY_VARIANTS.map(variant => ({ ...variant })),
@@ -2600,6 +2646,8 @@
       prepareElk: STORED ? () => Promise.resolve() : prepareElk,
       layoutDiagnostics() { return { selfCheckScenarios: [...lastSelfCheckScenarios], reroutes: rerouteCount, layoutCacheSize: layoutCache.size, tunedLayoutCount: tunedLayouts.size, elkCacheSize: elkPositionCache.size, elkKeys: [...elkPositionCache.keys()], lastElkLookup, lastLayoutFallback }; },
       retryElk: STORED ? () => Promise.reject(new Error("Tune layout runs when the diagram is built; this page carries stored geometry")) : retryElk,
+      /* @placement:end */
+      // @runtime: layoutDiagnostics() { return { selfCheckScenarios: [...lastSelfCheckScenarios], reroutes: rerouteCount }; },
       layoutStage,
       layoutFlow,
       selfCheck,

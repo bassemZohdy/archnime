@@ -1,7 +1,12 @@
-# Vendored runtime libraries
+# Vendored libraries
 
 Exact copies of the third-party scripts the renderer otherwise loads from public CDNs, so a
-presentation can run with no network access. They are never edited.
+presentation can be built and run with no network access. They are never edited.
+
+d3 and gif.js (with its worker) are what a delivered page loads; `build_bundle.py --offline`
+places them beside the page or inlines them. dagre and elkjs are vendored for the build step
+(`scripts/store_geometry.mjs` loads them to compute the layout that is stored in the page) and
+are what `translate.html` loads from the CDN; they are not delivered with a page.
 
 | Library | Version | Licence | Files |
 | --- | --- | --- | --- |

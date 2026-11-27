@@ -23,28 +23,42 @@ fixed topology.
 
 | File | Role |
 | --- | --- |
-| `<title>.html` | The interactive diagram. Built from `assets/template.html` with the model embedded as `const MODEL`. The default build keeps relative links to the two sidecars below; `--inline` embeds them for single-file delivery — not an offline guarantee, since D3/dagre/ELK/GIF still load from runtime URLs. It includes SVG, PNG, JPEG, GIF, and JavaScript-free Animated SVG export. |
+| `<title>.html` | The interactive diagram. Built from `assets/template.html` with the model embedded as `const MODEL` and the layouts computed at build time stored beside it (the "geometry"). The page places nothing and loads no layout library. The default build keeps relative links to the two sidecars below; `--inline` embeds them for single-file delivery — not an offline guarantee, since D3 and gif.js still load from CDN URLs unless `--offline` is given. It includes SVG, PNG, JPEG, GIF, and JavaScript-free Animated SVG export. |
 | `<title>.json` (or `.yaml`) | The **portable model** — the source artifact. Another tool must be able to regenerate the visual from this alone, without reading SVG geometry. Kept identical to the embedded `MODEL`. |
 | `architecture-library.js` | The shared visual language (icons, colour tokens, flow styles). Linked/copied by default or inlined with `--inline`; never edited per diagram. |
-| `diagram-engine.js` | The layout + self-check engine (`DiagramEngine.create(model)` → `layoutStage`, `selfCheck`). Shared with the DSL translator so a diagram's geometry can be validated without rendering a page. Linked/copied by default or inlined with `--inline`; never edited per diagram. |
-| `architecture-diagram-element.js` | Optional plain-global `<architecture-diagram>` web component. It mounts the renderer in a shadow root and accepts `src` or an inline JSON child script. Keep it beside `template.html` because it loads the shared renderer source from that file. |
+| `diagram-runtime.js` | The runtime part of the engine: it shows the stored layouts, reroutes wires when the wire style changes, and runs the layout check. It never places a node. Generated from `diagram-engine.js` by `scripts/gen_runtime_engine.mjs` (`npm run gen-runtime`); never edited by hand or per diagram. Linked/copied by default or inlined with `--inline`. |
+| `architecture-diagram-element.js` | Optional plain-global `<architecture-diagram>` web component. It mounts the renderer in a shadow root and accepts `src` or an inline JSON child script, plus the stored geometry it requires. Keep it beside `template.html` because it loads the shared renderer source from that file. |
+
+`diagram-engine.js` is the whole layout + self-check engine
+(`DiagramEngine.create(model)` → `layoutStage`, `selfCheck`). It is used at build
+time only, by `scripts/store_geometry.mjs` and `assets/translate.html`, and is not
+delivered with a page.
 
 The handover also lists the CDN dependencies, any placeholders and assumptions,
 the selected layout engine, and the browser used for validation. For repeatable
-generation, `scripts/build_bundle.py` embeds the portable JSON in the canonical
-template without copying or rewriting renderer logic. For YAML authors, use
+generation, `scripts/build_bundle.py` embeds the portable JSON and its stored
+layouts in the canonical template without copying or rewriting renderer logic.
+For YAML authors, use
 [`assets/translate.html`](../skills/archnime-renderer/assets/translate.html)
 to parse, structurally validate, geometry-check, and download an HTML result in
-the browser; serve the repository over localhost when the page needs to fetch
+the browser; it is an authoring tool that computes the layout in the browser and
+embeds it in the page it produces, which is the same kind of page as the
+builder's. Serve the repository over localhost when the page needs to fetch
 its template and sidecars.
 
 ### Runtime dependencies
 
-Pinned CDN scripts, loaded by the browser template, may be vendored for offline delivery:
-`d3` 7.9.0, `@dagrejs/dagre` 1.1.4, `elkjs` 0.12.0, `gif.js` 0.2.0. Missing `d3` shows a visible
-notice; missing `dagre` falls back to a deterministic layered layout; explicit
-ELK models wait for the pinned asynchronous layout preparation; missing
-`gif.js` disables only GIF export.
+The delivered page loads two pinned CDN scripts, which `--offline` replaces with
+vendored copies: `d3` 7.9.0 and `gif.js` 0.2.0. Missing `d3` shows a visible
+notice; missing `gif.js` disables only GIF export. The page loads no layout
+library and has no placement code.
+
+Layout is computed when the diagram is built. `@dagrejs/dagre` 1.1.4 and `elkjs`
+0.12.0 are loaded, with the whole engine, only by `scripts/store_geometry.mjs`
+(the vendored copies) and `assets/translate.html` (the pinned CDN copies).
+`build_bundle.py` runs
+`store_geometry.mjs` itself, so a build needs Node.js 24 or newer on `PATH` and
+stops with a clear error when it is missing.
 
 Animated SVG export keeps every rendered stage in one SVG `<g>` and cycles them
 with CSS `@keyframes`; reduced-motion users see stage 1. The export carries a
@@ -102,10 +116,11 @@ element:
 ```html
 <script src="architecture-library.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
-<script src="diagram-engine.js"></script>
+<script src="diagram-runtime.js"></script>
 <script src="architecture-diagram-element.js"></script>
 <architecture-diagram
   src="orders.model.json"
+  geometry-src="orders.model.geometry.json"
   stage="2"
   mode="interactive"
   perspective="all"
@@ -117,10 +132,12 @@ instead of `src` for an inline model. `stage` is one-based and also selects a
 flow step or scenario variant according to the model. `mode="static"` freezes
 the presentation and hides interaction chrome. `controls` accepts `full`,
 `minimal`, or `none`; `perspective` selects one of the renderer's available
-perspectives. Add `geometry-src="orders.model.geometry.json"` (the file
-`store_geometry.mjs` writes, or an inline `application/json` script marked
-`data-geometry`) and the element shows those layouts without placing anything, so
-the page needs no Dagre or ELK script. The component keeps DOM queries, D3 selection, token lookup,
+perspectives. The element requires geometry: `geometry-src` names the file
+`store_geometry.mjs` writes, or an inline
+`<script type="application/json" data-geometry>` child holds the same content.
+The element shows those layouts without placing anything, so the host page loads
+no Dagre or ELK script and not `diagram-engine.js`. Without geometry the element
+shows an error; it does not lay out. The component keeps DOM queries, D3 selection, token lookup,
 keyboard listeners, layout cache, and exported helper methods inside its
 shadow root so multiple diagrams can coexist on one page.
 
@@ -141,14 +158,19 @@ shadow root so multiple diagrams can coexist on one page.
 4. **Select the layout engine** — use `auto` by default: it selects ELK for
    deeply nested compound packages, dagre for flat directional graphs, and
    force for peer meshes. Choose explicit `elk`, `dagre`, `force`, or `manual`
-   only when the evidence requires an override.
+   only when the evidence requires an override. The choice is applied when the
+   diagram is built; the page shows the stored result.
 5. **Resolve semantic levels** — model C4-style Context → Container → Component
    with nested `packages`; collapsed is the default.
 6. **Build from the template** — preserve the keyed D3 joins and stable IDs; use
    the shared icon/style library; do not invent node shapes, line colours, or
-   flow styles.
-7. **Validate** — run `diagramSelfCheck()`, which retries each stage through a
-   bounded collapse/expand scenario matrix. Walk every stage, exercise search,
+   flow styles. Build with `scripts/build_bundle.py`; opening
+   `assets/template.html` directly only shows a message that it has no stored
+   geometry, because it is the source the builder builds from, not a runnable
+   demo.
+7. **Validate** — the build runs the self-check and reports findings as
+   warnings; in the page, `diagramSelfCheck()` checks every stored state. Walk
+   every stage, exercise search,
    package caption and frame expand/collapse, zoom/fit, every export, presenter
    and print modes, light/dark themes, and reduced motion.
 8. **Deliver the bundle.**
@@ -161,6 +183,18 @@ python skills/archnime-renderer/scripts/build_bundle.py \
   --model path/to/model.json \
   --output path/to/diagram.html
 ```
+
+The builder always embeds the layouts. Without `--geometry` it runs
+`scripts/store_geometry.mjs` itself (Node.js 24 or newer on `PATH`) and keeps the
+result in a cache in the system temp folder, keyed by the model and the engine;
+set `ARCHNIME_GEOMETRY_CACHE=0` to disable the cache, or set it to a directory to
+keep the cache there. `--geometry <file>` embeds a geometry file
+`store_geometry.mjs` already wrote; a missing or stale file (it is tied to the
+model and the engine by hash) fails the build. There is no fall-back to layout in
+the page. `--tune` searches for a better placement for every state and stores the
+best one found. `--offline` uses the vendored D3 and gif.js; an offline
+single-file page (`--offline --inline`) is roughly 0.7 to 1 MB and is ready in
+about 0.4 s whatever the diagram.
 
 ## 4. The portable model
 
@@ -362,12 +396,26 @@ positions remain stable; Escape or selecting the same node clears the focus.
 
 ## 5. Layout engine
 
+Layout is computed at build time, by `scripts/store_geometry.mjs` (which
+`build_bundle.py` runs) or by `assets/translate.html`, with the whole engine
+(`diagram-engine.js`) plus dagre and ELK. The result is stored in
+the page; the page loads no layout library and never places a node.
+`meta.layout` and `stage.layout` select the engine exactly as described below;
+the choice is made when the diagram is built.
+
+Every package expansion state a click can reach is stored: the default plus
+every set in which an expanded package has its ancestors expanded, up to 64
+states per stage (`store_geometry.mjs --max-states`). Expanding and collapsing
+packages, switching wire style, perspectives, search, presenter mode, playback
+and all exports work from the stored layouts. Each state has one layout, so the
+result does not depend on the order of clicks.
+
 `auto` picks per stage:
 
 - **ELK** (layered) when the visible graph has two or more package-parent
   levels and needs a true compound hierarchy. `auto` selects it; explicit
-  `layout: "elk"` remains available and requires awaiting the engine's
-  asynchronous preparation.
+  `layout: "elk"` remains available. ELK is asynchronous, so a caller of the
+  whole engine awaits its preparation; the build does this.
 - **dagre** (layered) when most nodes are low-degree (≤ 3–4 connections), the
   graph is flat, and it has clear upstream/downstream structure. Uses
   `direction` for rankdir.
@@ -383,12 +431,14 @@ and package/boundary captions are placed against settled geometry rather than
 pre-layout coordinates. Expanded package clusters are pushed apart in **both**
 engines (force previously only pulled members together).
 
-When ELK is loaded, preparation scores the complete route and label result for
+At build time, ELK preparation scores the complete route and label result for
 each bounded expansion scenario. A clean baseline keeps its default strategy;
 only a scenario with collisions prepares alternate deterministic
 layering/placement strategies and retains the lowest-scoring result. **Tune
-layout** performs the same bounded tuning for the current stage and
-expansion state. Manual stages keep their authored node positions while Tune
+layout** is a build option, not a button in the page: `build_bundle.py --tune`
+or `store_geometry.mjs --tune` runs the same bounded search for every stored
+state, and the best placement found is stored like any other layout. Manual
+stages keep their authored node positions while Tune
 searches routes and labels; automatic stages also penalize foreign nodes that
 land substantially inside a boundary envelope. Curved wires keep stable endpoint lanes while searching their
 cubic Bézier control points on both sides of the chord; if no clear curve exists, the
@@ -408,25 +458,26 @@ retried from a stable seed with progressively wider node, package, boundary, and
 label lanes; the best trial is retained and a clear trial stops early. The
 default is 12 trials per scenario (hard cap 32), and the scenario matrix is
 capped separately (default 20, hard cap 32). Positions remain deterministic —
-reloading produces the identical layout. See
+building the same model again produces the identical layout. See
 [`references/layout.md`](../skills/archnime-renderer/references/layout.md).
 
 The stage's fully expanded ("master") layout is solved once; its leaf positions
 seed every other expansion state (and a collapsed package is seeded at its
 members' centroid), so blocks stay put across states and force meshes do not
-re-settle per state. `diagramSelfCheck()` evaluates the all-expanded scenario
-first and seeds the rest from it. The selected layout per `(stage, expansion
-set, presenter)` is memoised — highlight, search dim, hover, and disclosure-step
-re-renders reuse it; only stage nav and package expand/collapse re-solve.
+re-settle per state. The build solves the all-expanded scenario first and seeds
+the rest from it. In the page nothing re-solves: highlight, search dim, hover,
+disclosure steps, stage navigation, package expand/collapse and presenter mode
+all show the layout stored for that stage and expansion set.
 
 ### Wire style, text metrics, and clearance contracts
 
 - **Wire style never re-places nodes.** Switching Curved, Orthogonal, or Direct
-  reroutes the settled layout. Node boxes, package and boundary envelopes,
-  expansion state, and a committed Tune result are kept, and returning to a
-  style reproduces its earlier geometry exactly. Cached layouts are rerouted
-  lazily, when next requested, so a switch costs one reroute per layout shown.
-  Only Tune, expansion, and print/media refresh recompute placement.
+  reroutes the stored layout. Node boxes, package and boundary envelopes,
+  expansion state, and a placement stored by a `--tune` build are kept, and
+  returning to a style reproduces its earlier geometry exactly. Layouts are
+  rerouted lazily, when next requested, so a switch costs one reroute per layout
+  shown. Nothing in the page recomputes placement: an expansion change shows
+  the layout stored for that state, and print uses the stored layout.
 - **Requested versus actual routing is recorded per wire.** `requestedRouting`
   is the selected style; `actualRouting` is the geometry family painted
   (curved Béziers, orthogonal polylines, or direct polylines with a diagonal
@@ -468,10 +519,15 @@ re-renders reuse it; only stage nav and package expand/collapse re-solve.
   ordinary same-shape stage changes retain their animated morph.
 - **Presenter mode** — the `Present` toolbar toggle (or `P`) hides
   search/hover affordances and the side panels, and raises label size and
-  contrast; the button reports its state and switches to `Exit present`.
+  contrast; the button reports its state and switches to `Exit present`. It
+  reuses the stored layouts, so the boundary chip keeps its normal size.
 - **Stage tweening** — transitions settled wire paths and stable node shapes
   over the normal duration; `prefers-reduced-motion` uses a zero duration.
-- **Print** — dedicated print CSS.
+- **Print** — dedicated print CSS on the stored layout; the page does not
+  recompute layout before or after printing.
+- **Tune layout** — not a control in the page. The Tune button, the Strategy
+  list and the "Keep wires" checkbox are gone; use `build_bundle.py --tune` or
+  `store_geometry.mjs --tune` when building.
 - **Perspectives** — a `Perspective` dropdown offers `All`, the default
   `Data`, `Security`, `Migration`, and `Operations`, or the exact
   `meta.perspectives` list when one is supplied. Migration surfaces
@@ -531,7 +587,9 @@ infers `secondary` from `flowPresentation.secondaryTypes` and assigns the rest t
 ## 8. Validation — `diagramSelfCheck()`
 
 Open the HTML from disk and run `diagramSelfCheck()` in the console (or append
-`?check=1`). `diagramSelfCheck({ displayed: true })` instead checks the layout exactly as painted (current wire style, expansion, and Tune), tagging each finding `[displayed]`. A flow's synthetic stage is checked across the same expansion matrix as every other stage. It checks every stage through a deterministic scenario matrix:
+`?check=1`). In the page it checks every stored state. `diagramSelfCheck({ displayed: true })` instead checks the layout exactly as painted (current wire style and expansion), tagging each finding `[displayed]`. A flow's synthetic stage is checked like every other stage. The build runs the same check first: `store_geometry.mjs` exits 1 on findings unless `--allow-findings` is given, and `build_bundle.py` passes the findings on as warnings and still builds.
+
+When the whole engine checks a model at build time it goes through a deterministic scenario matrix:
 the model default, collapsed, configured, one-package, nested-level, pairwise,
 and all-expanded states, subject to the model's
 `layoutValidation.maxExpansionScenarios` cap. Viewer overrides are ignored for
@@ -593,7 +651,14 @@ export inspection, viewport sizes, themes, reduced motion) is in
 
 ## 9. Known limitations
 
-Each trial is a **single global pass** (dagre, ELK, or force) with package outlines
+Layout is fixed when the diagram is built. The page cannot place nodes: a state
+with no stored layout is reported instead of computed (at most 64 states are
+stored per stage), there is no Tune control in the page, and presenter mode does not
+enlarge the boundary chip. Rebuild after any model change. The previous renderer,
+which laid out in the page (releases up to 2.1.1), is archived as the git tag
+`legacy-runtime-layout` and the branch `legacy/2.x`, for reference only.
+
+At build time, each trial is a **single global pass** (dagre, ELK, or force) with package outlines
 drawn afterward — not recursive per-package layout — and the renderer searches a
 bounded sequence of wider passes. The clustering post-pass reduces overlap but
 a model with two heavily cross-linked sibling packages can still exhaust the
@@ -620,11 +685,12 @@ usually the faster real fix once widening stalls.
 skills/archnime-renderer/
   SKILL.md
   assets/
-    template.html                       the diagram shell + embedded MODEL + DOM/D3 rendering and interaction
-    diagram-engine.js                   layout + self-check engine (window.DiagramEngine); shared with the DSL translator
+    template.html                       the diagram shell + embedded MODEL and stored geometry + DOM/D3 rendering and interaction; the source the builder builds from, not a runnable demo
+    diagram-engine.js                   the whole layout + self-check engine (window.DiagramEngine); build time only (store_geometry.mjs, translate.html)
+    diagram-runtime.js                  runtime part of the engine delivered with a page: stored layouts, wire rerouting, layout check; GENERATED from diagram-engine.js, never edited by hand
     architecture-library.js             permanent icons, colour tokens, flow styles (ARCHITECTURE_LIBRARY)
     architecture-diagram-element.js     optional shadow-root <architecture-diagram> web component
-    translate.html                       browser YAML translator, schema validator, geometry check, and HTML download
+    translate.html                       browser YAML translator, schema validator, geometry check, and HTML download; computes the layout and embeds it in the page it produces
     examples/
       portable-transition-model.json    2-stage current -> target model with a contains boundary; self-checks clean
       dense-mesh-model.json              manual layout, high degree, parallel edges, nested package, bundled secondary routes
@@ -634,19 +700,23 @@ skills/archnime-renderer/
       comparison-views.json               v2 comparison options with criteria and trade-offs; generated from the DSL example
       commerce-views.json                 v2 context/deployment/flow bundle with infrastructure nesting and navigation; generated from the DSL example
   scripts/
-    build_bundle.py                     deterministic model-to-HTML builder; linked multi-file default, --inline embeds the sidecars for single-file delivery
-    store_geometry.mjs                  compute every layout at build time and write it as geometry for build_bundle.py --geometry (opt-in; see docs/build-time-layout.md)
-    headless_engine.mjs                 load the layout engine in Node with no browser, for store_geometry.mjs
+    build_bundle.py                     deterministic model-to-HTML builder; always embeds the layouts (runs store_geometry.mjs unless --geometry is given); linked multi-file default, --inline embeds the sidecars for single-file delivery
+    store_geometry.mjs                  compute every layout at build time, run the self-check and write the geometry build_bundle.py embeds (see docs/build-time-layout.md)
+    headless_engine.mjs                 load the whole layout engine in Node with no browser, for store_geometry.mjs
+    gen_runtime_engine.mjs              generate assets/diagram-runtime.js from diagram-engine.js (npm run gen-runtime; npm run check-runtime fails when it is out of date)
     regen_fixtures.py                   regenerate or verify the DSL-derived fixtures (npm run regen-fixtures)
     validate_transition_diagram.js      browser-port validator (loaded by translate.html)
     translate_transition_diagram.js     browser-port DSL-to-MODEL mapper
   tests/
     render_check.mjs                    headless Chromium check: diagramSelfCheck + rendered-DOM inspection + collapse round trip
-    element_check.mjs                   headless Chromium check of the shadow-root <architecture-diagram> web component
+    element_check.mjs                   headless Chromium check of the shadow-root <architecture-diagram> web component; computes each model's geometry in the page (translate.html has the whole engine) and hands it to the element
     visual_audit.mjs                    retained responsive evidence audit across wide/medium/narrow, presenter, and print modes
     test_build_bundle.py                Python regression tests for editable and ship-mode HTML bundles, and for the --geometry hash check
-    stored_geometry_check.mjs           headless Chromium check: a page built from stored geometry equals the run-time page, with the layout libraries absent
-    translate_check.mjs                 browser translator + JS-validator rule-parity check over both examples and every invalid fixture
+    stored_geometry_check.mjs           headless Chromium check: a built page shows its stored layouts, step for step what the runtime engine gives in Node, with no layout library
+    headless_layout_check.mjs           the whole engine computes the same geometry in Node and in a browser
+    runtime_engine.test.mjs             diagram-runtime.js is generated from diagram-engine.js, carries no placement code, and matches the whole engine on stored layouts
+    full_engine.mjs                     loads the whole engine into a test page, which a delivered page does not carry
+    translate_check.mjs                 browser translator + JS-validator rule-parity check over both examples and every invalid fixture; opens every produced page and checks it runs from stored geometry with no layout library
     fixtures/                           portable models exercising collapse / boundary cases the examples do not
   references/
     data-model.md                       full schema, boundaries, wires, identity/migration patterns

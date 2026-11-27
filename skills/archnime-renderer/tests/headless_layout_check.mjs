@@ -1,86 +1,49 @@
-/* TASK-034 spike: can the layout engine produce a stage's geometry before the page exists?
+/* Layout computed in Node equals layout computed in a browser.
  *
- * Runs `DiagramEngine.layoutStage` in plain Node (no DOM, no browser) on existing
- * fixtures - one flat, one with nested packages, one flow, plus one laid out by
- * ELK and one by the force engine - and writes
- * the geometry of every stage as JSON. Then builds the offline page for the same
- * fixture, asks the engine inside that page for the same stages, and fails when
- * the two geometries differ. It also compares the layout the page actually
- * painted on load with the headless geometry of that stage.
+ * Layout is computed where the diagram is built: `store_geometry.mjs` runs the
+ * whole engine in plain Node, with no `document`, and `translate.html` runs it in
+ * a browser. Both must give the same geometry, or a diagram would depend on where
+ * it was built. For each fixture this check:
  *
- * Reports, per fixture: layout time headless and in the page, geometry size, and whether the
- * headless result equals the in-page result.
+ *   1. computes the geometry in Node (every stage, every reachable expansion
+ *      state, every view of a bundle);
+ *   2. builds the page, loads the whole engine into it, and computes the same
+ *      geometry there, with the page's own CSS tokens and a real `document`;
+ *   3. fails when any value differs. Numbers are compared exactly, not rounded.
  *
- *   node skills/archnime-renderer/tests/headless_layout_check.mjs [--out <dir>]
+ * It also checks that the geometry embedded in the page is the one Node computed
+ * and that the layout painted on load is its opening state. Reports the time each
+ * side took and the geometry size.
  *
- * `--out` keeps the geometry JSON (default: a temporary folder, removed after).
- * The headless half always runs; the comparison needs Playwright/Chromium and
- * is skipped without it unless REQUIRE_BROWSER_TESTS=1.
+ *   node skills/archnime-renderer/tests/headless_layout_check.mjs [fixture-name]
+ *
+ * Covers TASK-034 (the spike that showed this holds), TASK-036 and TASK-039.
  */
 import { execFileSync, execSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import vm from "node:vm";
 import { PYTHON } from "../../../scripts/python_command.mjs";
+import { computeGeometry, geometryParts } from "../scripts/store_geometry.mjs";
+import { injectFullEngine } from "./full_engine.mjs";
+import { retainWork } from "./retain_artifacts.mjs";
 
 const HERE = resolve(fileURLToPath(new URL(".", import.meta.url)));
-const ASSETS = resolve(HERE, "../assets");
-const TEMPLATE = join(ASSETS, "template.html");
+const TEMPLATE = resolve(HERE, "../assets/template.html");
 const BUILDER = resolve(HERE, "../scripts/build_bundle.py");
 const FIXTURES = [
   { name: "orders-failover-scenarios", shape: "flat" },
   { name: "deep-nested-crosscut", shape: "nested packages" },
   { name: "checkout-flow", shape: "flow" },
-  // Beyond the three the task names: the two layout engines the others do not reach.
   { name: "orthogonal-routing", shape: "nested packages, ELK" },
   { name: "force-mesh-packages", shape: "nested packages, force" },
-  // TASK-036: shapes the lane-aligned comparison diagram did not have.
   { name: "free-form-mesh", shape: "free-form, no lanes" },
   { name: "nested-three-levels", shape: "three levels of packages" },
-];
+  { name: "commerce-views", shape: "bundle of three views" },
+].filter(fixture => !process.argv[2] || fixture.name.includes(process.argv[2]));
 const required = process.env.REQUIRE_BROWSER_TESTS === "1";
-const outFlag = process.argv.indexOf("--out");
-const keep = outFlag > -1 ? resolve(process.argv[outFlag + 1] || "") : null;
-
-/* The engine and its libraries are plain browser globals. Load them into one
- * fresh context that has no `document`, exactly as a build step would: the engine then measures text from its pinned advance table and takes
- * sizes from its static tokens. */
-export function loadHeadlessEngine() {
-  const sandbox = { console, setTimeout, clearTimeout, setInterval, clearInterval, queueMicrotask, performance };
-  // `window` is only the name the scripts hang their globals on; there is still no
-  // `document`. No `self`: with `self` and no `document` the pinned ELK bundle takes
-  // itself for a web worker and exposes no in-process layout.
-  sandbox.globalThis = sandbox; sandbox.window = sandbox;
-  const context = vm.createContext(sandbox);
-  for (const file of ["vendor/d3.min.js", "vendor/dagre.min.js", "vendor/elk.bundled.js", "architecture-library.js", "diagram-engine.js"]) {
-    vm.runInContext(readFileSync(join(ASSETS, file), "utf8"), context, { filename: file });
-  }
-  for (const name of ["d3", "dagre", "ELK", "ARCHITECTURE_LIBRARY", "DiagramEngine"]) {
-    if (!sandbox[name]) throw new Error(`headless context is missing ${name}`);
-  }
-  return sandbox.DiagramEngine;
-}
-
-/* What a stored geometry would hold: everything the page paints from a layout.
- * Source of this function is also evaluated in the page, so both sides are
- * reduced by the same code. Numbers keep full precision: "equal" means equal. */
-const GEOMETRY_SOURCE = `layout => {
-  const box = item => ({ id: item.id, x: item.x, y: item.y, w: item.w, h: item.h });
-  const byId = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
-  return JSON.parse(JSON.stringify({
-    engine: layout.engine ?? null,
-    canvas: layout.canvas ?? null,
-    expanded: [...(layout.expanded || [])].sort(),
-    nodes: (layout.nodes || []).map(box).sort(byId),
-    packages: (layout.packages || []).map(box).sort(byId),
-    boundaries: (layout.boundaries || []).map(box).sort(byId),
-    wires: (layout.wires || []).filter(wire => wire.visible !== false).map(wire => ({ key: wire.key, geom: wire.geom ?? null, reverseGeom: wire.reverseGeom ?? null, lx: wire.lx ?? null, ly: wire.ly ?? null, requestedRouting: wire.requestedRouting ?? null, actualRouting: wire.actualRouting ?? null })),
-  }));
-}`;
-const geometryOf = vm.runInNewContext(`(${GEOMETRY_SOURCE})`);
 
 // First path where two JSON values differ, with the largest numeric gap seen.
 function difference(a, b, path = "$", state = { first: null, maxDelta: 0 }) {
@@ -100,79 +63,70 @@ async function loadChromium() {
   return null;
 }
 
-const work = keep || mkdtempSync(join(tmpdir(), "headless-layout-"));
-mkdirSync(work, { recursive: true });
+const work = mkdtempSync(join(tmpdir(), "headless-layout-"));
 const failures = [], rows = [];
-let browser;
+let browser, crashed = true;
 try {
-  // 1. Headless: geometry for every stage of every fixture, as JSON.
-  const headless = new Map();
-  for (const { name, shape } of FIXTURES) {
-    const model = JSON.parse(readFileSync(join(HERE, "fixtures", `${name}.json`), "utf8"));
-    const started = performance.now();
-    // One engine per model, as a build step would use it: prepare once, then every stage.
-    const engine = loadHeadlessEngine().create(model);
-    await engine.ready;
-    const stages = engine.model.stages.map(stage => ({ stage: stage.id, geometry: geometryOf(engine.layoutStage(stage)) }));
-    const ms = performance.now() - started, json = JSON.stringify({ fixture: name, stages });
-    writeFileSync(join(work, `${name}.geometry.json`), json);
-    stages.forEach(({ stage, geometry }) => { if (!geometry.nodes.length) failures.push(`${name}/${stage}: headless layout returned no nodes`); });
-    headless.set(name, { model, stages });
-    rows.push({ name, shape, stages: stages.length, nodes: stages[0].geometry.nodes.length, engine: stages.map(item => item.geometry.engine).join("/"), ms, bytes: Buffer.byteLength(json), equal: "not compared" });
-  }
-
-  // 2. In the page: the same stages from the engine the page loads.
   const chromium = await loadChromium();
   if (!chromium) {
-    console.log(`${required ? "FAIL" : "SKIP"} headless_layout_check comparison: Playwright/Chromium unavailable`);
+    console.log(`${required ? "FAIL" : "SKIP"} headless_layout_check: Playwright/Chromium unavailable`);
     if (required) failures.push("Playwright/Chromium unavailable");
-  } else {
-    browser = await chromium.launch(process.env.BROWSER_EXECUTABLE ? { executablePath: process.env.BROWSER_EXECUTABLE } : undefined);
-    for (const row of rows) {
-      const { model, stages } = headless.get(row.name);
-      const html = join(work, `${row.name}.html`);
-      execFileSync(PYTHON, [BUILDER, "--template", TEMPLATE, "--model", join(HERE, "fixtures", `${row.name}.json`), "--output", html, "--inline", "--offline"]);
-      const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
-      const errors = [];
-      page.on("pageerror", error => errors.push(String(error)));
-      await page.goto(pathToFileURL(html).href, { waitUntil: "domcontentloaded", timeout: 120000 });
-      await page.waitForFunction(() => window.diagramReady && document.querySelector("g.nodes g.node"), null, { timeout: 120000 });
-      await page.evaluate(() => window.diagramReady);
-      const inPage = await page.evaluate(`(async model => {
-        const geometryOf = ${GEOMETRY_SOURCE};
-        // The same options template.html passes when it creates its engine.
-        const options = { document, tokenRoot: document.documentElement, presenterRoot: document.body };
-        const started = performance.now(), engine = window.DiagramEngine.create(model, options);
-        await engine.ready;
-        const stages = engine.model.stages.map(stage => geometryOf(engine.layoutStage(stage))), ms = performance.now() - started;
-        const painted = window.__diagramLayoutForTest && window.__diagramLayoutForTest();
-        return { stages, ms, painted: painted ? { stage: painted.stage?.id ?? painted.stageId ?? null, geometry: geometryOf(painted) } : null };
-      })(${JSON.stringify(model)})`);
-      await page.close();
-      errors.forEach(error => failures.push(`${row.name}: page error ${error}`));
-      const diffs = [];
-      stages.forEach(({ stage, geometry }, index) => {
-        const result = difference(geometry, inPage.stages[index]);
-        if (result.first) diffs.push(`${stage}: headless and in-page geometry differ at ${result.first} (largest numeric gap ${result.maxDelta})`);
-      });
-      // The layout the page painted on load must be one of the stored stages.
-      if (!inPage.painted) diffs.push("page exposes no painted layout");
-      else if (!stages.some(({ geometry }) => !difference(geometry, inPage.painted.geometry).first)) {
-        const nearest = stages.map(({ stage, geometry }) => ({ stage, ...difference(geometry, inPage.painted.geometry) })).sort((a, b) => a.maxDelta - b.maxDelta)[0];
-        diffs.push(`painted layout matches no headless stage; nearest ${nearest.stage} differs at ${nearest.first}`);
-      }
-      row.equal = diffs.length ? "NO" : "yes";
-      row.pageMs = inPage.ms;
-      diffs.forEach(diff => failures.push(`${row.name}/${diff}`));
-    }
+  } else browser = await chromium.launch(process.env.BROWSER_EXECUTABLE ? { executablePath: process.env.BROWSER_EXECUTABLE } : undefined);
+
+  for (const { name, shape } of FIXTURES) {
+    const fail = message => failures.push(`${name}: ${message}`);
+    const modelPath = join(HERE, "fixtures", `${name}.json`), model = JSON.parse(readFileSync(modelPath, "utf8"));
+    // 1. Node
+    const started = performance.now(), { geometry } = await computeGeometry(modelPath), nodeMs = performance.now() - started;
+    const stored = geometry.views ? { views: Object.fromEntries(Object.entries(geometry.views).map(([id, part]) => [id, { states: part.states, layouts: part.layouts }])) } : { states: geometry.states, layouts: geometry.layouts };
+    const parts = geometryParts(geometry), stateCount = parts.reduce((sum, part) => sum + Object.values(part.states).reduce((count, stage) => count + Object.keys(stage).length, 0), 0);
+    if (!stateCount) fail("Node computed no layout state");
+    const row = { name, shape, states: stateCount, engines: [...new Set(parts.flatMap(part => part.layouts.map(layout => layout.engine)))].join("/"), nodeMs, bytes: Buffer.byteLength(JSON.stringify(stored)), equal: "not compared" };
+    rows.push(row);
+    if (!browser) continue;
+
+    // 2. the browser, in the built page
+    const geometryPath = join(work, `${name}.geometry.json`), html = join(work, `${name}.html`);
+    writeFileSync(geometryPath, JSON.stringify(geometry));
+    execFileSync(PYTHON, [BUILDER, "--template", TEMPLATE, "--model", modelPath, "--output", html, "--inline", "--offline", "--geometry", geometryPath], { stdio: "pipe" });
+    const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+    const errors = [];
+    page.on("pageerror", error => errors.push(String(error)));
+    await page.goto(pathToFileURL(html).href, { waitUntil: "domcontentloaded", timeout: 120000 });
+    await page.waitForFunction(() => window.diagramReady && document.querySelector("g.nodes g.node"), null, { timeout: 120000 });
+    await page.evaluate(() => window.diagramReady);
+    const shown = await page.evaluate(() => ({ embedded: JSON.parse(document.getElementById("diagram-geometry").textContent), painted: window.DiagramEngine.packLayout(window.__diagramLayoutForTest()) }));
+    await injectFullEngine(page);
+    const inPage = await page.evaluate(async model => {
+      const started = performance.now(), views = Array.isArray(model.views) ? model.views : null;
+      // The options the page's renderer passes: a real document and its CSS tokens.
+      const collect = merged => window.DiagramEngine.create(merged, { document, tokenRoot: document.documentElement, presenterRoot: document.body }).collectGeometry();
+      let geometry;
+      if (views) { geometry = { views: {} }; for (const view of views) geometry.views[view.viewId] = await collect(window.DiagramEngine.materializeView(model, view)); }
+      else geometry = await collect(model);
+      return { geometry, ms: performance.now() - started };
+    }, model);
+    await page.close();
+    errors.forEach(error => fail(`page error ${error}`));
+
+    // 3. compare
+    const computed = difference(stored, inPage.geometry);
+    if (computed.first) fail(`Node and the browser compute different geometry at ${computed.first} (largest numeric gap ${computed.maxDelta})`);
+    const embedded = difference(stored, shown.embedded);
+    if (embedded.first) fail(`the geometry embedded in the page is not the one Node computed: ${embedded.first}`);
+    const opening = geometry.views ? geometry.views[model.views[0].viewId] : geometry, firstStage = Object.keys(opening.states)[0];
+    if (!Object.values(opening.states[firstStage]).some(index => !difference(opening.layouts[index], shown.painted).first)) fail("the layout painted on load is not a stored state of the first stage");
+    row.equal = computed.first || embedded.first ? "NO" : "yes";
+    row.pageMs = inPage.ms;
   }
+  crashed = false;
 } finally {
   if (browser) await browser.close();
-  if (!keep) rmSync(work, { recursive: true, force: true });
+  retainWork(work, "headless_layout_check", crashed || failures.length > 0);
+  rmSync(work, { recursive: true, force: true });
 }
 
-for (const row of rows) console.log(`${row.name} (${row.shape}): ${row.stages} stage(s), ${row.nodes} node(s), engine ${row.engine}, headless ${row.ms.toFixed(0)} ms${row.pageMs === undefined ? "" : `, in-page ${row.pageMs.toFixed(0)} ms`}, geometry ${row.bytes} bytes, equals in-page: ${row.equal}`);
-if (keep) console.log(`geometry written to ${keep}`);
+for (const row of rows) console.log(`${row.name} (${row.shape}): ${row.states} state(s), engine ${row.engines}, Node ${row.nodeMs.toFixed(0)} ms${row.pageMs === undefined ? "" : `, browser ${row.pageMs.toFixed(0)} ms`}, geometry ${(row.bytes / 1024).toFixed(0)} KB, equal: ${row.equal}`);
 if (failures.length) {
   failures.forEach(failure => console.log(`FAIL ${failure}`));
   process.exit(1);
