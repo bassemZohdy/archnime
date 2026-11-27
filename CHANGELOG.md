@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- **FIX-043** (fix): The page opens fitted to what the stages draw, not to the whole 1600 x 900 canvas, so text on diagrams that fill a small part of the canvas is larger: at 1280 px the smallest text is 7.5 px (was 6.1) on `strangler-migration` and 6.5 px (was 5.5) on `checkout-flow`. The `Fit` button now fits in canvas units too; it had mixed window pixels with canvas units. The 12 px target is still not met and the gate holds the new values: reaching it needs larger fonts, which change every stored layout. From: TASK-037. Validated: `node skills/archnime-renderer/tests/playback_gate_check.mjs` (the recorded floors were raised first and failed), `npm test`. Docs: updated docs/archnime-renderer.md, docs/build-time-layout.md.
+
 ## [3.0.1] - 2026-11-27
 
 ### Fixed
