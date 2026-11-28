@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- **TASK-047** (docs): Record the result of raising the font tokens about 1.4 times to meet the 12 px text target: the smallest text moved from 7.5 to 8.0 px and from 6.5 to 6.0 px, because nodes grow with their text and the fit scale falls with them. Larger fonts are not the way to the target; width against the window is. Validated: `node skills/archnime-renderer/tests/playback_gate_check.mjs` run on the spike. Docs: updated docs/build-time-layout.md.
+
 ## [3.0.3] - 2026-11-28
 
 ### Added
