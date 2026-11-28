@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [3.0.3] - 2026-11-28
+
 ### Added
 
 - **TASK-046** (task): Add the plugin icon `.claude-plugin/icon.png` (1024 x 1024 PNG, 16 KB), which the Claude directory's validation asked for. It is a node and wire sketch in the colours of the sibling `progress-bar-skills` icon. Validated: `npm run check-skills`, `claude plugin validate . --strict`.
@@ -99,7 +101,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **FIX-008** (fix): Make the browser validator and translator agree with the Python reference on valid, invalid and malformed input. Ref: architecture-diagram-dsl/references/runtime.md. Validated: `node architecture-diagram-dsl/tests/browser_validator_check.mjs`. Docs: updated architecture-diagram-dsl/references/dsl-reference.md. Includes: FIX-008.1, FIX-008.2, FIX-008.3.
 - **FIX-007** (fix): Measure documentation SVG bounds with the presenter viewport transform removed so pan/zoom cannot shift the rounded viewBox. Ref: architecture-diagram-renderer/references/documentation-export.md. Validated: `node architecture-diagram-renderer/tests/render_check.mjs checkout-flow`.
 
-[Unreleased]: https://github.com/bassemZohdy/archnime/compare/v3.0.2...HEAD
+[Unreleased]: https://github.com/bassemZohdy/archnime/compare/v3.0.3...HEAD
+[3.0.3]: https://github.com/bassemZohdy/archnime/compare/v3.0.2...v3.0.3
 [3.0.2]: https://github.com/bassemZohdy/archnime/compare/v3.0.1...v3.0.2
 [3.0.1]: https://github.com/bassemZohdy/archnime/compare/v3.0.0...v3.0.1
 [3.0.0]: https://github.com/bassemZohdy/archnime/compare/v2.1.1...v3.0.0
